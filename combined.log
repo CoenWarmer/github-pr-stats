@@ -1,0 +1,334 @@
+2025-09-22 20:26:39 [INFO]: 🚀 Generating visualization for PR #234453
+2025-09-22 20:26:39 [INFO]: Fetching PR from GitHub...
+2025-09-22 20:26:39 [INFO]: Found PR: Share Jest Cache across Jest Configs (CoenWarmer)
+2025-09-22 20:26:39 [DEBUG]: No issue references found in PR body
+2025-09-22 20:26:40 [DEBUG]: Found reviews for PR {"prNumber":234453,"reviewCount":13,"reviews":[{"index":1,"user":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z","id":3206724918,"bodyPreview":"no body"},{"index":2,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z","id":3210589271,"bodyPreview":"no body"},{"index":3,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z","id":3223132072,"bodyPreview":"no body"},{"index":4,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z","id":3223144566,"bodyPreview":"no body"},{"index":5,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z","id":3223146223,"bodyPreview":"no body"},{"index":6,"user":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z","id":3231574090,"bodyPreview":"✅  for Entity Analytics changes"},{"index":7,"user":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z","id":3244262694,"bodyPreview":"`kbn/test` changes LGTM"},{"index":8,"user":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z","id":3244363613,"bodyPreview":"no body"},{"index":9,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z","id":3245042954,"bodyPreview":"no body"},{"index":10,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z","id":3245127724,"bodyPreview":"no body"},{"index":11,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z","id":3245198848,"bodyPreview":"no body"},{"index":12,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z","id":3245231377,"bodyPreview":"no body"},{"index":13,"user":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z","id":3245531364,"bodyPreview":"no body"}]}
+2025-09-22 20:26:40 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 87.212.109.87. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-22 20:26:40 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z"}
+2025-09-22 20:26:40 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z"}
+2025-09-22 20:26:40 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z"}
+2025-09-22 20:26:40 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z"}
+2025-09-22 20:26:41 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z"}
+2025-09-22 20:26:41 [DEBUG]: Processing review {"reviewer":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z"}
+2025-09-22 20:26:41 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z"}
+2025-09-22 20:26:41 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z"}
+2025-09-22 20:26:41 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z"}
+2025-09-22 20:26:41 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z"}
+2025-09-22 20:26:41 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z"}
+2025-09-22 20:26:41 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z"}
+2025-09-22 20:26:41 [DEBUG]: Processing review {"reviewer":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z"}
+2025-09-22 20:26:41 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-22 20:26:42 [INFO]: Fetching CI runs for 14 commits
+2025-09-22 20:26:43 [INFO]: Built timeline with 57 events
+2025-09-22 20:26:43 [INFO]: Timeline events collected: 57
+2025-09-22 20:26:43 [INFO]: ✅ PR visualization data generated successfully
+2025-09-22 20:27:28 [INFO]: 🚀 Generating visualization for PR #234453
+2025-09-22 20:27:28 [INFO]: Fetching PR from GitHub...
+2025-09-22 20:27:29 [INFO]: Found PR: Share Jest Cache across Jest Configs (CoenWarmer)
+2025-09-22 20:27:29 [DEBUG]: No issue references found in PR body
+2025-09-22 20:27:30 [DEBUG]: Found reviews for PR {"prNumber":234453,"reviewCount":13,"reviews":[{"index":1,"user":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z","id":3206724918,"bodyPreview":"no body"},{"index":2,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z","id":3210589271,"bodyPreview":"no body"},{"index":3,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z","id":3223132072,"bodyPreview":"no body"},{"index":4,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z","id":3223144566,"bodyPreview":"no body"},{"index":5,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z","id":3223146223,"bodyPreview":"no body"},{"index":6,"user":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z","id":3231574090,"bodyPreview":"✅  for Entity Analytics changes"},{"index":7,"user":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z","id":3244262694,"bodyPreview":"`kbn/test` changes LGTM"},{"index":8,"user":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z","id":3244363613,"bodyPreview":"no body"},{"index":9,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z","id":3245042954,"bodyPreview":"no body"},{"index":10,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z","id":3245127724,"bodyPreview":"no body"},{"index":11,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z","id":3245198848,"bodyPreview":"no body"},{"index":12,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z","id":3245231377,"bodyPreview":"no body"},{"index":13,"user":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z","id":3245531364,"bodyPreview":"no body"}]}
+2025-09-22 20:27:30 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 87.212.109.87. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z"}
+2025-09-22 20:27:30 [DEBUG]: Processing review {"reviewer":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z"}
+2025-09-22 20:27:30 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-22 20:27:32 [INFO]: Fetching CI runs for 14 commits
+2025-09-22 20:27:32 [INFO]: Built timeline with 57 events
+2025-09-22 20:27:32 [INFO]: Timeline events collected: 57
+2025-09-22 20:27:32 [INFO]: ✅ PR visualization data generated successfully
+2025-09-22 20:27:37 [INFO]: 🚀 Generating visualization for PR #234453
+2025-09-22 20:27:37 [INFO]: Fetching PR from GitHub...
+2025-09-22 20:27:37 [INFO]: Found PR: Share Jest Cache across Jest Configs (CoenWarmer)
+2025-09-22 20:27:37 [DEBUG]: No issue references found in PR body
+2025-09-22 20:27:37 [DEBUG]: Found reviews for PR {"prNumber":234453,"reviewCount":13,"reviews":[{"index":1,"user":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z","id":3206724918,"bodyPreview":"no body"},{"index":2,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z","id":3210589271,"bodyPreview":"no body"},{"index":3,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z","id":3223132072,"bodyPreview":"no body"},{"index":4,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z","id":3223144566,"bodyPreview":"no body"},{"index":5,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z","id":3223146223,"bodyPreview":"no body"},{"index":6,"user":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z","id":3231574090,"bodyPreview":"✅  for Entity Analytics changes"},{"index":7,"user":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z","id":3244262694,"bodyPreview":"`kbn/test` changes LGTM"},{"index":8,"user":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z","id":3244363613,"bodyPreview":"no body"},{"index":9,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z","id":3245042954,"bodyPreview":"no body"},{"index":10,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z","id":3245127724,"bodyPreview":"no body"},{"index":11,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z","id":3245198848,"bodyPreview":"no body"},{"index":12,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z","id":3245231377,"bodyPreview":"no body"},{"index":13,"user":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z","id":3245531364,"bodyPreview":"no body"}]}
+2025-09-22 20:27:37 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 87.212.109.87. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-22 20:27:37 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z"}
+2025-09-22 20:27:37 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z"}
+2025-09-22 20:27:37 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z"}
+2025-09-22 20:27:37 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z"}
+2025-09-22 20:27:38 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z"}
+2025-09-22 20:27:38 [DEBUG]: Processing review {"reviewer":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z"}
+2025-09-22 20:27:38 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z"}
+2025-09-22 20:27:38 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z"}
+2025-09-22 20:27:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z"}
+2025-09-22 20:27:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z"}
+2025-09-22 20:27:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z"}
+2025-09-22 20:27:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z"}
+2025-09-22 20:27:38 [DEBUG]: Processing review {"reviewer":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z"}
+2025-09-22 20:27:38 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-22 20:27:38 [INFO]: Fetching CI runs for 14 commits
+2025-09-22 20:27:38 [INFO]: Built timeline with 57 events
+2025-09-22 20:27:38 [INFO]: Timeline events collected: 57
+2025-09-22 20:27:38 [INFO]: ✅ PR visualization data generated successfully
+2025-09-22 20:32:41 [INFO]: 🚀 Generating visualization for PR #221010
+2025-09-22 20:32:41 [INFO]: Fetching PR from GitHub...
+2025-09-22 20:32:42 [INFO]: Found PR: [Controls] Bulk select for options list control  (cqliu1)
+2025-09-22 20:32:42 [DEBUG]: Found 1 issue references: 181694
+2025-09-22 20:32:43 [DEBUG]: Fetched 31 events for issue #181694
+2025-09-22 20:32:43 [DEBUG]: Processed 5 lifecycle events for issue #181694
+2025-09-22 20:32:43 [DEBUG]: Fetched issue #181694: [Dashboard Controls] Include a "Select All" values option in dropdowns with 5 lifecycle events
+2025-09-22 20:32:43 [INFO]: Found 1 linked issues for PR
+2025-09-22 20:32:44 [DEBUG]: Found reviews for PR {"prNumber":221010,"reviewCount":31,"reviews":[{"index":1,"user":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-27T21:35:13Z","id":2871983734,"bodyPreview":"no body"},{"index":2,"user":"ThomThomson","state":"COMMENTED","submitted_at":"2025-05-28T14:27:18Z","id":2875335411,"bodyPreview":"no body"},{"index":3,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:18:07Z","id":2879037994,"bodyPreview":"no body"},{"index":4,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:19:42Z","id":2879042981,"bodyPreview":"no body"},{"index":5,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:21:23Z","id":2879048806,"bodyPreview":"no body"},{"index":6,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:25:18Z","id":2879061814,"bodyPreview":"no body"},{"index":7,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:39:23Z","id":2879100697,"bodyPreview":"no body"},{"index":8,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:42:20Z","id":2879107994,"bodyPreview":"no body"},{"index":9,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T18:17:30Z","id":2879201029,"bodyPreview":"no body"},{"index":10,"user":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T18:19:05Z","id":2879205338,"bodyPreview":"no body"},{"index":11,"user":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T18:22:12Z","id":2879212320,"bodyPreview":"no body"},{"index":12,"user":"ThomThomson","state":"COMMENTED","submitted_at":"2025-05-29T18:23:13Z","id":2879214528,"bodyPreview":"no body"},{"index":13,"user":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T18:30:17Z","id":2879233692,"bodyPreview":"no body"},{"index":14,"user":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T18:36:03Z","id":2879252621,"bodyPreview":"no body"},{"index":15,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T19:02:35Z","id":2879318885,"bodyPreview":"no body"},{"index":16,"user":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T21:54:26Z","id":2879701259,"bodyPreview":"no body"},{"index":17,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-30T21:15:24Z","id":2882570631,"bodyPreview":"no body"},{"index":18,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-30T21:28:31Z","id":2882593180,"bodyPreview":"no body"},{"index":19,"user":"andreadelrio","state":"COMMENTED","submitted_at":"2025-06-02T18:28:36Z","id":2889513636,"bodyPreview":"no body"},{"index":20,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-06-02T18:31:12Z","id":2889524268,"bodyPreview":"no body"},{"index":21,"user":"andreadelrio","state":"COMMENTED","submitted_at":"2025-06-02T18:47:31Z","id":2889578852,"bodyPreview":"no body"},{"index":22,"user":"Heenawter","state":"COMMENTED","submitted_at":"2025-06-02T19:02:43Z","id":2889616088,"bodyPreview":"no body"},{"index":23,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-06-02T19:18:17Z","id":2889652837,"bodyPreview":"Replace notification badge with plain text"},{"index":24,"user":"andreadelrio","state":"COMMENTED","submitted_at":"2025-06-02T19:20:53Z","id":2889659592,"bodyPreview":"no body"},{"index":25,"user":"andreadelrio","state":"COMMENTED","submitted_at":"2025-06-02T19:21:26Z","id":2889660735,"bodyPreview":"no body"},{"index":26,"user":"Heenawter","state":"COMMENTED","submitted_at":"2025-06-02T19:27:42Z","id":2889676139,"bodyPreview":"no body"},{"index":27,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-06-20T18:46:33Z","id":2947041659,"bodyPreview":"no body"},{"index":28,"user":"cqliu1","state":"COMMENTED","submitted_at":"2025-06-20T22:07:16Z","id":2947350986,"bodyPreview":"no body"},{"index":29,"user":"andreadelrio","state":"APPROVED","submitted_at":"2025-06-23T20:49:01Z","id":2951502018,"bodyPreview":"Design changes LGTM, nice job!"},{"index":30,"user":"mbondyra","state":"COMMENTED","submitted_at":"2025-06-26T09:49:56Z","id":2961475434,"bodyPreview":"no body"},{"index":31,"user":"mbondyra","state":"APPROVED","submitted_at":"2025-06-26T09:50:00Z","id":2961475651,"bodyPreview":"no body"}]}
+2025-09-22 20:32:44 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 87.212.109.87. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-22 20:32:44 [DEBUG]: Processing review {"reviewer":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-27T21:35:13Z"}
+2025-09-22 20:32:44 [DEBUG]: Processing review {"reviewer":"ThomThomson","state":"COMMENTED","submitted_at":"2025-05-28T14:27:18Z"}
+2025-09-22 20:32:44 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:18:07Z"}
+2025-09-22 20:32:44 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:19:42Z"}
+2025-09-22 20:32:44 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:21:23Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:25:18Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:39:23Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T17:42:20Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T18:17:30Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T18:19:05Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T18:22:12Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"ThomThomson","state":"COMMENTED","submitted_at":"2025-05-29T18:23:13Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T18:30:17Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T18:36:03Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-29T19:02:35Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"Heenawter","state":"COMMENTED","submitted_at":"2025-05-29T21:54:26Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-30T21:15:24Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-05-30T21:28:31Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"andreadelrio","state":"COMMENTED","submitted_at":"2025-06-02T18:28:36Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-06-02T18:31:12Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"andreadelrio","state":"COMMENTED","submitted_at":"2025-06-02T18:47:31Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"Heenawter","state":"COMMENTED","submitted_at":"2025-06-02T19:02:43Z"}
+2025-09-22 20:32:45 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-06-02T19:18:17Z"}
+2025-09-22 20:32:46 [DEBUG]: Processing review {"reviewer":"andreadelrio","state":"COMMENTED","submitted_at":"2025-06-02T19:20:53Z"}
+2025-09-22 20:32:46 [DEBUG]: Processing review {"reviewer":"andreadelrio","state":"COMMENTED","submitted_at":"2025-06-02T19:21:26Z"}
+2025-09-22 20:32:46 [DEBUG]: Processing review {"reviewer":"Heenawter","state":"COMMENTED","submitted_at":"2025-06-02T19:27:42Z"}
+2025-09-22 20:32:46 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-06-20T18:46:33Z"}
+2025-09-22 20:32:46 [DEBUG]: Processing review {"reviewer":"cqliu1","state":"COMMENTED","submitted_at":"2025-06-20T22:07:16Z"}
+2025-09-22 20:32:46 [DEBUG]: Processing review {"reviewer":"andreadelrio","state":"APPROVED","submitted_at":"2025-06-23T20:49:01Z"}
+2025-09-22 20:32:46 [DEBUG]: Processing review {"reviewer":"mbondyra","state":"COMMENTED","submitted_at":"2025-06-26T09:49:56Z"}
+2025-09-22 20:32:46 [DEBUG]: Processing review {"reviewer":"mbondyra","state":"APPROVED","submitted_at":"2025-06-26T09:50:00Z"}
+2025-09-22 20:32:46 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-22 20:32:48 [INFO]: Fetching CI runs for 36 commits
+2025-09-22 20:32:49 [INFO]: Built timeline with 140 events
+2025-09-22 20:32:49 [INFO]: Timeline events collected: 140
+2025-09-22 20:32:49 [INFO]: ✅ PR visualization data generated successfully
+2025-09-24 11:10:55 [INFO]: 🚀 Generating visualization for PR #236108
+2025-09-24 11:10:55 [INFO]: Fetching PR from GitHub...
+2025-09-24 11:10:56 [INFO]: Found PR: [Jest][CI] Parallelize Jest test runners on CI (CoenWarmer)
+2025-09-24 11:10:56 [DEBUG]: No issue references found in PR body
+2025-09-24 11:10:57 [DEBUG]: Found reviews for PR {"prNumber":236108,"reviewCount":1,"reviews":[{"index":1,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-23T15:31:46Z","id":3258593153,"bodyPreview":"no body"}]}
+2025-09-24 11:10:57 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 157.97.192.70. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-24 11:10:57 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-23T15:31:46Z"}
+2025-09-24 11:10:57 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-24 11:10:58 [INFO]: Fetching CI runs for 11 commits
+2025-09-24 11:10:59 [INFO]: Built timeline with 30 events
+2025-09-24 11:10:59 [INFO]: Timeline events collected: 30
+2025-09-24 11:10:59 [INFO]: ✅ PR visualization data generated successfully
+2025-09-24 11:23:17 [INFO]: 🚀 Generating visualization for PR #236108
+2025-09-24 11:23:17 [INFO]: Fetching PR from GitHub...
+2025-09-24 11:23:17 [INFO]: Found PR: [Jest][CI] Parallelize Jest test runners on CI (CoenWarmer)
+2025-09-24 11:23:17 [DEBUG]: No issue references found in PR body
+2025-09-24 11:23:18 [DEBUG]: Found reviews for PR {"prNumber":236108,"reviewCount":1,"reviews":[{"index":1,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-23T15:31:46Z","id":3258593153,"bodyPreview":"no body"}]}
+2025-09-24 11:23:18 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 157.97.192.70. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-24 11:23:18 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-23T15:31:46Z"}
+2025-09-24 11:23:18 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-24 11:23:20 [INFO]: Fetching CI runs for 12 commits
+2025-09-24 11:23:20 [INFO]: Built timeline with 27 events
+2025-09-24 11:23:20 [INFO]: Timeline events collected: 27
+2025-09-24 11:23:20 [INFO]: ✅ PR visualization data generated successfully
+2025-09-24 11:26:07 [INFO]: 🚀 Generating visualization for PR #234453
+2025-09-24 11:26:07 [INFO]: Fetching PR from GitHub...
+2025-09-24 11:26:07 [INFO]: Found PR: [Jest][CI] Share Jest Cache across Jest Configs (CoenWarmer)
+2025-09-24 11:26:07 [DEBUG]: No issue references found in PR body
+2025-09-24 11:26:08 [DEBUG]: Found reviews for PR {"prNumber":234453,"reviewCount":21,"reviews":[{"index":1,"user":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z","id":3206724918,"bodyPreview":"no body"},{"index":2,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z","id":3210589271,"bodyPreview":"no body"},{"index":3,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z","id":3223132072,"bodyPreview":"no body"},{"index":4,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z","id":3223144566,"bodyPreview":"no body"},{"index":5,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z","id":3223146223,"bodyPreview":"no body"},{"index":6,"user":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z","id":3231574090,"bodyPreview":"✅  for Entity Analytics changes"},{"index":7,"user":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z","id":3244262694,"bodyPreview":"`kbn/test` changes LGTM"},{"index":8,"user":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z","id":3244363613,"bodyPreview":"no body"},{"index":9,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z","id":3245042954,"bodyPreview":"no body"},{"index":10,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z","id":3245127724,"bodyPreview":"no body"},{"index":11,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z","id":3245198848,"bodyPreview":"no body"},{"index":12,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z","id":3245231377,"bodyPreview":"no body"},{"index":13,"user":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z","id":3245531364,"bodyPreview":"no body"},{"index":14,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z","id":3254911920,"bodyPreview":"no body"},{"index":15,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z","id":3254919423,"bodyPreview":"no body"},{"index":16,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z","id":3254984423,"bodyPreview":"no body"},{"index":17,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z","id":3255000950,"bodyPreview":"no body"},{"index":18,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z","id":3256990413,"bodyPreview":"no body"},{"index":19,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z","id":3256992166,"bodyPreview":"no body"},{"index":20,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z","id":3256993170,"bodyPreview":"no body"},{"index":21,"user":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z","id":3257122189,"bodyPreview":"no body"}]}
+2025-09-24 11:26:08 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 157.97.192.70. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-24 11:26:08 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z"}
+2025-09-24 11:26:08 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z"}
+2025-09-24 11:26:08 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z"}
+2025-09-24 11:26:08 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z"}
+2025-09-24 11:26:08 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z"}
+2025-09-24 11:26:09 [DEBUG]: Processing review {"reviewer":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z"}
+2025-09-24 11:26:09 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-24 11:26:11 [INFO]: Fetching CI runs for 21 commits
+2025-09-24 11:26:11 [INFO]: Built timeline with 91 events
+2025-09-24 11:26:11 [INFO]: Timeline events collected: 91
+2025-09-24 11:26:11 [INFO]: ✅ PR visualization data generated successfully
+2025-09-24 11:31:36 [INFO]: 🚀 Generating visualization for PR #234453
+2025-09-24 11:31:36 [INFO]: Fetching PR from GitHub...
+2025-09-24 11:31:36 [INFO]: Found PR: [Jest][CI] Share Jest Cache across Jest Configs (CoenWarmer)
+2025-09-24 11:31:36 [DEBUG]: No issue references found in PR body
+2025-09-24 11:31:37 [DEBUG]: Found reviews for PR {"prNumber":234453,"reviewCount":21,"reviews":[{"index":1,"user":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z","id":3206724918,"bodyPreview":"no body"},{"index":2,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z","id":3210589271,"bodyPreview":"no body"},{"index":3,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z","id":3223132072,"bodyPreview":"no body"},{"index":4,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z","id":3223144566,"bodyPreview":"no body"},{"index":5,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z","id":3223146223,"bodyPreview":"no body"},{"index":6,"user":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z","id":3231574090,"bodyPreview":"✅  for Entity Analytics changes"},{"index":7,"user":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z","id":3244262694,"bodyPreview":"`kbn/test` changes LGTM"},{"index":8,"user":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z","id":3244363613,"bodyPreview":"no body"},{"index":9,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z","id":3245042954,"bodyPreview":"no body"},{"index":10,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z","id":3245127724,"bodyPreview":"no body"},{"index":11,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z","id":3245198848,"bodyPreview":"no body"},{"index":12,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z","id":3245231377,"bodyPreview":"no body"},{"index":13,"user":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z","id":3245531364,"bodyPreview":"no body"},{"index":14,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z","id":3254911920,"bodyPreview":"no body"},{"index":15,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z","id":3254919423,"bodyPreview":"no body"},{"index":16,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z","id":3254984423,"bodyPreview":"no body"},{"index":17,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z","id":3255000950,"bodyPreview":"no body"},{"index":18,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z","id":3256990413,"bodyPreview":"no body"},{"index":19,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z","id":3256992166,"bodyPreview":"no body"},{"index":20,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z","id":3256993170,"bodyPreview":"no body"},{"index":21,"user":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z","id":3257122189,"bodyPreview":"no body"}]}
+2025-09-24 11:31:37 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 157.97.192.70. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-24 11:31:37 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z"}
+2025-09-24 11:31:37 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z"}
+2025-09-24 11:31:37 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z"}
+2025-09-24 11:31:37 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z"}
+2025-09-24 11:31:37 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z"}
+2025-09-24 11:31:37 [DEBUG]: Processing review {"reviewer":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z"}
+2025-09-24 11:31:37 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z"}
+2025-09-24 11:31:37 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z"}
+2025-09-24 11:31:38 [DEBUG]: Processing review {"reviewer":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z"}
+2025-09-24 11:31:38 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-24 11:31:40 [INFO]: Fetching CI runs for 21 commits
+2025-09-24 11:31:40 [INFO]: Built timeline with 91 events
+2025-09-24 11:31:40 [INFO]: Timeline events collected: 91
+2025-09-24 11:31:40 [INFO]: ✅ PR visualization data generated successfully
+2025-09-24 11:41:31 [INFO]: 🚀 Generating visualization for PR #234453
+2025-09-24 11:41:31 [INFO]: Fetching PR from GitHub...
+2025-09-24 11:41:32 [INFO]: Found PR: [Jest][CI] Share Jest Cache across Jest Configs (CoenWarmer)
+2025-09-24 11:41:32 [DEBUG]: No issue references found in PR body
+2025-09-24 11:41:33 [DEBUG]: Found reviews for PR {"prNumber":234453,"reviewCount":21,"reviews":[{"index":1,"user":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z","id":3206724918,"bodyPreview":"no body"},{"index":2,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z","id":3210589271,"bodyPreview":"no body"},{"index":3,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z","id":3223132072,"bodyPreview":"no body"},{"index":4,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z","id":3223144566,"bodyPreview":"no body"},{"index":5,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z","id":3223146223,"bodyPreview":"no body"},{"index":6,"user":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z","id":3231574090,"bodyPreview":"✅  for Entity Analytics changes"},{"index":7,"user":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z","id":3244262694,"bodyPreview":"`kbn/test` changes LGTM"},{"index":8,"user":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z","id":3244363613,"bodyPreview":"no body"},{"index":9,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z","id":3245042954,"bodyPreview":"no body"},{"index":10,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z","id":3245127724,"bodyPreview":"no body"},{"index":11,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z","id":3245198848,"bodyPreview":"no body"},{"index":12,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z","id":3245231377,"bodyPreview":"no body"},{"index":13,"user":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z","id":3245531364,"bodyPreview":"no body"},{"index":14,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z","id":3254911920,"bodyPreview":"no body"},{"index":15,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z","id":3254919423,"bodyPreview":"no body"},{"index":16,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z","id":3254984423,"bodyPreview":"no body"},{"index":17,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z","id":3255000950,"bodyPreview":"no body"},{"index":18,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z","id":3256990413,"bodyPreview":"no body"},{"index":19,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z","id":3256992166,"bodyPreview":"no body"},{"index":20,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z","id":3256993170,"bodyPreview":"no body"},{"index":21,"user":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z","id":3257122189,"bodyPreview":"no body"}]}
+2025-09-24 11:41:33 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 157.97.192.70. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z"}
+2025-09-24 11:41:33 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z"}
+2025-09-24 11:41:34 [DEBUG]: Processing review {"reviewer":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z"}
+2025-09-24 11:41:34 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-24 11:41:36 [INFO]: Fetching CI runs for 21 commits
+2025-09-24 11:41:36 [INFO]: Built timeline with 91 events
+2025-09-24 11:41:36 [INFO]: Timeline events collected: 91
+2025-09-24 11:41:36 [INFO]: ✅ PR visualization data generated successfully
+2025-09-24 11:42:20 [INFO]: 🚀 Generating visualization for PR #234453
+2025-09-24 11:42:20 [INFO]: Fetching PR from GitHub...
+2025-09-24 11:42:21 [INFO]: Found PR: [Jest][CI] Share Jest Cache across Jest Configs (CoenWarmer)
+2025-09-24 11:42:21 [DEBUG]: No issue references found in PR body
+2025-09-24 11:42:22 [DEBUG]: Found reviews for PR {"prNumber":234453,"reviewCount":21,"reviews":[{"index":1,"user":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z","id":3206724918,"bodyPreview":"no body"},{"index":2,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z","id":3210589271,"bodyPreview":"no body"},{"index":3,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z","id":3223132072,"bodyPreview":"no body"},{"index":4,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z","id":3223144566,"bodyPreview":"no body"},{"index":5,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z","id":3223146223,"bodyPreview":"no body"},{"index":6,"user":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z","id":3231574090,"bodyPreview":"✅  for Entity Analytics changes"},{"index":7,"user":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z","id":3244262694,"bodyPreview":"`kbn/test` changes LGTM"},{"index":8,"user":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z","id":3244363613,"bodyPreview":"no body"},{"index":9,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z","id":3245042954,"bodyPreview":"no body"},{"index":10,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z","id":3245127724,"bodyPreview":"no body"},{"index":11,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z","id":3245198848,"bodyPreview":"no body"},{"index":12,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z","id":3245231377,"bodyPreview":"no body"},{"index":13,"user":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z","id":3245531364,"bodyPreview":"no body"},{"index":14,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z","id":3254911920,"bodyPreview":"no body"},{"index":15,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z","id":3254919423,"bodyPreview":"no body"},{"index":16,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z","id":3254984423,"bodyPreview":"no body"},{"index":17,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z","id":3255000950,"bodyPreview":"no body"},{"index":18,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z","id":3256990413,"bodyPreview":"no body"},{"index":19,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z","id":3256992166,"bodyPreview":"no body"},{"index":20,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z","id":3256993170,"bodyPreview":"no body"},{"index":21,"user":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z","id":3257122189,"bodyPreview":"no body"}]}
+2025-09-24 11:42:22 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 157.97.192.70. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z"}
+2025-09-24 11:42:22 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z"}
+2025-09-24 11:42:23 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z"}
+2025-09-24 11:42:23 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z"}
+2025-09-24 11:42:23 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z"}
+2025-09-24 11:42:23 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z"}
+2025-09-24 11:42:23 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z"}
+2025-09-24 11:42:23 [DEBUG]: Processing review {"reviewer":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z"}
+2025-09-24 11:42:23 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-24 11:42:24 [INFO]: Fetching CI runs for 21 commits
+2025-09-24 11:42:25 [INFO]: Built timeline with 91 events
+2025-09-24 11:42:25 [INFO]: Timeline events collected: 91
+2025-09-24 11:42:25 [INFO]: ✅ PR visualization data generated successfully
+2025-09-24 11:48:11 [INFO]: 🚀 Generating visualization for PR #234453
+2025-09-24 11:48:11 [INFO]: Fetching PR from GitHub...
+2025-09-24 11:48:12 [INFO]: Found PR: [Jest][CI] Share Jest Cache across Jest Configs (CoenWarmer)
+2025-09-24 11:48:12 [DEBUG]: No issue references found in PR body
+2025-09-24 11:48:13 [DEBUG]: Found reviews for PR {"prNumber":234453,"reviewCount":21,"reviews":[{"index":1,"user":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z","id":3206724918,"bodyPreview":"no body"},{"index":2,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z","id":3210589271,"bodyPreview":"no body"},{"index":3,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z","id":3223132072,"bodyPreview":"no body"},{"index":4,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z","id":3223144566,"bodyPreview":"no body"},{"index":5,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z","id":3223146223,"bodyPreview":"no body"},{"index":6,"user":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z","id":3231574090,"bodyPreview":"✅  for Entity Analytics changes"},{"index":7,"user":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z","id":3244262694,"bodyPreview":"`kbn/test` changes LGTM"},{"index":8,"user":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z","id":3244363613,"bodyPreview":"no body"},{"index":9,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z","id":3245042954,"bodyPreview":"no body"},{"index":10,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z","id":3245127724,"bodyPreview":"no body"},{"index":11,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z","id":3245198848,"bodyPreview":"no body"},{"index":12,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z","id":3245231377,"bodyPreview":"no body"},{"index":13,"user":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z","id":3245531364,"bodyPreview":"no body"},{"index":14,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z","id":3254911920,"bodyPreview":"no body"},{"index":15,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z","id":3254919423,"bodyPreview":"no body"},{"index":16,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z","id":3254984423,"bodyPreview":"no body"},{"index":17,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z","id":3255000950,"bodyPreview":"no body"},{"index":18,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z","id":3256990413,"bodyPreview":"no body"},{"index":19,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z","id":3256992166,"bodyPreview":"no body"},{"index":20,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z","id":3256993170,"bodyPreview":"no body"},{"index":21,"user":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z","id":3257122189,"bodyPreview":"no body"}]}
+2025-09-24 11:48:13 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 157.97.192.70. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z"}
+2025-09-24 11:48:13 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z"}
+2025-09-24 11:48:14 [DEBUG]: Processing review {"reviewer":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z"}
+2025-09-24 11:48:14 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-24 11:48:16 [INFO]: Fetching CI runs for 21 commits
+2025-09-24 11:48:16 [INFO]: Built timeline with 91 events
+2025-09-24 11:48:16 [INFO]: Timeline events collected: 91
+2025-09-24 11:48:16 [INFO]: ✅ PR visualization data generated successfully
+2025-09-24 11:52:27 [INFO]: 🚀 Generating visualization for PR #234453
+2025-09-24 11:52:27 [INFO]: Fetching PR from GitHub...
+2025-09-24 11:52:27 [INFO]: Found PR: [Jest][CI] Share Jest Cache across Jest Configs (CoenWarmer)
+2025-09-24 11:52:27 [DEBUG]: No issue references found in PR body
+2025-09-24 11:52:29 [DEBUG]: Found reviews for PR {"prNumber":234453,"reviewCount":21,"reviews":[{"index":1,"user":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z","id":3206724918,"bodyPreview":"no body"},{"index":2,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z","id":3210589271,"bodyPreview":"no body"},{"index":3,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z","id":3223132072,"bodyPreview":"no body"},{"index":4,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z","id":3223144566,"bodyPreview":"no body"},{"index":5,"user":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z","id":3223146223,"bodyPreview":"no body"},{"index":6,"user":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z","id":3231574090,"bodyPreview":"✅  for Entity Analytics changes"},{"index":7,"user":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z","id":3244262694,"bodyPreview":"`kbn/test` changes LGTM"},{"index":8,"user":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z","id":3244363613,"bodyPreview":"no body"},{"index":9,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z","id":3245042954,"bodyPreview":"no body"},{"index":10,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z","id":3245127724,"bodyPreview":"no body"},{"index":11,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z","id":3245198848,"bodyPreview":"no body"},{"index":12,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z","id":3245231377,"bodyPreview":"no body"},{"index":13,"user":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z","id":3245531364,"bodyPreview":"no body"},{"index":14,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z","id":3254911920,"bodyPreview":"no body"},{"index":15,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z","id":3254919423,"bodyPreview":"no body"},{"index":16,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z","id":3254984423,"bodyPreview":"no body"},{"index":17,"user":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z","id":3255000950,"bodyPreview":"no body"},{"index":18,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z","id":3256990413,"bodyPreview":"no body"},{"index":19,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z","id":3256992166,"bodyPreview":"no body"},{"index":20,"user":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z","id":3256993170,"bodyPreview":"no body"},{"index":21,"user":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z","id":3257122189,"bodyPreview":"no body"}]}
+2025-09-24 11:52:29 [DEBUG]: Could not fetch GraphQL review data for cross-reference {"error":"API rate limit exceeded for 157.97.192.70. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.) - https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"COMMENTED","submitted_at":"2025-09-10T15:29:41Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-11T10:34:49Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:49:54Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:03Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"COMMENTED","submitted_at":"2025-09-15T06:54:45Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"jaredburgettelastic","state":"APPROVED","submitted_at":"2025-09-16T20:22:05Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"dmlemeshko","state":"APPROVED","submitted_at":"2025-09-19T10:28:38Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"dgieselaar","state":"APPROVED","submitted_at":"2025-09-19T11:01:31Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:06:14Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:22:01Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:33:35Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-19T14:39:47Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"PhilippeOberti","state":"APPROVED","submitted_at":"2025-09-19T15:40:16Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:45:48Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T19:47:09Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:00:36Z"}
+2025-09-24 11:52:29 [DEBUG]: Processing review {"reviewer":"CoenWarmer","state":"COMMENTED","submitted_at":"2025-09-22T20:03:49Z"}
+2025-09-24 11:52:30 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:12:42Z"}
+2025-09-24 11:52:30 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:14Z"}
+2025-09-24 11:52:30 [DEBUG]: Processing review {"reviewer":"delanni","state":"COMMENTED","submitted_at":"2025-09-23T09:13:28Z"}
+2025-09-24 11:52:30 [DEBUG]: Processing review {"reviewer":"delanni","state":"APPROVED","submitted_at":"2025-09-23T09:48:40Z"}
+2025-09-24 11:52:30 [INFO]: Note: Some approvals may appear missing due to GitHub API limitations where approvals with comments are returned as COMMENTED instead of APPROVED
+2025-09-24 11:52:31 [INFO]: Fetching CI runs for 21 commits
+2025-09-24 11:52:32 [INFO]: Built timeline with 91 events
+2025-09-24 11:52:32 [INFO]: Timeline events collected: 91
+2025-09-24 11:52:32 [INFO]: ✅ PR visualization data generated successfully
