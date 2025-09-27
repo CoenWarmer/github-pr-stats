@@ -69,3 +69,6 @@ combined.log
 
 # Yarn Integrity file
 .yarn-integrity
+
+# Yarn cache
+.yarn/cache/**/*
