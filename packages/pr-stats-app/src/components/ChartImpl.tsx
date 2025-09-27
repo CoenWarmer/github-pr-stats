@@ -8,7 +8,12 @@ import React, {
   useRef,
 } from 'react';
 import { TimelineData } from '@/lib/types';
-import { EuiBadge, EuiButtonGroup } from '@elastic/eui';
+import {
+  EuiBadge,
+  EuiButtonGroup,
+  EuiFlexGroup,
+  EuiFlexItem,
+} from '@elastic/eui';
 
 // Define our own types since we're not using dnd-timeline's hooks
 interface Range {
@@ -920,51 +925,61 @@ export default function Chart({ data }: TimelineProps) {
       }}
     >
       {/* Zoom Controls */}
-
-      <EuiButtonGroup
-        legend="Timeline controls"
-        type="multi"
-        options={[
-          {
-            id: `zoomIn`,
-            label: 'Zoom In',
-            iconType: 'plusInCircleFilled',
-            isDisabled: zoomLevel >= 100,
-          },
-          {
-            id: `zoomOut`,
-            label: 'Zoom Out',
-            iconType: 'minusInCircleFilled',
-            isDisabled: zoomLevel <= 0.1,
-          },
-          {
-            id: `fitEvents`,
-            label: 'Fit Events',
-            iconType: 'bullseye',
-          },
-          {
-            id: `showAll`,
-            label: 'Show All',
-            iconType: 'timeline',
-          },
-        ]}
-        onChange={id => {
-          if (id === 'zoomIn') {
-            handleZoom(1.5);
-          } else if (id === 'zoomOut') {
-            handleZoom(0.67);
-          } else if (id === 'fitEvents') {
-            resetZoom();
-          } else if (id === 'showAll') {
-            showAll();
-          }
+      <EuiFlexGroup
+        direction="row"
+        justifyContent="spaceBetween"
+        alignItems="center"
+        style={{
+          width: 'max-content',
+          justifySelf: 'flex-end',
         }}
-        isIconOnly
-      />
-      <div>
-        <span>Zoom: {zoomLevel.toFixed(2)}x</span>
-        <span> (Limits: 0.1x - 100x)</span>
-      </div>
+      >
+        <EuiFlexItem>
+          <span>Zoom: {zoomLevel.toFixed(2)}x</span>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiButtonGroup
+            legend="Timeline controls"
+            type="multi"
+            options={[
+              {
+                id: `zoomIn`,
+                label: 'Zoom In',
+                iconType: 'plusInCircleFilled',
+                isDisabled: zoomLevel >= 100,
+              },
+              {
+                id: `zoomOut`,
+                label: 'Zoom Out',
+                iconType: 'minusInCircleFilled',
+                isDisabled: zoomLevel <= 0.1,
+              },
+              {
+                id: `fitEvents`,
+                label: 'Fit Events',
+                iconType: 'bullseye',
+              },
+              {
+                id: `showAll`,
+                label: 'Show All',
+                iconType: 'timeline',
+              },
+            ]}
+            onChange={id => {
+              if (id === 'zoomIn') {
+                handleZoom(1.5);
+              } else if (id === 'zoomOut') {
+                handleZoom(0.67);
+              } else if (id === 'fitEvents') {
+                resetZoom();
+              } else if (id === 'showAll') {
+                showAll();
+              }
+            }}
+            isIconOnly
+          />
+        </EuiFlexItem>
+      </EuiFlexGroup>
 
       {/* Timeline Content */}
       <div
