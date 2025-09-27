@@ -1,0 +1,196 @@
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+}
+
+/* DND Timeline specific styles */
+.timeline-container {
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    'Helvetica',
+    'Arial',
+    sans-serif;
+}
+
+/* Admin event styles */
+.admin {
+  background-color: #e3f2fd;
+  border-left: 4px solid #1976d2;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+.admin.merged {
+  background-color: #e8f5e8;
+  border-left-color: #2e7d32;
+}
+
+.admin.closed {
+  background-color: #ffebee;
+  border-left-color: #d32f2f;
+}
+
+/* Development event styles */
+.dev {
+  background-color: #e8f5e8;
+  border-left: 4px solid #388e3c;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+/* Review event styles */
+.review-approved {
+  background-color: #c8e6c9;
+  border-left: 4px solid #2e7d32;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+.review-changes_requested {
+  background-color: #ffcdd2;
+  border-left: 4px solid #c62828;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+.review-commented {
+  background-color: #fff3e0;
+  border-left: 4px solid #f57c00;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+/* Discussion event styles */
+.discussion {
+  background-color: #f3e5f5;
+  border-left: 4px solid #7b1fa2;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+/* CI event styles */
+.ci-success {
+  background-color: #c8e6c9;
+  border-left: 4px solid #2e7d32;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+.ci-failure {
+  background-color: #ffcdd2;
+  border-left: 4px solid #c62828;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+.ci-running {
+  background-color: #fff3e0;
+  border-left: 4px solid #f57c00;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+}
+
+/* Common clickable styles */
+.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.clickable:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* DND Timeline container styles */
+.timeline-container {
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    'Helvetica',
+    'Arial',
+    sans-serif;
+}
+
+.timeline-row-content {
+  position: relative;
+  /* background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px
+  ); */
+  background-size: 50px 100%;
+}
+
+/* Timeline item positioning */
+.timeline-container .timeline-item {
+  position: absolute !important;
+  white-space: nowrap;
+}
+
+/* Time axis styling */
+.timeline-container .time-axis {
+  border-bottom: 2px solid #d1d5db;
+  background: linear-gradient(to bottom, #f9fafb 0%, #f3f4f6 100%);
+  font-weight: 600;
+}
+
+.timeline-container .time-marker {
+  border-left: 1px solid #6b7280;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.timeline-container .time-marker:hover {
+  background: rgba(255, 255, 255, 1);
+  border-left-color: #374151;
+}
