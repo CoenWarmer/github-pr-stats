@@ -5,7 +5,7 @@ import {
   LinkedIssue,
   IssueLifecycleEvent,
 } from './types';
-import { logger } from '../logger';
+import { logger } from './logger';
 
 export class GitHubCollector {
   readonly octokit: Octokit;
@@ -34,7 +34,7 @@ export class GitHubCollector {
     }
   `;
 
-    let teams: { name: string; slug: string }[] = [];
+    const teams: { name: string; slug: string }[] = [];
     let after: string | null = null;
 
     try {

@@ -5,7 +5,7 @@ import { PRTimelineToVisJS } from './timeline-transformer';
 import { HTMLGenerator } from './html-generator';
 import { FileUtils, BrowserUtils } from './utils';
 import { CLIOptions } from './types';
-import { logger } from '../logger';
+import { logger } from './logger';
 
 export class PRGanttGenerator {
   private dataFetcher: PRDataFetcher;

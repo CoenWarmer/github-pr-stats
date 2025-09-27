@@ -1,5 +1,5 @@
 import { CLIOptions } from './types';
-import { logger } from '../logger';
+import { logger } from './logger';
 
 export class CLI {
   static parseArgs(): CLIOptions {

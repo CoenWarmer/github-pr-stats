@@ -1,6 +1,6 @@
 import { GitHubCollector } from './github-collector';
 import { PullRequestStats } from './types';
-import { logger } from '../logger';
+import { logger } from './logger';
 
 export class PRDataFetcher {
   private collector: GitHubCollector;

@@ -3,7 +3,7 @@
 import * as dotenv from 'dotenv';
 import { CLI } from './cli';
 import { PRGanttGenerator } from './gantt-generator';
-import { logger } from '../logger';
+import { logger } from './logger';
 
 // Load environment variables
 dotenv.config();

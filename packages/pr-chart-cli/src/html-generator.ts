@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { VisTimelineData, PullRequestStats } from './types';
-import { logger } from '../logger';
+import { logger } from './logger';
 import { formatDuration, formatDurationInHours } from './utils';
 
 export class HTMLGenerator {
