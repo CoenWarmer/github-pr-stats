@@ -30,6 +30,8 @@ dist/
 
 # Generated data
 data/**/*
+**/data/**/*
+**/*/data/**/*
 
 # IDEs and editors
 .vscode/
