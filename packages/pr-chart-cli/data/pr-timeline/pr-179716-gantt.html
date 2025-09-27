@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PR #179716 Timeline - [Observability AI Assistant] Fix dark mode</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-timeline@7.7.0/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <link href="https://unpkg.com/vis-timeline@7.7.0/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style type="text/css">
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica', 'Arial', sans-serif; margin: 20px; }
+        .timeline { border: 1px solid #ccc; }
+        .vis-item.admin-event { background-color: #E3F2FD; border-color: #1976D2; }
+        .vis-item.admin-event.draft { background-color: #FFF3E0; border-color: #F57C00; }
+        .vis-item.admin-event.ready { background-color: #E8F5E8; border-color: #388E3C; }
+        .vis-item.admin-event.issue-created { background-color: #E8EAF6; border-color: #3F51B5; }
+        .vis-item.admin-event.issue-assigned { background-color: #E0F2F1; border-color: #00695C; }
+        .vis-item.admin-event.issue-unassigned { background-color: #FFF3E0; border-color: #FF9800; }
+        .vis-item.admin-event.issue-in-progress { background-color: #FFF3E0; border-color: #EF6C00; }
+        .vis-item.admin-event.issue-closed { background-color: #E8F5E8; border-color: #2E7D32; }
+        .vis-item.admin-event.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.admin-event.clickable:hover { 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.dev-commits { background-color: #E8F5E8; border-color: #388E3C; }
+        .vis-item.dev-commits.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.dev-commits.clickable:hover { 
+            background-color: #C8E6C9; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+                   .vis-item.review-approved { background-color: #C8E6C9; border-color: #2E7D32; }
+                   .vis-item.review-changes_requested { background-color: #FFCDD2; border-color: #C62828; }
+                   .vis-item.review-commented { background-color: #FFF3E0; border-color: #F57C00; }
+                   .vis-item.review-approved.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-approved.clickable:hover {
+                       background-color: #A5D6A7;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+                   .vis-item.review-changes_requested.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-changes_requested.clickable:hover {
+                       background-color: #FFABAE;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+                   .vis-item.review-commented.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-commented.clickable:hover {
+                       background-color: #FFE0B2;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+        .vis-item.discussion-comment { background-color: #F3E5F5; border-color: #7B1FA2; }
+        .vis-item.discussion-comment.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.discussion-comment.clickable:hover { 
+            background-color: #E1BEE7; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.ci-success { background-color: #90EE90; border-color: #2E7D32; }
+        .vis-item.ci-failure { background-color: #FFB6C1; border-color: #C62828; }
+        .vis-item.ci-bot-comment { background-color: #E1F5FE; border-color: #0277BD; }
+        .vis-item.merged { background-color: #81C784; border-color: #2E7D32; }
+        .vis-item.closed { background-color: #FFAB91; border-color: #D84315; }
+        .vis-item.awaiting-review { background-color: #FFF9C4; border-color: #F9A825; opacity: 0.7; }
+        .vis-item.awaiting-review.pending { background-color: #FFECB3; border-color: #F57F17; }
+        h1 { color: #333; }
+        h1 a { color: #1976D2; text-decoration: none; }
+        h1 a:hover { text-decoration: underline; }
+        .pr-info { 
+            background: #f5f5f5; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            border-left: 4px solid #2196F3;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .stat[title] {
+            cursor: help;
+            border: 2px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+        .stat[title]:hover {
+            border-color: #2196F3;
+        }
+        .issue-state {
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .issue-state-open {
+            background-color: #d73a49;
+            color: white;
+        }
+        .issue-state-closed {
+            background-color: #28a745;
+            color: white;
+        }
+        .vis-item.feature-turnaround { 
+            background-color: #E8F5E8; 
+            border-color: #4CAF50; 
+            border-width: 2px;
+        }
+        .vis-item.feature-turnaround.clickable {
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.feature-turnaround.clickable:hover {
+            background-color: #C8E6C9;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.release { 
+            background-color: #E3F2FD; 
+            border-color: #2196F3; 
+            border-width: 3px;
+            border-radius: 50%;
+            font-weight: bold;
+            color: #1976D2;
+        }
+        .vis-item.release.stable { 
+            background-color: #E8F5E8; 
+            border-color: #4CAF50; 
+            color: #2E7D32;
+        }
+        .vis-item.release.prerelease { 
+            background-color: #FFF3E0; 
+            border-color: #FF9800; 
+            color: #F57C00;
+        }
+        .vis-item.release.clickable {
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .vis-item.release.clickable:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: scale(1.1);
+        }
+        .vis-item.release.stable.clickable:hover {
+            background-color: #C8E6C9;
+        }
+        .vis-item.release.prerelease.clickable:hover {
+            background-color: #FFE0B2;
+        }
+        .vis-item.discussion { 
+            background-color: #F3E5F5; 
+            border-color: #9C27B0; 
+            border-width: 2px;
+            border-radius: 50%;
+            color: #6A1B9A;
+        }
+        .vis-item.discussion.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.discussion.clickable:hover {
+            background-color: #E1BEE7;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: scale(1.05);
+        }
+        .timeline-controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .zoom-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: background-color 0.2s ease;
+        }
+        .zoom-button:hover {
+            background: #1976D2;
+        }
+        .zoom-button:active {
+            background: #1565C0;
+        }
+    </style>
+</head>
+<body>
+    <h1><a href="https://github.com/elastic/kibana/pull/179716" target="_blank">PR #179716: [Observability AI Assistant] Fix dark mode</a></h1>
+    
+    <div class="pr-info">
+        <div style="margin-bottom: 10px;">
+            <strong>Author:</strong> CoenWarmer | 
+            <strong>Created:</strong> 3/29/2024 | 
+            <strong>Status:</strong> closed (merged)
+        </div>
+        
+        
+        
+        
+        <div style="margin-bottom: 10px; padding: 8px; background: #f0f8ff; border-left: 4px solid #2196F3; border-radius: 4px;">
+            <strong>🚀 First Release After Merge:</strong>
+            <div style="margin-top: 5px;">
+                
+                    <div style="margin: 3px 0;">
+                        <a href="https://github.com/elastic/kibana/releases/tag/v8.13.2" target="_blank" style="color: #2196F3; text-decoration: none; font-weight: 500;">
+                            v8.13.2
+                        </a>
+                        <span style="color: #586069; margin: 0 5px;">•</span>
+                        <span style="color: #24292e;">Kibana 8.13.2</span>
+                        <span style="margin-left: 5px;">
+                            <span class="release-type" style="background: #d4edda; color: #155724; padding: 1px 4px; border-radius: 3px; font-size: 11px;">stable</span>
+                            <span style="color: #586069; font-size: 12px; margin-left: 5px;">
+                                4/8/2024
+                            </span>
+                        </span>
+                    </div>
+                
+            </div>
+        </div>
+        
+        
+        
+        
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-label">PR Duration</span>
+                <span class="stat-value">3.6dh</span>
+            </div>
+            <div class="stat" title="Composite metric combining CI time (25%), waiting time (30%), code complexity (20%), review iterations (15%), and duration (10%). Measures delivery friction from technical, organizational, and process obstacles. Score: 0-30=Low, 31-60=Medium, 61+=High friction">
+                <span class="stat-label">PR Delivery Friction</span>
+                <span class="stat-value" style="color: #2E7D32; font-weight: bold;">15/100</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Commits</span>
+                <span class="stat-value">7</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Comments</span>
+                <span class="stat-value">4</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Review Comments</span>
+                <span class="stat-value">10</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Files Changed</span>
+                <span class="stat-value">4</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Additions</span>
+                <span class="stat-value">+24</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Deletions</span>
+                <span class="stat-value">-32</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Build Minutes</span>
+                <span class="stat-value">0m</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total time waited for approvals</span>
+                <span class="stat-value">0m</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="timeline-controls">
+        <button class="zoom-button" onclick="zoomToPRProcess()">🔍 Zoom to PR Process</button>
+        <button class="zoom-button" onclick="fitAllItems()">🗓️ Fit All</button>
+    </div>
+
+    <div id="timeline"></div>
+
+    <script type="text/javascript">
+        // Timeline data
+        const groups = new vis.DataSet([{"id":"releases","content":"🚀 Releases","order":1},{"id":"admin","content":"📋 Administrative","order":2},{"id":"dev","content":"👨‍💻 Development","order":3},{"id":"ci","content":"🔧 CI/CD","order":4},{"id":"additional-reviewers","content":"👥 Additional Reviewers","order":5},{"id":"discussion","content":"💭 Discussion","order":6}]);
+        const items = new vis.DataSet([{"id":"0","group":"dev","start":"2024-03-29T21:06:52.000Z","content":"3 commits","title":"3 commits pushed at 3/29/2024, 10:06:52 PM\n\nCommits:\n• 8402b2e: Fix dark mode (Coen Warmer)\n• 2cd3e85: [CI] Auto-commit changed files from 'node scrip... (kibanamachine)\n• d7ce3e6: Cleanup (Coen Warmer)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/8402b2efb6b6cbe4935cbb33bddf6665c2c3b72e"},{"id":"1","group":"admin","start":"2024-03-29T21:12:13.000Z","content":"PR Opened","title":"PR opened and immediately ready for review","type":"point","className":"admin-event ready"},{"id":"2","group":"ci","start":"2024-03-29T21:12:19.000Z","content":"Bot notification","title":"Automated notification from elasticmachine pinging @elastic/obs-knowledge-team (team:obs-knowledge) - elasticmachine","type":"point","className":"ci-bot-comment"},{"id":"3","group":"discussion","start":"2024-03-29T21:12:27.000Z","content":"ghost","title":"Comment by ghost at 3/29/2024, 10:12:27 PM\n\n\"\n### :robot: GitHub comments\n\n<details><summary>Expand to view the GitHub comments</summary>\n<p>\n\nJu...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#issuecomment-2027741923"},{"id":"4","group":"additional-reviewers","start":"2024-03-29T21:18:39.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"5","group":"discussion","start":"2024-03-29T21:18:39.000Z","content":"CoenWarmer","title":"Comment by CoenWarmer at 3/29/2024, 10:18:39 PM\n\n\"This is the change to get the embeddable to render correctly in dark mode when no container is passe...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1544880251"},{"id":"6","group":"discussion","start":"2024-03-29T21:19:18.000Z","content":"CoenWarmer","title":"Comment by CoenWarmer at 3/29/2024, 10:19:18 PM\n\n\"`newChat` icon is added to Eui and Eui upgrade is included in Kibana so we can get rid of our own im...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1544880593"},{"id":"7","group":"additional-reviewers","start":"2024-03-29T21:19:19.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"8","group":"discussion","start":"2024-04-02T08:09:58.000Z","content":"dgieselaar","title":"Comment by dgieselaar at 4/2/2024, 10:09:58 AM\n\n\"Probably want to avoid `async` here - if the `getEditLensConfiguration` call fails, there's no error...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1547361762"},{"id":"9","group":"discussion","start":"2024-04-02T08:11:27.000Z","content":"CoenWarmer","title":"Comment by CoenWarmer at 4/2/2024, 10:11:27 AM\n\n\"@elasticmachine merge upstream\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#issuecomment-2031351869"},{"id":"10","group":"dev","start":"2024-04-02T08:11:30.000Z","content":"4 commits","title":"4 commits pushed at 4/2/2024, 10:11:30 AM\n\nCommits:\n• 95b7616: Merge branch 'main' into bug/assistant-dark-mode (Kibana Machine)\n• f44cc29: Merge branch 'main' into bug/assistant-dark-mode (Kibana Machine)\n• c984149: Merge branch 'bug/assistant-dark-mode' of githu... (Coen Warmer)\n• 7a4d30e: Merge branch 'main' of github.com:elastic/kiban... (Coen Warmer)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/95b7616c7147cb5a65ac6e6e8f57e99a30cada04"},{"id":"11","group":"discussion","start":"2024-04-02T08:12:27.000Z","content":"dgieselaar","title":"Comment by dgieselaar at 4/2/2024, 10:12:27 AM\n\n\"Is this for Lens to fix, or for us to fix?\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1547365645"},{"id":"12","group":"additional-reviewers","start":"2024-04-02T08:14:40.000Z","content":"dgieselaar: approved","title":"Review by dgieselaar - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved"},{"id":"13","group":"additional-reviewers","start":"2024-04-02T09:12:18.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"14","group":"discussion","start":"2024-04-02T09:12:18.000Z","content":"CoenWarmer","title":"Comment by CoenWarmer at 4/2/2024, 11:12:18 AM\n\n\"Ultimately it is for Lens to fix this as we don't own the code. [This comment](https://github.com/el...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1547463166"},{"id":"15","group":"discussion","start":"2024-04-02T09:24:10.000Z","content":"stratoula","title":"Comment by stratoula at 4/2/2024, 11:24:10 AM\n\n\"Maybe is better to add this here https://github.com/elastic/kibana/blob/main/x-pack/plugins/lens/pub...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1547484171"},{"id":"16","group":"additional-reviewers","start":"2024-04-02T09:24:11.000Z","content":"stratoula: commented","title":"Review by stratoula - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"17","group":"additional-reviewers","start":"2024-04-02T09:48:53.000Z","content":"dgieselaar: commented","title":"Review by dgieselaar - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"18","group":"discussion","start":"2024-04-02T09:48:53.000Z","content":"dgieselaar","title":"Comment by dgieselaar at 4/2/2024, 11:48:53 AM\n\n\"Stratoula already mentioned this I think, what I mean is that we're not wrapping wherever we mount t...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1547521584"},{"id":"19","group":"additional-reviewers","start":"2024-04-02T10:27:39.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"20","group":"discussion","start":"2024-04-02T10:27:39.000Z","content":"CoenWarmer","title":"Comment by CoenWarmer at 4/2/2024, 12:27:39 PM\n\n\"Yes we do https://github.com/elastic/kibana/blob/74386d037dc271b07ef46c1747c647360ac0df85/x-pack/plu...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1547579750"},{"id":"21","group":"discussion","start":"2024-04-02T10:44:47.000Z","content":"dgieselaar","title":"Comment by dgieselaar at 4/2/2024, 12:44:47 PM\n\n\"I think we mount the edit lens component manually though. \"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1547605675"},{"id":"22","group":"additional-reviewers","start":"2024-04-02T10:44:48.000Z","content":"dgieselaar: commented","title":"Review by dgieselaar - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"23","group":"additional-reviewers","start":"2024-04-02T10:53:53.000Z","content":"stratoula: approved","title":"Review by stratoula - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved"},{"id":"24","group":"discussion","start":"2024-04-02T11:05:48.000Z","content":"kibana-ci","title":"Comment by kibana-ci at 4/2/2024, 1:05:48 PM\n\n\"## :green_heart: Build Succeeded\n* [Buildkite Build](https://buildkite.com/elastic/kibana-pull-reque...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#issuecomment-2031713929"},{"id":"25","group":"additional-reviewers","start":"2024-04-02T11:08:57.000Z","content":"stratoula: commented","title":"Review by stratoula - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"26","group":"discussion","start":"2024-04-02T11:08:57.000Z","content":"stratoula","title":"Comment by stratoula at 4/2/2024, 1:08:57 PM\n\n\"We do and possibly this can be fixed on the assistant too. But I am fine if the fix is applied to th...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#discussion_r1547646722"},{"id":"27","group":"additional-reviewers","start":"2024-04-02T11:11:32.000Z","content":"dgieselaar: approved","title":"Review by dgieselaar - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved"},{"id":"28","group":"admin","start":"2024-04-02T11:28:50.000Z","content":"PR Closed","type":"point","className":"admin-event closed"},{"id":"29","group":"admin","start":"2024-04-02T11:28:50.000Z","content":"PR Merged","type":"point","className":"admin-event merged"},{"id":"30","group":"additional-reviewers","start":"2024-03-29T21:18:39.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1969616316"},{"id":"31","group":"additional-reviewers","start":"2024-03-29T21:19:19.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1969616725"},{"id":"32","group":"additional-reviewers","start":"2024-04-02T08:14:40.000Z","content":"dgieselaar: approved","title":"Review by dgieselaar - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1972970125"},{"id":"33","group":"additional-reviewers","start":"2024-04-02T09:12:18.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973127573"},{"id":"34","group":"additional-reviewers","start":"2024-04-02T09:24:11.000Z","content":"stratoula: commented","title":"Review by stratoula - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973159239"},{"id":"35","group":"additional-reviewers","start":"2024-04-02T09:48:53.000Z","content":"dgieselaar: commented","title":"Review by dgieselaar - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973219444"},{"id":"36","group":"additional-reviewers","start":"2024-04-02T10:27:39.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973316117"},{"id":"37","group":"additional-reviewers","start":"2024-04-02T10:44:48.000Z","content":"dgieselaar: commented","title":"Review by dgieselaar - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973355851"},{"id":"38","group":"additional-reviewers","start":"2024-04-02T10:53:53.000Z","content":"stratoula: approved","title":"Review by stratoula - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973385462"},{"id":"39","group":"additional-reviewers","start":"2024-04-02T11:08:57.000Z","content":"stratoula: commented","title":"Review by stratoula - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973423644"},{"id":"40","group":"additional-reviewers","start":"2024-04-02T11:11:32.000Z","content":"dgieselaar: approved","title":"Review by dgieselaar - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved clickable","githubUrl":"https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973428784"},{"id":"41","group":"releases","start":"2024-04-08T20:14:55.000Z","content":"v8.13.2","title":"Release: Kibana 8.13.2\nPublished: 4/8/2024 10:14:55 PM\n6.4d after merge\n\nClick to view release on GitHub","type":"point","className":"release stable clickable","githubUrl":"https://github.com/elastic/kibana/releases/tag/v8.13.2"}]);
+
+        // Configuration options
+        const options = {
+            editable: false,
+            margin: { item: 10, axis: 5 },
+            orientation: 'top',
+            showCurrentTime: false,
+            zoomable: true,
+            moveable: true,
+            height: '500px',
+            stack: false,
+            format: {
+                minorLabels: {
+                    hour: 'HH:mm',
+                    day: 'D MMM'
+                },
+                majorLabels: {
+                    hour: 'ddd D MMMM',
+                    day: 'MMMM YYYY'
+                }
+            }
+        };
+
+        // Create timeline
+        const container = document.getElementById('timeline');
+        const timeline = new vis.Timeline(container, items, groups, options);
+
+        // Fit timeline to show all items with some padding
+        timeline.fit();
+        
+        // Zoom control functions
+        function zoomToPRProcess() {
+            const prStart = new Date('2024-03-29T21:12:13Z');
+            const prEnd = new Date('2024-04-02T11:28:50Z');
+            
+            // Add some padding (5% of the PR duration on each side)
+            const duration = prEnd.getTime() - prStart.getTime();
+            const padding = duration * 0.05;
+            
+            const zoomStart = new Date(prStart.getTime() - padding);
+            const zoomEnd = new Date(prEnd.getTime() + padding);
+            
+            timeline.setWindow(zoomStart, zoomEnd, {
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutCubic'
+                }
+            });
+        }
+        
+        function fitAllItems() {
+            timeline.fit({
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutCubic'
+                }
+            });
+        }
+        
+        // Make functions globally accessible
+        window.zoomToPRProcess = zoomToPRProcess;
+        window.fitAllItems = fitAllItems;
+        
+        // Add click handler for items
+        timeline.on('select', function (selection) {
+            if (selection.items.length > 0) {
+                const item = items.get(selection.items[0]);
+                
+                // Handle GitHub links for commits
+                if (item && item.githubUrl) {
+                    window.open(item.githubUrl, '_blank');
+                }
+                
+                // Log selected item for debugging
+                if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development') {
+                  console.log('Selected item:', item);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

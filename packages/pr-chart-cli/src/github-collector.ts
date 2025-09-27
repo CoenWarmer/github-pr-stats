@@ -1,19 +1,27 @@
 import { Octokit } from '@octokit/rest';
+import { WebClient } from '@slack/web-api';
 import {
   TimelineEvent,
   ReviewTiming,
   LinkedIssue,
   IssueLifecycleEvent,
-} from './types';
-import { logger } from '../logger';
+  Release,
+  SlackMessage,
+} from '../types';
+import { logger } from '../../shared/logger';
 
 export class GitHubCollector {
   readonly octokit: Octokit;
+  private slack?: WebClient;
 
-  constructor(githubToken: string) {
+  constructor(githubToken: string, slackToken?: string) {
     this.octokit = new Octokit({
       auth: githubToken,
     });
+
+    if (slackToken) {
+      this.slack = new WebClient(slackToken);
+    }
   }
 
   async getUserTeams(username: string, org: string): Promise<string[]> {
@@ -719,43 +727,75 @@ export class GitHubCollector {
 
     try {
       // Extract issue references from PR body
-      // Patterns like: "Closes #123", "Fixes #456", "Resolves #789", "Related to #101"
-      const issuePatterns = [
+      // Handles both same-repo (#123) and cross-repo (https://github.com/owner/repo/issues/123) references
+
+      const issueReferences = new Set<{
+        number: number;
+        owner: string;
+        repo: string;
+      }>();
+
+      // Extract same-repo issue references (#123)
+      const sameRepoPatterns = [
         /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|address(?:e[sd])?)\s+#(\d+)/gi,
         /(?:related\s+to|see|ref(?:erence)?)\s+#(\d+)/gi,
         /#(\d+)/g, // Generic issue references
       ];
 
-      const issueNumbers = new Set<number>();
-
-      for (const pattern of issuePatterns) {
+      for (const pattern of sameRepoPatterns) {
         let match;
         while ((match = pattern.exec(prBody)) !== null) {
           const issueNumber = parseInt(match[1]);
           if (issueNumber) {
-            issueNumbers.add(issueNumber);
+            issueReferences.add({ number: issueNumber, owner, repo });
           }
         }
       }
 
-      if (issueNumbers.size === 0) {
+      // Extract cross-repo issue references (full URLs)
+      const crossRepoPatterns = [
+        /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|address(?:e[sd])?)\s+<?https?:\/\/github\.com\/([\w-]+)\/([\w-]+)\/issues\/(\d+)>?/gi,
+        /(?:related\s+to|see|ref(?:erence)?)\s+<?https?:\/\/github\.com\/([\w-]+)\/([\w-]+)\/issues\/(\d+)>?/gi,
+      ];
+
+      for (const pattern of crossRepoPatterns) {
+        let match;
+        while ((match = pattern.exec(prBody)) !== null) {
+          const issueOwner = match[1];
+          const issueRepo = match[2];
+          const issueNumber = parseInt(match[3]);
+          if (issueNumber && issueOwner && issueRepo) {
+            issueReferences.add({
+              number: issueNumber,
+              owner: issueOwner,
+              repo: issueRepo,
+            });
+          }
+        }
+      }
+
+      if (issueReferences.size === 0) {
         logger.debug('No issue references found in PR body');
         return [];
       }
 
       logger.debug(
-        `Found ${issueNumbers.size} issue references: ${Array.from(issueNumbers).join(', ')}`
+        `Found ${issueReferences.size} issue references: ${Array.from(
+          issueReferences
+        )
+          .map(ref => `${ref.owner}/${ref.repo}#${ref.number}`)
+          .join(', ')}`
       );
 
       // Fetch issue details for all referenced issues
       const issues: LinkedIssue[] = [];
 
-      for (const issueNumber of issueNumbers) {
+      for (const issueRef of issueReferences) {
         try {
           const { data: issue } = await this.octokit.rest.issues.get({
-            owner,
-            repo,
-            issue_number: issueNumber,
+            owner: issueRef.owner,
+            repo: issueRef.repo,
+            issue_number: issueRef.number,
           });
 
           // Skip if it's actually a PR (GitHub treats PRs as issues internally)
@@ -765,9 +805,9 @@ export class GitHubCollector {
 
           // Fetch issue lifecycle events
           const lifecycleEvents = await this.getIssueLifecycleEvents(
-            owner,
-            repo,
-            issueNumber,
+            issueRef.owner,
+            issueRef.repo,
+            issueRef.number,
             issue.created_at
           );
 
@@ -789,18 +829,21 @@ export class GitHubCollector {
           });
 
           logger.debug(
-            `Fetched issue #${issueNumber}: ${issue.title} with ${lifecycleEvents.length} lifecycle events`
+            `Fetched issue ${issueRef.owner}/${issueRef.repo}#${issueRef.number}: ${issue.title} with ${lifecycleEvents.length} lifecycle events`
           );
 
           // Add small delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (issueError) {
-          logger.warn(`Could not fetch issue #${issueNumber}`, {
-            error:
-              issueError instanceof Error
-                ? issueError.message
-                : String(issueError),
-          });
+          logger.warn(
+            `Could not fetch issue ${issueRef.owner}/${issueRef.repo}#${issueRef.number}`,
+            {
+              error:
+                issueError instanceof Error
+                  ? issueError.message
+                  : String(issueError),
+            }
+          );
           // Continue with other issues if one fails
           continue;
         }
@@ -923,6 +966,179 @@ export class GitHubCollector {
           date: issueCreatedAt,
         },
       ];
+    }
+  }
+
+  /**
+   * Get releases that were published after the PR was merged
+   */
+  async getReleasesAfterMerge(
+    owner: string,
+    repo: string,
+    mergedAt: string | null
+  ): Promise<Release[]> {
+    if (!mergedAt) {
+      logger.debug('PR not merged, no releases to fetch');
+      return [];
+    }
+
+    try {
+      logger.debug(`Fetching releases after PR merge date: ${mergedAt}`);
+
+      const { data: releases } = await this.octokit.rest.repos.listReleases({
+        owner,
+        repo,
+        per_page: 100, // Get recent releases
+      });
+
+      const mergeDate = new Date(mergedAt);
+      const releasesAfterMerge = releases
+        .filter(release => {
+          if (!release.published_at) return false;
+          const publishDate = new Date(release.published_at);
+          return publishDate > mergeDate && !release.draft;
+        })
+        .map(release => ({
+          id: release.id,
+          name: release.name || release.tag_name,
+          tag_name: release.tag_name,
+          published_at: release.published_at!,
+          html_url: release.html_url,
+          prerelease: release.prerelease,
+          draft: release.draft,
+        }))
+        .sort(
+          (a, b) =>
+            new Date(a.published_at).getTime() -
+            new Date(b.published_at).getTime()
+        );
+
+      logger.debug(
+        `Found ${releasesAfterMerge.length} releases after merge: ${releasesAfterMerge.map(r => r.tag_name).join(', ')}`
+      );
+
+      return releasesAfterMerge;
+    } catch (error) {
+      logger.warn('Failed to fetch releases', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Search for Slack messages that mention the PR URL
+   */
+  async getSlackMessages(
+    owner: string,
+    repo: string,
+    prNumber: number,
+    prCreatedAt: string
+  ): Promise<SlackMessage[]> {
+    if (!this.slack) {
+      logger.debug(
+        'Slack client not configured, skipping Slack message search'
+      );
+      return [];
+    }
+
+    try {
+      const prUrl = `https://github.com/${owner}/${repo}/pull/${prNumber}`;
+      const shortPrUrl = `${owner}/${repo}#${prNumber}`;
+
+      logger.debug(`Searching Slack for messages mentioning PR: ${prUrl}`);
+
+      // Search for messages containing the PR URL or reference
+      const searchQuery = `${prUrl} OR ${shortPrUrl}`;
+
+      const result = await this.slack.search.messages({
+        query: searchQuery,
+        sort: 'timestamp',
+        sort_dir: 'asc',
+        count: 50, // Limit to prevent rate limiting
+      });
+
+      if (!result.ok || !result.messages?.matches) {
+        logger.debug('No Slack messages found for PR');
+        return [];
+      }
+
+      const messages: SlackMessage[] = [];
+      const prCreatedDate = new Date(prCreatedAt);
+
+      for (const match of result.messages.matches) {
+        try {
+          // Only include messages from after PR creation
+          const messageDate = new Date(parseFloat(match.ts!) * 1000);
+          if (messageDate < prCreatedDate) {
+            continue;
+          }
+
+          // Get channel info to get channel name
+          let channelName = match.channel?.name || 'unknown';
+          if (match.channel?.id) {
+            try {
+              const channelInfo = await this.slack.conversations.info({
+                channel: match.channel.id,
+              });
+              if (channelInfo.ok && channelInfo.channel?.name) {
+                channelName = channelInfo.channel.name;
+              }
+            } catch (channelError) {
+              logger.debug(
+                `Could not get channel info for ${match.channel.id}`
+              );
+            }
+          }
+
+          // Get user info to get username
+          let username = match.username || 'unknown';
+          if (match.user) {
+            try {
+              const userInfo = await this.slack.users.info({
+                user: match.user,
+              });
+              if (userInfo.ok && userInfo.user?.name) {
+                username = userInfo.user.name;
+              }
+            } catch (userError) {
+              logger.debug(`Could not get user info for ${match.user}`);
+            }
+          }
+
+          messages.push({
+            ts: match.ts!,
+            text: match.text || '',
+            user: match.user || '',
+            username: username,
+            channel: match.channel?.id || '',
+            channel_name: channelName,
+            permalink: match.permalink || '',
+            timestamp: messageDate.toISOString(),
+            thread_ts: (match as any).thread_ts,
+            reply_count: (match as any).reply_count,
+          });
+
+          // Add small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (messageError) {
+          logger.debug(`Error processing Slack message: ${messageError}`);
+          continue;
+        }
+      }
+
+      logger.debug(
+        `Found ${messages.length} Slack messages for PR ${prNumber}`
+      );
+      return messages.sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+    } catch (error) {
+      logger.warn('Failed to search Slack messages', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
     }
   }
 }

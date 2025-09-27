@@ -1,5 +1,5 @@
-import { CLIOptions } from './types';
-import { logger } from '../logger';
+import { CLIOptions } from '../types';
+import { logger } from '../../shared/logger';
 
 export class CLI {
   static parseArgs(): CLIOptions {
@@ -16,7 +16,7 @@ export class CLI {
       process.exit(1);
     }
 
-    const options: CLIOptions = { prNumber };
+    const options: CLIOptions = { prNumber, open: true };
 
     for (let i = 1; i < args.length; i++) {
       const arg = args[i];
@@ -28,6 +28,9 @@ export class CLI {
           break;
         case '--open':
           options.open = true;
+          break;
+        case '--no-open':
+          options.open = false;
           break;
         case '--debug':
         case '-d':
@@ -48,13 +51,14 @@ Usage: npm run gantt <pr-number> [options]
 
 Options:
   --output, -o <path>    Output directory (default: data/pr-timeline)
-  --open                 Open visualization in browser after generation  
+  --open                 Open visualization in browser after generation (default)
+  --no-open              Skip opening visualization in browser
   --debug, -d            Enable debug logging for verbose output
   --help, -h            Show this help message
 
 Examples:
-  npm run pr-timeline 12345                    # Generate pr-timeline chart
-  npm run pr-timeline 12345 --open            # Generate and open in browser
+  npm run pr-timeline 12345                    # Generate and auto-open in browser
+  npm run pr-timeline 12345 --no-open         # Generate without opening browser
   npm run pr-timeline 12345 --output ./charts # Save to custom directory
   npm run pr-timeline 12345 --debug           # Generate with debug logging
 

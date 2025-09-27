@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { VisTimelineData, PullRequestStats } from './types';
-import { logger } from '../logger';
-import { formatDuration, formatDurationInHours } from './utils';
+import { VisTimelineData, PullRequestStats } from '../types';
+import { logger } from '../../shared/logger';
+import { formatDurationInHours } from '../utils';
 
 export class HTMLGenerator {
   generateGanttHTML(
@@ -275,6 +275,56 @@ export class HTMLGenerator {
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
             transform: translateY(-1px);
         }
+        .vis-item.release { 
+            background-color: #E3F2FD; 
+            border-color: #2196F3; 
+            border-width: 3px;
+            border-radius: 50%;
+            font-weight: bold;
+            color: #1976D2;
+        }
+        .vis-item.release.stable { 
+            background-color: #E8F5E8; 
+            border-color: #4CAF50; 
+            color: #2E7D32;
+        }
+        .vis-item.release.prerelease { 
+            background-color: #FFF3E0; 
+            border-color: #FF9800; 
+            color: #F57C00;
+        }
+        .vis-item.release.clickable {
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .vis-item.release.clickable:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: scale(1.1);
+        }
+        .vis-item.release.stable.clickable:hover {
+            background-color: #C8E6C9;
+        }
+        .vis-item.release.prerelease.clickable:hover {
+            background-color: #FFE0B2;
+        }
+        .vis-item.discussion { 
+            background-color: #F3E5F5; 
+            border-color: #9C27B0; 
+            border-width: 2px;
+            border-radius: 50%;
+            color: #6A1B9A;
+        }
+        .vis-item.discussion.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.discussion.clickable:hover {
+            background-color: #E1BEE7;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: scale(1.05);
+        }
         .timeline-controls {
             margin: 20px 0;
             text-align: center;
@@ -347,10 +397,89 @@ export class HTMLGenerator {
             : ''
         }
         
+        ${
+          pr.releases && pr.releases.length > 0
+            ? `
+        <div style="margin-bottom: 10px; padding: 8px; background: #f0f8ff; border-left: 4px solid #2196F3; border-radius: 4px;">
+            <strong>🚀 First Release After Merge:</strong>
+            <div style="margin-top: 5px;">
+                ${(() => {
+                  const firstRelease = pr.releases[0];
+                  return `
+                    <div style="margin: 3px 0;">
+                        <a href="${firstRelease.html_url}" target="_blank" style="color: #2196F3; text-decoration: none; font-weight: 500;">
+                            ${firstRelease.tag_name}
+                        </a>
+                        <span style="color: #586069; margin: 0 5px;">•</span>
+                        <span style="color: #24292e;">${firstRelease.name || firstRelease.tag_name}</span>
+                        <span style="margin-left: 5px;">
+                            ${
+                              firstRelease.prerelease
+                                ? '<span class="release-type" style="background: #fff3cd; color: #856404; padding: 1px 4px; border-radius: 3px; font-size: 11px;">pre-release</span>'
+                                : '<span class="release-type" style="background: #d4edda; color: #155724; padding: 1px 4px; border-radius: 3px; font-size: 11px;">stable</span>'
+                            }
+                            <span style="color: #586069; font-size: 12px; margin-left: 5px;">
+                                ${new Date(firstRelease.published_at).toLocaleDateString()}
+                            </span>
+                        </span>
+                    </div>
+                `;
+                })()}
+            </div>
+        </div>
+        `
+            : ''
+        }
+        
+        ${
+          pr.slack_messages && pr.slack_messages.length > 0
+            ? `
+        <div style="margin-bottom: 10px; padding: 8px; background: #f3e5f5; border-left: 4px solid #9C27B0; border-radius: 4px;">
+            <strong>💬 Slack Discussions (${pr.slack_messages.length}):</strong>
+            <div style="margin-top: 5px;">
+                ${pr.slack_messages
+                  .slice(0, 5) // Show only first 5 messages to avoid clutter
+                  .map(
+                    message => `
+                    <div style="margin: 3px 0; font-size: 12px;">
+                        <a href="${message.permalink}" target="_blank" style="color: #9C27B0; text-decoration: none; font-weight: 500;">
+                            #${message.channel_name || message.channel}
+                        </a>
+                        <span style="color: #586069; margin: 0 5px;">•</span>
+                        <span style="color: #6A1B9A; font-weight: 500;">${message.username || message.user}</span>
+                        <span style="color: #586069; font-size: 11px; margin-left: 5px;">
+                            ${new Date(message.timestamp).toLocaleDateString()}
+                        </span>
+                        <div style="margin-top: 2px; color: #424242; font-size: 11px; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${message.text.replace(/\n/g, ' ').substring(0, 100)}${message.text.length > 100 ? '...' : ''}
+                        </div>
+                    </div>
+                `
+                  )
+                  .join('')}
+                ${pr.slack_messages.length > 5 ? `<div style="margin-top: 5px; font-size: 11px; color: #666;">...and ${pr.slack_messages.length - 5} more messages</div>` : ''}
+            </div>
+        </div>
+        `
+            : ''
+        }
+        
         <div class="stats">
             <div class="stat">
                 <span class="stat-label">PR Duration</span>
-                <span class="stat-value">${formatDurationInHours(Math.round(pr.turnaround_time_hours))}h</span>
+                <span class="stat-value">${(() => {
+                  const duration =
+                    pr.closed_at || pr.merged_at
+                      ? Math.round(pr.turnaround_time_hours)
+                      : Math.round(
+                          (new Date().getTime() -
+                            new Date(pr.created_at).getTime()) /
+                            (1000 * 60 * 60)
+                        );
+                  const label =
+                    pr.closed_at || pr.merged_at ? '' : ' (ongoing)';
+                  return formatDurationInHours(duration) + 'h' + label;
+                })()}</span>
             </div>
             <div class="stat" title="Composite metric combining CI time (25%), waiting time (30%), code complexity (20%), review iterations (15%), and duration (10%). Measures delivery friction from technical, organizational, and process obstacles. Score: 0-30=Low, 31-60=Medium, 61+=High friction">
                 <span class="stat-label">PR Delivery Friction</span>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PR #233451 Timeline - Add ESLint plugin to check for Performance</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-timeline@7.7.0/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <link href="https://unpkg.com/vis-timeline@7.7.0/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style type="text/css">
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica', 'Arial', sans-serif; margin: 20px; }
+        .timeline { border: 1px solid #ccc; }
+        .vis-item.admin-event { background-color: #E3F2FD; border-color: #1976D2; }
+        .vis-item.admin-event.draft { background-color: #FFF3E0; border-color: #F57C00; }
+        .vis-item.admin-event.ready { background-color: #E8F5E8; border-color: #388E3C; }
+        .vis-item.admin-event.issue-created { background-color: #E8EAF6; border-color: #3F51B5; }
+        .vis-item.admin-event.issue-assigned { background-color: #E0F2F1; border-color: #00695C; }
+        .vis-item.admin-event.issue-unassigned { background-color: #FFF3E0; border-color: #FF9800; }
+        .vis-item.admin-event.issue-in-progress { background-color: #FFF3E0; border-color: #EF6C00; }
+        .vis-item.admin-event.issue-closed { background-color: #E8F5E8; border-color: #2E7D32; }
+        .vis-item.admin-event.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.admin-event.clickable:hover { 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.dev-commits { background-color: #E8F5E8; border-color: #388E3C; }
+        .vis-item.dev-commits.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.dev-commits.clickable:hover { 
+            background-color: #C8E6C9; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+                   .vis-item.review-approved { background-color: #C8E6C9; border-color: #2E7D32; }
+                   .vis-item.review-changes_requested { background-color: #FFCDD2; border-color: #C62828; }
+                   .vis-item.review-commented { background-color: #FFF3E0; border-color: #F57C00; }
+                   .vis-item.review-approved.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-approved.clickable:hover {
+                       background-color: #A5D6A7;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+                   .vis-item.review-changes_requested.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-changes_requested.clickable:hover {
+                       background-color: #FFABAE;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+                   .vis-item.review-commented.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-commented.clickable:hover {
+                       background-color: #FFE0B2;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+        .vis-item.discussion-comment { background-color: #F3E5F5; border-color: #7B1FA2; }
+        .vis-item.discussion-comment.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.discussion-comment.clickable:hover { 
+            background-color: #E1BEE7; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.ci-success { background-color: #90EE90; border-color: #2E7D32; }
+        .vis-item.ci-failure { background-color: #FFB6C1; border-color: #C62828; }
+        .vis-item.ci-bot-comment { background-color: #E1F5FE; border-color: #0277BD; }
+        .vis-item.merged { background-color: #81C784; border-color: #2E7D32; }
+        .vis-item.closed { background-color: #FFAB91; border-color: #D84315; }
+        .vis-item.awaiting-review { background-color: #FFF9C4; border-color: #F9A825; opacity: 0.7; }
+        .vis-item.awaiting-review.pending { background-color: #FFECB3; border-color: #F57F17; }
+        h1 { color: #333; }
+        h1 a { color: #1976D2; text-decoration: none; }
+        h1 a:hover { text-decoration: underline; }
+        .pr-info { 
+            background: #f5f5f5; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            border-left: 4px solid #2196F3;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .stat[title] {
+            cursor: help;
+            border: 2px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+        .stat[title]:hover {
+            border-color: #2196F3;
+        }
+        .issue-state {
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .issue-state-open {
+            background-color: #d73a49;
+            color: white;
+        }
+        .issue-state-closed {
+            background-color: #28a745;
+            color: white;
+        }
+        .vis-item.feature-turnaround { 
+            background-color: #E8F5E8; 
+            border-color: #4CAF50; 
+            border-width: 2px;
+        }
+        .vis-item.feature-turnaround.clickable {
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.feature-turnaround.clickable:hover {
+            background-color: #C8E6C9;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.release { 
+            background-color: #E3F2FD; 
+            border-color: #2196F3; 
+            border-width: 3px;
+            border-radius: 50%;
+            font-weight: bold;
+            color: #1976D2;
+        }
+        .vis-item.release.stable { 
+            background-color: #E8F5E8; 
+            border-color: #4CAF50; 
+            color: #2E7D32;
+        }
+        .vis-item.release.prerelease { 
+            background-color: #FFF3E0; 
+            border-color: #FF9800; 
+            color: #F57C00;
+        }
+        .vis-item.release.clickable {
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .vis-item.release.clickable:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: scale(1.1);
+        }
+        .vis-item.release.stable.clickable:hover {
+            background-color: #C8E6C9;
+        }
+        .vis-item.release.prerelease.clickable:hover {
+            background-color: #FFE0B2;
+        }
+        .vis-item.discussion { 
+            background-color: #F3E5F5; 
+            border-color: #9C27B0; 
+            border-width: 2px;
+            border-radius: 50%;
+            color: #6A1B9A;
+        }
+        .vis-item.discussion.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.discussion.clickable:hover {
+            background-color: #E1BEE7;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: scale(1.05);
+        }
+        .timeline-controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .zoom-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: background-color 0.2s ease;
+        }
+        .zoom-button:hover {
+            background: #1976D2;
+        }
+        .zoom-button:active {
+            background: #1565C0;
+        }
+    </style>
+</head>
+<body>
+    <h1><a href="https://github.com/elastic/kibana/pull/233451" target="_blank">PR #233451: Add ESLint plugin to check for Performance</a></h1>
+    
+    <div class="pr-info">
+        <div style="margin-bottom: 10px;">
+            <strong>Author:</strong> CoenWarmer | 
+            <strong>Created:</strong> 8/29/2025 | 
+            <strong>Status:</strong> open
+        </div>
+        
+        
+        
+        
+        
+        
+        
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-label">PR Duration</span>
+                <span class="stat-value">26.2dh (ongoing)</span>
+            </div>
+            <div class="stat" title="Composite metric combining CI time (25%), waiting time (30%), code complexity (20%), review iterations (15%), and duration (10%). Measures delivery friction from technical, organizational, and process obstacles. Score: 0-30=Low, 31-60=Medium, 61+=High friction">
+                <span class="stat-label">PR Delivery Friction</span>
+                <span class="stat-value" style="color: #F57C00; font-weight: bold;">55/100</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Commits</span>
+                <span class="stat-value">10</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Comments</span>
+                <span class="stat-value">2</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Review Comments</span>
+                <span class="stat-value">12</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Files Changed</span>
+                <span class="stat-value">18</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Additions</span>
+                <span class="stat-value">+1082</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Deletions</span>
+                <span class="stat-value">-11</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Build Minutes</span>
+                <span class="stat-value">1d</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total time waited for approvals</span>
+                <span class="stat-value">0m</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="timeline-controls">
+        <button class="zoom-button" onclick="zoomToPRProcess()">🔍 Zoom to PR Process</button>
+        <button class="zoom-button" onclick="fitAllItems()">🗓️ Fit All</button>
+    </div>
+
+    <div id="timeline"></div>
+
+    <script type="text/javascript">
+        // Timeline data
+        const groups = new vis.DataSet([{"id":"releases","content":"🚀 Releases","order":1},{"id":"admin","content":"📋 Administrative","order":2},{"id":"dev","content":"👨‍💻 Development","order":3},{"id":"ci","content":"🔧 CI/CD","order":4},{"id":"additional-reviewers","content":"👥 Additional Reviewers","order":5},{"id":"discussion","content":"💭 Discussion","order":6}]);
+        const items = new vis.DataSet([{"id":"0","group":"dev","start":"2025-08-29T10:23:40.000Z","content":"3 commits","title":"3 commits pushed at 8/29/2025, 12:23:40 PM\n\nCommits:\n• 16d3cf8: Add ESLint plugin to check for Performance (Coen Warmer)\n• 1e71253: Update tests (Coen Warmer)\n• 8b35aa8: Add tooling to run ESLint with a custom config ... (Coen Warmer)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/16d3cf8c23d37440f6a1a083b923465eb3e7f925"},{"id":"1","group":"admin","start":"2025-08-29T10:27:28.000Z","content":"PR Opened","title":"PR opened and immediately ready for review","type":"point","className":"admin-event ready"},{"id":"38","group":"admin","start":"2025-08-29T10:29:49.000Z","content":"Ready for Review","title":"Draft PR marked as ready for review","type":"point","className":"admin-event ready"},{"id":"95","group":"discussion","start":"2025-08-29T18:49:45.000Z","content":"Ikuni17","title":"Comment by Ikuni17 at 8/29/2025, 8:49:45 PM\n\n\"Is there a way to achieve this without using additional `eslintrc.js`? The nested configs will be al...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2310870822"},{"id":"96","group":"discussion","start":"2025-08-29T18:57:19.000Z","content":"Ikuni17","title":"Comment by Ikuni17 at 8/29/2025, 8:57:19 PM\n\n\"The `as any` to `as unknown` cast here is a bit concerning and then the assumption that it is the `F...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2310882654"},{"id":"99","group":"discussion","start":"2025-08-29T19:04:18.000Z","content":"Ikuni17","title":"Comment by Ikuni17 at 8/29/2025, 9:04:18 PM\n\n\"Aren't we able to use something like `fs.existsSync(pathToCheck)` to check the path and avoid all th...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2310893075"},{"id":"100","group":"discussion","start":"2025-08-29T19:09:50.000Z","content":"Ikuni17","title":"Comment by Ikuni17 at 8/29/2025, 9:09:50 PM\n\n\"[os.availableParallelism()](https://nodejs.org/docs/latest-v22.x/api/os.html#osavailableparallelism)...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2310900846"},{"id":"101","group":"additional-reviewers","start":"2025-08-29T19:15:43.000Z","content":"Ikuni17: commented","title":"Review by Ikuni17 - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"103","group":"dev","start":"2025-09-03T09:48:56.000Z","content":"4 commits","title":"4 commits pushed at 9/3/2025, 11:48:56 AM\n\nCommits:\n• 37beb8a: Update tests (Coen Warmer)\n• 5770c42: Address feedback (Coen Warmer)\n• ba4b2c7: Merge branch 'main' of github.com:elastic/kiban... (Coen Warmer)\n• dd3e53a: Update code owners (Coen Warmer)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/37beb8aa347dfdfc3b8e00a0994180b04506ce74"},{"id":"104","group":"additional-reviewers","start":"2025-09-03T10:03:34.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"105","group":"discussion","start":"2025-09-03T10:03:34.000Z","content":"CoenWarmer","title":"Comment by CoenWarmer at 9/3/2025, 12:03:34 PM\n\n\"The intention of the `src/dev/eslint/run_eslint_custom.ts` is to be able to run 1 or more eslint rul...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2318460569"},{"id":"127","group":"additional-reviewers","start":"2025-09-03T15:18:27.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"128","group":"discussion","start":"2025-09-03T15:18:27.000Z","content":"CoenWarmer","title":"Comment by CoenWarmer at 9/3/2025, 5:18:27 PM\n\n\"It is impossible to make a dynamically imported module fully typesafe, but I've redone the implement...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2319317778"},{"id":"152","group":"discussion","start":"2025-09-03T15:32:44.000Z","content":"CoenWarmer","title":"Comment by CoenWarmer at 9/3/2025, 5:32:44 PM\n\n\"You're right. Have gone for available Kibana tooling.\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2319356437"},{"id":"153","group":"additional-reviewers","start":"2025-09-03T15:32:45.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"154","group":"discussion","start":"2025-09-03T15:35:07.000Z","content":"CoenWarmer","title":"Comment by CoenWarmer at 9/3/2025, 5:35:07 PM\n\n\"> Codeowners is missing on the plugin itself. `elastic/kibana-operations` can be one, but would pref...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#issuecomment-3249755573"},{"id":"182","group":"dev","start":"2025-09-09T06:49:02.000Z","content":"1 commit","title":"1 commit pushed at 9/9/2025, 8:49:02 AM\n\nCommits:\n• d7d132e: Merge branch 'main' into feat/eslint-perf (Coen Warmer)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/d7d132eac0c1ea8f4ea35747309a3423b066baa8"},{"id":"209","group":"dev","start":"2025-09-11T10:00:19.000Z","content":"1 commit","title":"1 commit pushed at 9/11/2025, 12:00:19 PM\n\nCommits:\n• a6dc32e: Merge branch 'main' into feat/eslint-perf (Coen Warmer)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/a6dc32eed0b006e5e2b4e1e1287faead19882926"},{"id":"236","group":"dev","start":"2025-09-19T10:51:37.000Z","content":"1 commit","title":"1 commit pushed at 9/19/2025, 12:51:37 PM\n\nCommits:\n• 5b6b745: Merge branch 'main' into feat/eslint-perf (Coen Warmer)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/5b6b745e33d567e69ed5df958611614d355b7abe"},{"id":"261","group":"ci","start":"2025-09-19T13:14:58.000Z","content":"Build succeeded","title":"Automated build success notification - elasticmachine","type":"point","className":"ci-success"},{"id":"262","group":"additional-reviewers","start":"2025-09-19T14:54:00.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"263","group":"discussion","start":"2025-09-19T14:54:00.000Z","content":"delanni","title":"Comment by delanni at 9/19/2025, 4:54:00 PM\n\n\"this is two of the same done in one place :) either Math.min or the ternary would do\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2363189423"},{"id":"264","group":"additional-reviewers","start":"2025-09-19T14:56:45.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"265","group":"discussion","start":"2025-09-19T14:56:45.000Z","content":"delanni","title":"Comment by delanni at 9/19/2025, 4:56:45 PM\n\n\"Another reason why I'd also suggest, at least a different name is that if you call this file `.eslin...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2363198225"},{"id":"266","group":"additional-reviewers","start":"2025-09-19T15:07:42.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"267","group":"discussion","start":"2025-09-19T15:07:42.000Z","content":"delanni","title":"Comment by delanni at 9/19/2025, 5:07:42 PM\n\n\"the default is set to 1 in line :147\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2363232623"},{"id":"268","group":"additional-reviewers","start":"2025-09-19T15:08:59.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"269","group":"discussion","start":"2025-09-19T15:08:59.000Z","content":"delanni","title":"Comment by delanni at 9/19/2025, 5:08:59 PM\n\n\"Since this is about running custom eslint rulesets, maybe having a default is not meaningful, especi...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2363236298"},{"id":"270","group":"discussion","start":"2025-09-19T15:17:04.000Z","content":"delanni","title":"Comment by delanni at 9/19/2025, 5:17:04 PM\n\n\"You can try to resolve and run the `eslint` binary directly instead of going through the kibana esli...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#discussion_r2363259920"},{"id":"271","group":"additional-reviewers","start":"2025-09-19T15:17:05.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"273","group":"additional-reviewers","start":"2025-08-29T19:15:43.000Z","content":"Ikuni17: commented","title":"Review by Ikuni17 - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#pullrequestreview-3169727611"},{"id":"274","group":"additional-reviewers","start":"2025-09-03T10:03:34.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#pullrequestreview-3179912716"},{"id":"275","group":"additional-reviewers","start":"2025-09-03T15:18:27.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#pullrequestreview-3181169712"},{"id":"276","group":"additional-reviewers","start":"2025-09-03T15:32:45.000Z","content":"CoenWarmer: commented","title":"Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#pullrequestreview-3181222976"},{"id":"277","group":"additional-reviewers","start":"2025-09-19T14:54:00.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#pullrequestreview-3245312156"},{"id":"278","group":"additional-reviewers","start":"2025-09-19T14:56:45.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#pullrequestreview-3245323950"},{"id":"279","group":"additional-reviewers","start":"2025-09-19T15:07:42.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#pullrequestreview-3245372270"},{"id":"280","group":"additional-reviewers","start":"2025-09-19T15:08:59.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#pullrequestreview-3245377443"},{"id":"281","group":"additional-reviewers","start":"2025-09-19T15:17:05.000Z","content":"delanni: commented","title":"Review by delanni - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/233451#pullrequestreview-3245412937"},{"group":"ci","start":"2025-08-29T10:27:31.000Z","end":"2025-08-29T10:27:32.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-282"},{"group":"ci","start":"2025-08-29T10:27:33.000Z","end":"2025-08-29T10:27:33.000Z","content":"comment","title":"comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-283"},{"group":"ci","start":"2025-08-29T10:27:33.000Z","end":"2025-08-29T10:27:33.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-284"},{"group":"ci","start":"2025-08-29T10:27:33.000Z","end":"2025-08-29T10:27:33.000Z","content":"Auto-approve API docs","title":"Auto-approve API docs: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-285"},{"group":"ci","start":"2025-08-29T10:27:33.000Z","end":"2025-08-29T10:27:33.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-286"},{"group":"ci","start":"2025-08-29T10:27:33.000Z","end":"2025-08-29T10:27:33.000Z","content":"comment","title":"comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-287"},{"group":"ci","start":"2025-08-29T10:27:33.000Z","end":"2025-08-29T10:27:33.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-288"},{"group":"ci","start":"2025-08-29T10:27:35.000Z","end":"2025-08-29T10:27:37.000Z","content":"label-obs-ux-management-team","title":"label-obs-ux-management-team: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-289"},{"group":"ci","start":"2025-08-29T10:27:39.000Z","end":"2025-08-29T10:27:44.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-290"},{"group":"ci","start":"2025-08-29T10:27:49.000Z","end":"2025-08-29T10:27:54.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-291"},{"group":"ci","start":"2025-08-29T10:28:00.000Z","end":"2025-08-29T10:28:09.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-292"},{"group":"ci","start":"2025-08-29T10:27:33.000Z","end":"2025-08-29T10:28:46.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-293"},{"group":"ci","start":"2025-08-29T10:27:33.000Z","end":"2025-08-29T10:28:47.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-294"},{"group":"ci","start":"2025-08-29T10:29:57.000Z","end":"2025-08-29T10:30:12.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-295"},{"group":"ci","start":"2025-08-29T10:29:00.000Z","end":"2025-08-29T10:58:29.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 29 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-296"},{"group":"ci","start":"2025-08-29T11:52:53.000Z","end":"2025-08-29T11:52:54.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-297"},{"group":"ci","start":"2025-08-29T11:52:57.000Z","end":"2025-08-29T11:53:03.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-298"},{"group":"ci","start":"2025-08-29T11:53:06.000Z","end":"2025-08-29T11:53:12.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-299"},{"group":"ci","start":"2025-08-29T11:52:57.000Z","end":"2025-08-29T11:53:12.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-300"},{"group":"ci","start":"2025-08-29T10:28:10.000Z","end":"2025-08-29T11:53:24.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 85 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-301"},{"group":"ci","start":"2025-08-29T11:53:15.000Z","end":"2025-08-29T11:53:24.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-302"},{"group":"ci","start":"2025-08-29T11:52:55.000Z","end":"2025-08-29T11:54:06.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-303"},{"group":"ci","start":"2025-08-29T11:52:54.000Z","end":"2025-08-29T11:54:06.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-304"},{"group":"ci","start":"2025-08-29T11:54:10.000Z","end":"2025-08-29T12:27:20.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 33 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-305"},{"group":"ci","start":"2025-08-29T11:52:57.000Z","end":"2025-08-29T14:15:20.000Z","content":"kibana-ci","title":"kibana-ci: 142 minutes - failure","type":"range","className":"ci-failure","style":"background-color: #FFB6C1;","id":"ci-306"},{"group":"ci","start":"2025-08-29T17:14:16.000Z","end":"2025-08-29T17:14:21.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-307"},{"group":"ci","start":"2025-08-29T17:14:16.000Z","end":"2025-08-29T17:14:26.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-308"},{"group":"ci","start":"2025-08-29T17:14:24.000Z","end":"2025-08-29T17:14:31.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-309"},{"group":"ci","start":"2025-08-29T17:14:45.000Z","end":"2025-08-29T17:14:45.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-310"},{"group":"ci","start":"2025-08-29T17:14:34.000Z","end":"2025-08-29T17:14:45.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-311"},{"group":"ci","start":"2025-08-29T17:14:13.000Z","end":"2025-08-29T17:15:27.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-312"},{"group":"ci","start":"2025-08-29T17:14:12.000Z","end":"2025-08-29T17:15:27.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-313"},{"group":"ci","start":"2025-08-29T17:15:38.000Z","end":"2025-08-29T17:43:09.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 28 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-314"},{"group":"ci","start":"2025-08-29T17:14:15.000Z","end":"2025-08-29T18:59:23.000Z","content":"kibana-ci","title":"kibana-ci: 105 minutes - failure","type":"range","className":"ci-failure","style":"background-color: #FFB6C1;","id":"ci-315"},{"group":"ci","start":"2025-09-03T15:16:45.000Z","end":"2025-09-03T15:16:46.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-316"},{"group":"ci","start":"2025-09-03T15:16:49.000Z","end":"2025-09-03T15:16:57.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-317"},{"group":"ci","start":"2025-09-03T15:16:49.000Z","end":"2025-09-03T15:16:57.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-318"},{"group":"ci","start":"2025-09-03T15:17:02.000Z","end":"2025-09-03T15:17:06.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-319"},{"group":"ci","start":"2025-09-03T15:17:22.000Z","end":"2025-09-03T15:17:22.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-320"},{"group":"ci","start":"2025-09-03T15:17:09.000Z","end":"2025-09-03T15:17:22.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-321"},{"group":"ci","start":"2025-09-03T15:16:46.000Z","end":"2025-09-03T15:18:01.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-322"},{"group":"ci","start":"2025-09-03T15:16:46.000Z","end":"2025-09-03T15:18:02.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-323"},{"group":"ci","start":"2025-09-03T15:19:20.000Z","end":"2025-09-03T15:19:21.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-324"},{"group":"ci","start":"2025-09-03T15:19:25.000Z","end":"2025-09-03T15:19:34.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-325"},{"group":"ci","start":"2025-09-03T15:19:24.000Z","end":"2025-09-03T15:19:35.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-326"},{"group":"ci","start":"2025-09-03T15:19:37.000Z","end":"2025-09-03T15:19:43.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-327"},{"group":"ci","start":"2025-09-03T15:19:46.000Z","end":"2025-09-03T15:19:55.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-328"},{"group":"ci","start":"2025-09-03T15:19:29.000Z","end":"2025-09-03T15:20:49.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-329"},{"group":"ci","start":"2025-09-03T15:19:29.000Z","end":"2025-09-03T15:20:49.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-330"},{"group":"ci","start":"2025-09-03T15:35:09.000Z","end":"2025-09-03T15:35:10.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-331"},{"group":"ci","start":"2025-09-03T15:39:36.000Z","end":"2025-09-03T15:39:37.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-332"},{"group":"ci","start":"2025-09-03T15:39:40.000Z","end":"2025-09-03T15:39:47.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-333"},{"group":"ci","start":"2025-09-03T15:39:41.000Z","end":"2025-09-03T15:39:48.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-334"},{"group":"ci","start":"2025-09-03T15:39:54.000Z","end":"2025-09-03T15:40:00.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-335"},{"group":"ci","start":"2025-09-03T15:40:03.000Z","end":"2025-09-03T15:40:13.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-336"},{"group":"ci","start":"2025-09-03T15:40:14.000Z","end":"2025-09-03T15:40:14.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-337"},{"group":"ci","start":"2025-09-03T15:39:37.000Z","end":"2025-09-03T15:41:35.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 2 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-338"},{"group":"ci","start":"2025-09-03T15:39:37.000Z","end":"2025-09-03T15:41:36.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 2 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-339"},{"group":"ci","start":"2025-09-03T15:41:08.000Z","end":"2025-09-03T16:12:08.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 31 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-340"},{"group":"ci","start":"2025-09-03T15:39:41.000Z","end":"2025-09-03T18:03:41.000Z","content":"kibana-ci","title":"kibana-ci: 144 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-341"},{"group":"ci","start":"2025-09-09T06:49:07.000Z","end":"2025-09-09T06:49:08.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-342"},{"group":"ci","start":"2025-09-09T06:49:10.000Z","end":"2025-09-09T06:49:15.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-343"},{"group":"ci","start":"2025-09-09T06:49:18.000Z","end":"2025-09-09T06:49:22.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-344"},{"group":"ci","start":"2025-09-09T06:49:11.000Z","end":"2025-09-09T06:49:27.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-345"},{"group":"ci","start":"2025-09-09T06:49:32.000Z","end":"2025-09-09T06:49:32.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-346"},{"group":"ci","start":"2025-09-09T06:49:24.000Z","end":"2025-09-09T06:49:32.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-347"},{"group":"ci","start":"2025-09-09T06:49:08.000Z","end":"2025-09-09T06:50:22.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-348"},{"group":"ci","start":"2025-09-09T06:49:07.000Z","end":"2025-09-09T06:50:22.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-349"},{"group":"ci","start":"2025-09-09T06:50:41.000Z","end":"2025-09-09T07:21:09.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 30 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-350"},{"group":"ci","start":"2025-09-09T06:49:13.000Z","end":"2025-09-09T09:03:36.000Z","content":"kibana-ci","title":"kibana-ci: 134 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-351"},{"group":"ci","start":"2025-09-11T10:00:24.000Z","end":"2025-09-11T10:00:25.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-352"},{"group":"ci","start":"2025-09-11T10:00:29.000Z","end":"2025-09-11T10:00:40.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-353"},{"group":"ci","start":"2025-09-11T10:00:43.000Z","end":"2025-09-11T10:00:47.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-354"},{"group":"ci","start":"2025-09-11T10:00:28.000Z","end":"2025-09-11T10:00:47.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-355"},{"group":"ci","start":"2025-09-11T10:00:50.000Z","end":"2025-09-11T10:01:04.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-356"},{"group":"ci","start":"2025-09-11T10:01:05.000Z","end":"2025-09-11T10:01:05.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-357"},{"group":"ci","start":"2025-09-11T10:00:24.000Z","end":"2025-09-11T10:01:35.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-358"},{"group":"ci","start":"2025-09-11T10:00:25.000Z","end":"2025-09-11T10:01:36.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-359"},{"group":"ci","start":"2025-09-11T10:01:50.000Z","end":"2025-09-11T10:31:58.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 30 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-360"},{"group":"ci","start":"2025-09-11T10:00:30.000Z","end":"2025-09-11T12:38:41.000Z","content":"kibana-ci","title":"kibana-ci: 158 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-361"},{"group":"ci","start":"2025-09-19T10:51:41.000Z","end":"2025-09-19T10:51:42.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-362"},{"group":"ci","start":"2025-09-19T10:51:45.000Z","end":"2025-09-19T10:51:49.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-363"},{"group":"ci","start":"2025-09-19T10:51:52.000Z","end":"2025-09-19T10:51:57.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-364"},{"group":"ci","start":"2025-09-19T10:51:45.000Z","end":"2025-09-19T10:52:02.000Z","content":"Analyze new dependencies","title":"Analyze new dependencies: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-365"},{"group":"ci","start":"2025-09-19T10:52:01.000Z","end":"2025-09-19T10:52:10.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-366"},{"group":"ci","start":"2025-09-19T10:51:42.000Z","end":"2025-09-19T10:52:54.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-367"},{"group":"ci","start":"2025-09-19T10:51:42.000Z","end":"2025-09-19T10:52:54.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-368"},{"group":"ci","start":"2025-09-19T10:52:37.000Z","end":"2025-09-19T11:23:13.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 31 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-369"},{"group":"ci","start":"2025-09-19T10:51:49.000Z","end":"2025-09-19T13:13:23.000Z","content":"kibana-ci","title":"kibana-ci: 142 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-370"},{"group":"ci","start":"2025-09-19T10:52:11.000Z","end":"2025-09-19T11:02:11.000Z","content":"docs-preview / comment (ongoing)","title":"docs-preview / comment: Still running","type":"range","className":"ci-running","style":"background-color: #FFA500;","id":"ci-371"}]);
+
+        // Configuration options
+        const options = {
+            editable: false,
+            margin: { item: 10, axis: 5 },
+            orientation: 'top',
+            showCurrentTime: false,
+            zoomable: true,
+            moveable: true,
+            height: '500px',
+            stack: false,
+            format: {
+                minorLabels: {
+                    hour: 'HH:mm',
+                    day: 'D MMM'
+                },
+                majorLabels: {
+                    hour: 'ddd D MMMM',
+                    day: 'MMMM YYYY'
+                }
+            }
+        };
+
+        // Create timeline
+        const container = document.getElementById('timeline');
+        const timeline = new vis.Timeline(container, items, groups, options);
+
+        // Fit timeline to show all items with some padding
+        timeline.fit();
+        
+        // Zoom control functions
+        function zoomToPRProcess() {
+            const prStart = new Date('2025-08-29T10:27:28Z');
+            const prEnd = new Date('2025-09-24T15:07:34.370Z');
+            
+            // Add some padding (5% of the PR duration on each side)
+            const duration = prEnd.getTime() - prStart.getTime();
+            const padding = duration * 0.05;
+            
+            const zoomStart = new Date(prStart.getTime() - padding);
+            const zoomEnd = new Date(prEnd.getTime() + padding);
+            
+            timeline.setWindow(zoomStart, zoomEnd, {
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutCubic'
+                }
+            });
+        }
+        
+        function fitAllItems() {
+            timeline.fit({
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutCubic'
+                }
+            });
+        }
+        
+        // Make functions globally accessible
+        window.zoomToPRProcess = zoomToPRProcess;
+        window.fitAllItems = fitAllItems;
+        
+        // Add click handler for items
+        timeline.on('select', function (selection) {
+            if (selection.items.length > 0) {
+                const item = items.get(selection.items[0]);
+                
+                // Handle GitHub links for commits
+                if (item && item.githubUrl) {
+                    window.open(item.githubUrl, '_blank');
+                }
+                
+                // Log selected item for debugging
+                if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development') {
+                  console.log('Selected item:', item);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

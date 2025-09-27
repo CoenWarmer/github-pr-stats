@@ -1,12 +1,12 @@
 import { GitHubCollector } from './github-collector';
-import { PullRequestStats } from './types';
-import { logger } from '../logger';
+import { PullRequestStats } from '../types';
+import { logger } from '../../shared/logger';
 
 export class PRDataFetcher {
   private collector: GitHubCollector;
 
-  constructor(githubToken: string) {
-    this.collector = new GitHubCollector(githubToken);
+  constructor(githubToken: string, slackToken?: string) {
+    this.collector = new GitHubCollector(githubToken, slackToken);
   }
 
   async getPRFromGitHub(
@@ -36,6 +36,8 @@ export class PRDataFetcher {
         userTeams,
         codeowners,
         linkedIssues,
+        releases,
+        slackMessages,
       ] = await Promise.all([
         this.collector.octokit.rest.pulls.listReviewComments({
           owner,
@@ -55,6 +57,8 @@ export class PRDataFetcher {
         this.collector.getUserTeams(pr.user?.login || '', owner),
         this.collector.parseCodeowners(owner, repo, prNumber),
         this.collector.getLinkedIssues(owner, repo, pr.body),
+        this.collector.getReleasesAfterMerge(owner, repo, pr.merged_at),
+        this.collector.getSlackMessages(owner, repo, prNumber, pr.created_at),
       ]);
 
       const reviewTimings = await this.collector.getReviewTimings(
@@ -140,6 +144,8 @@ export class PRDataFetcher {
         timeline: timeline,
         codeowners: codeowners, // Add codeowners to the PR stats
         linked_issues: linkedIssues, // Add linked issues to the PR stats
+        releases: releases, // Add releases to the PR stats
+        slack_messages: slackMessages, // Add Slack messages to the PR stats
       };
 
       return prStats;

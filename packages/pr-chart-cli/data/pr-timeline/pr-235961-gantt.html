@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PR #235961 Timeline - [Streams] Partition UX Improvements</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-timeline@7.7.0/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <link href="https://unpkg.com/vis-timeline@7.7.0/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style type="text/css">
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica', 'Arial', sans-serif; margin: 20px; }
+        .timeline { border: 1px solid #ccc; }
+        .vis-item.admin-event { background-color: #E3F2FD; border-color: #1976D2; }
+        .vis-item.admin-event.draft { background-color: #FFF3E0; border-color: #F57C00; }
+        .vis-item.admin-event.ready { background-color: #E8F5E8; border-color: #388E3C; }
+        .vis-item.admin-event.issue-created { background-color: #E8EAF6; border-color: #3F51B5; }
+        .vis-item.admin-event.issue-assigned { background-color: #E0F2F1; border-color: #00695C; }
+        .vis-item.admin-event.issue-unassigned { background-color: #FFF3E0; border-color: #FF9800; }
+        .vis-item.admin-event.issue-in-progress { background-color: #FFF3E0; border-color: #EF6C00; }
+        .vis-item.admin-event.issue-closed { background-color: #E8F5E8; border-color: #2E7D32; }
+        .vis-item.admin-event.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.admin-event.clickable:hover { 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.dev-commits { background-color: #E8F5E8; border-color: #388E3C; }
+        .vis-item.dev-commits.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.dev-commits.clickable:hover { 
+            background-color: #C8E6C9; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+                   .vis-item.review-approved { background-color: #C8E6C9; border-color: #2E7D32; }
+                   .vis-item.review-changes_requested { background-color: #FFCDD2; border-color: #C62828; }
+                   .vis-item.review-commented { background-color: #FFF3E0; border-color: #F57C00; }
+                   .vis-item.review-approved.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-approved.clickable:hover {
+                       background-color: #A5D6A7;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+                   .vis-item.review-changes_requested.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-changes_requested.clickable:hover {
+                       background-color: #FFABAE;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+                   .vis-item.review-commented.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-commented.clickable:hover {
+                       background-color: #FFE0B2;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+        .vis-item.discussion-comment { background-color: #F3E5F5; border-color: #7B1FA2; }
+        .vis-item.discussion-comment.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.discussion-comment.clickable:hover { 
+            background-color: #E1BEE7; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.ci-success { background-color: #90EE90; border-color: #2E7D32; }
+        .vis-item.ci-failure { background-color: #FFB6C1; border-color: #C62828; }
+        .vis-item.ci-bot-comment { background-color: #E1F5FE; border-color: #0277BD; }
+        .vis-item.merged { background-color: #81C784; border-color: #2E7D32; }
+        .vis-item.closed { background-color: #FFAB91; border-color: #D84315; }
+        .vis-item.awaiting-review { background-color: #FFF9C4; border-color: #F9A825; opacity: 0.7; }
+        .vis-item.awaiting-review.pending { background-color: #FFECB3; border-color: #F57F17; }
+        h1 { color: #333; }
+        h1 a { color: #1976D2; text-decoration: none; }
+        h1 a:hover { text-decoration: underline; }
+        .pr-info { 
+            background: #f5f5f5; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            border-left: 4px solid #2196F3;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .stat[title] {
+            cursor: help;
+            border: 2px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+        .stat[title]:hover {
+            border-color: #2196F3;
+        }
+        .issue-state {
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .issue-state-open {
+            background-color: #d73a49;
+            color: white;
+        }
+        .issue-state-closed {
+            background-color: #28a745;
+            color: white;
+        }
+        .vis-item.feature-turnaround { 
+            background-color: #E8F5E8; 
+            border-color: #4CAF50; 
+            border-width: 2px;
+        }
+        .vis-item.feature-turnaround.clickable {
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.feature-turnaround.clickable:hover {
+            background-color: #C8E6C9;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.release { 
+            background-color: #E3F2FD; 
+            border-color: #2196F3; 
+            border-width: 3px;
+            border-radius: 50%;
+            font-weight: bold;
+            color: #1976D2;
+        }
+        .vis-item.release.stable { 
+            background-color: #E8F5E8; 
+            border-color: #4CAF50; 
+            color: #2E7D32;
+        }
+        .vis-item.release.prerelease { 
+            background-color: #FFF3E0; 
+            border-color: #FF9800; 
+            color: #F57C00;
+        }
+        .vis-item.release.clickable {
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .vis-item.release.clickable:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: scale(1.1);
+        }
+        .vis-item.release.stable.clickable:hover {
+            background-color: #C8E6C9;
+        }
+        .vis-item.release.prerelease.clickable:hover {
+            background-color: #FFE0B2;
+        }
+        .vis-item.discussion { 
+            background-color: #F3E5F5; 
+            border-color: #9C27B0; 
+            border-width: 2px;
+            border-radius: 50%;
+            color: #6A1B9A;
+        }
+        .vis-item.discussion.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.discussion.clickable:hover {
+            background-color: #E1BEE7;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: scale(1.05);
+        }
+        .timeline-controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .zoom-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: background-color 0.2s ease;
+        }
+        .zoom-button:hover {
+            background: #1976D2;
+        }
+        .zoom-button:active {
+            background: #1565C0;
+        }
+    </style>
+</head>
+<body>
+    <h1><a href="https://github.com/elastic/kibana/pull/235961" target="_blank">PR #235961: [Streams] Partition UX Improvements</a></h1>
+    
+    <div class="pr-info">
+        <div style="margin-bottom: 10px;">
+            <strong>Author:</strong> mohamedhamed-ahmed | 
+            <strong>Created:</strong> 9/22/2025 | 
+            <strong>Status:</strong> closed (merged)
+        </div>
+        
+        
+        <div style="margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-left: 4px solid #0366d6; border-radius: 4px;">
+            <strong>🔗 Linked Issues (2):</strong>
+            <div style="margin-top: 5px;">
+                
+                    <div style="margin: 3px 0;">
+                        <a href="https://github.com/elastic/streams-program/issues/489" target="_blank" style="color: #0366d6; text-decoration: none; font-weight: 500;">
+                            #489
+                        </a>
+                        <span style="color: #586069; margin: 0 5px;">•</span>
+                        <span style="color: #24292e;">Partitioning UX improvements</span>
+                        <span style="margin-left: 5px;">
+                            <span class="issue-state issue-state-closed" title="closed">closed</span>
+                            <span class="issue-label" style="background: #f1f8ff; color: #0366d6; padding: 1px 4px; border-radius: 3px; font-size: 11px; margin-left: 3px;">Team:obs-ux-logs</span>
+                        </span>
+                    </div>
+                
+                    <div style="margin: 3px 0;">
+                        <a href="https://github.com/elastic/kibana/issues/235995" target="_blank" style="color: #0366d6; text-decoration: none; font-weight: 500;">
+                            #235995
+                        </a>
+                        <span style="color: #586069; margin: 0 5px;">•</span>
+                        <span style="color: #24292e;">Failing test: x-pack/platform/plugins/shared/streams_app/test/scout/ui/tests/data_management/data_routing/reorder_routing_rules.spec.ts</span>
+                        <span style="margin-left: 5px;">
+                            <span class="issue-state issue-state-closed" title="closed">closed</span>
+                            <span class="issue-label" style="background: #f1f8ff; color: #0366d6; padding: 1px 4px; border-radius: 3px; font-size: 11px; margin-left: 3px;">failed-test</span><span class="issue-label" style="background: #f1f8ff; color: #0366d6; padding: 1px 4px; border-radius: 3px; font-size: 11px; margin-left: 3px;">Team:obs-ux-logs</span><span class="issue-label" style="background: #f1f8ff; color: #0366d6; padding: 1px 4px; border-radius: 3px; font-size: 11px; margin-left: 3px;">reason:flaky-test</span><span class="issue-label" style="background: #f1f8ff; color: #0366d6; padding: 1px 4px; border-radius: 3px; font-size: 11px; margin-left: 3px;">Team:streams-program</span>
+                        </span>
+                    </div>
+                
+            </div>
+        </div>
+        
+        
+        
+        
+        
+        
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-label">PR Duration</span>
+                <span class="stat-value">1.1dh</span>
+            </div>
+            <div class="stat" title="Composite metric combining CI time (25%), waiting time (30%), code complexity (20%), review iterations (15%), and duration (10%). Measures delivery friction from technical, organizational, and process obstacles. Score: 0-30=Low, 31-60=Medium, 61+=High friction">
+                <span class="stat-label">PR Delivery Friction</span>
+                <span class="stat-value" style="color: #F57C00; font-weight: bold;">52/100</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Commits</span>
+                <span class="stat-value">13</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Comments</span>
+                <span class="stat-value">5</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Review Comments</span>
+                <span class="stat-value">13</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Files Changed</span>
+                <span class="stat-value">17</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Additions</span>
+                <span class="stat-value">+314</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Deletions</span>
+                <span class="stat-value">-148</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Build Minutes</span>
+                <span class="stat-value">9.7h</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total time waited for approvals</span>
+                <span class="stat-value">1d</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="timeline-controls">
+        <button class="zoom-button" onclick="zoomToPRProcess()">🔍 Zoom to PR Process</button>
+        <button class="zoom-button" onclick="fitAllItems()">🗓️ Fit All</button>
+    </div>
+
+    <div id="timeline"></div>
+
+    <script type="text/javascript">
+        // Timeline data
+        const groups = new vis.DataSet([{"id":"releases","content":"🚀 Releases","order":1},{"id":"feature-turnaround","content":"⏱️ Feature Turnaround","order":2},{"id":"admin","content":"📋 Administrative","order":3},{"id":"dev","content":"👨‍💻 Development","order":4},{"id":"ci","content":"🔧 CI/CD","order":5},{"id":"team-kibana-localization","content":"👥 kibana-localization","order":6},{"id":"team-streams-program-team","content":"👥 streams-program-team","order":7},{"id":"discussion","content":"💭 Discussion","order":8}]);
+        const items = new vis.DataSet([{"id":"0","group":"dev","start":"2025-09-22T14:03:27.000Z","content":"7 commits","title":"7 commits pushed at 9/22/2025, 4:03:27 PM\n\nCommits:\n• 3c7f7d3: [Streams] Partition UX Improvements (mohamedhamed-ahmed)\n• 226a660: Merge branch 'main' into 489-streams-partition-... (mohamedhamed-ahmed)\n• 71bb632: Remove translations (mohamedhamed-ahmed)\n• 66d3bec: Code Refactoring (mohamedhamed-ahmed)\n• 32e19c5: Code Refactoring (mohamedhamed-ahmed)\n• bfca78a: Fix Tests (mohamedhamed-ahmed)\n• c8e8561: Merge branch 'main' into 489-streams-partition-... (mohamedhamed-ahmed)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/3c7f7d36776e2c78fdfaec9105c7c2ac1c5d2b60"},{"id":"1","group":"admin","start":"2025-09-22T14:04:29.000Z","content":"PR Opened","title":"PR opened and immediately ready for review","type":"point","className":"admin-event ready"},{"id":"18","group":"ci","start":"2025-09-22T14:04:33.000Z","content":"Bot notification","title":"Automated notification from elasticmachine pinging @elastic/obs-ux-logs-team (team:obs-ux-logs) - elasticmachine","type":"point","className":"ci-bot-comment"},{"id":"19","group":"ci","start":"2025-09-22T14:04:33.000Z","content":"Bot notification","title":"Automated notification from elasticmachine pinging @elastic/streams-program-team (team:streams-program) - elasticmachine","type":"point","className":"ci-bot-comment"},{"id":"82","group":"discussion","start":"2025-09-22T14:28:52.000Z","content":"github-actions[bot]","title":"Comment by github-actions[bot] at 9/22/2025, 4:28:52 PM\n\n\"\n### :robot: GitHub comments\n\n<details><summary>Expand to view the GitHub comments</summary>\n<p>\n\nJu...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#issuecomment-3319403312"},{"id":"104","group":"discussion","start":"2025-09-22T14:48:07.000Z","content":"thomheymann","title":"Comment by thomheymann at 9/22/2025, 4:48:07 PM\n\n\"I'm not sure about this. Shouldn't we display something for these cases to the user? \"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2368808791"},{"id":"105","group":"discussion","start":"2025-09-22T14:50:51.000Z","content":"thomheymann","title":"Comment by thomheymann at 9/22/2025, 4:50:51 PM\n\n\"Why the additional check? Doesn't ComplexBadges already handle filter badges? \"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2368823243"},{"id":"106","group":"discussion","start":"2025-09-22T14:51:24.000Z","content":"thomheymann","title":"Comment by thomheymann at 9/22/2025, 4:51:24 PM\n\n\"What's the difference between `ComplexBadges` and `RecursiveConditionDisplay`?\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2368825873"},{"id":"107","group":"team-streams-program-team","start":"2025-09-22T14:58:39.000Z","content":"thomheymann: commented","title":"Review by thomheymann - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"108","group":"discussion","start":"2025-09-22T15:00:53.000Z","content":"mohamedhamed-ahmed","title":"Comment by mohamedhamed-ahmed at 9/22/2025, 5:00:53 PM\n\n\"the never shouldn't happen at all.\r\n\r\nnot sure about the always maybe I can show it as a json as wel...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2368875806"},{"id":"109","group":"team-streams-program-team","start":"2025-09-22T15:00:54.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"110","group":"discussion","start":"2025-09-22T15:02:06.000Z","content":"mohamedhamed-ahmed","title":"Comment by mohamedhamed-ahmed at 9/22/2025, 5:02:06 PM\n\n\"yes can be replaced, had only complex at the begining and after implementing the recursive logic for...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2368882189"},{"id":"111","group":"team-streams-program-team","start":"2025-09-22T15:02:07.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"112","group":"team-streams-program-team","start":"2025-09-22T15:03:12.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"113","group":"discussion","start":"2025-09-22T15:03:12.000Z","content":"mohamedhamed-ahmed","title":"Comment by mohamedhamed-ahmed at 9/22/2025, 5:03:12 PM\n\n\"IIRC originally it was left blank as well, that is why I wasn't really sure if we need to display so...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2368887593"},{"id":"114","group":"team-streams-program-team","start":"2025-09-22T15:05:10.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"115","group":"discussion","start":"2025-09-22T15:05:10.000Z","content":"mohamedhamed-ahmed","title":"Comment by mohamedhamed-ahmed at 9/22/2025, 5:05:10 PM\n\n\"Good Point, can be simplified for sure. will update this 👍 \"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2368896376"},{"id":"135","group":"team-streams-program-team","start":"2025-09-22T15:09:13.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"136","group":"discussion","start":"2025-09-22T15:09:13.000Z","content":"mohamedhamed-ahmed","title":"Comment by mohamedhamed-ahmed at 9/22/2025, 5:09:13 PM\n\n\"@boriskirov @patpascal wdyt? In case of an empty condition should we display anything?\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2368916612"},{"id":"138","group":"discussion","start":"2025-09-22T15:09:52.000Z","content":"thomheymann","title":"Comment by thomheymann at 9/22/2025, 5:09:52 PM\n\n\"We could either show \"always\" or \"true\" as a word (similar to how we show \"equals\", \"starts with\", e...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2368919906"},{"id":"139","group":"team-streams-program-team","start":"2025-09-22T15:09:53.000Z","content":"thomheymann: commented","title":"Review by thomheymann - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"209","group":"team-streams-program-team","start":"2025-09-22T19:51:11.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"210","group":"discussion","start":"2025-09-22T19:51:11.000Z","content":"mohamedhamed-ahmed","title":"Comment by mohamedhamed-ahmed at 9/22/2025, 9:51:11 PM\n\n\"This is how it would look like with `always` and `never` displayed in badges vs json \r\n\r\n## Badges\r\n...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2370120043"},{"id":"215","group":"dev","start":"2025-09-23T07:30:33.000Z","content":"6 commits","title":"6 commits pushed at 9/23/2025, 9:30:33 AM\n\nCommits:\n• 2c97fb0: Merge branch 'main' into 489-streams-partition-... (mohamedhamed-ahmed)\n• 7bbe031: Merge branch 'main' into 489-streams-partition-... (mohamedhamed-ahmed)\n• 66678d8: Add Parantheses Support (mohamedhamed-ahmed)\n• be30ef6: Merge branch 'main' into 489-streams-partition-... (mohamedhamed-ahmed)\n• dd17404: Style changes (mohamedhamed-ahmed)\n• 9163d9c: Merge branch 'main' into 489-streams-partition-... (mohamedhamed-ahmed)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/2c97fb019abf4931a9eb9836636ff3de3c89c181"},{"id":"257","group":"team-streams-program-team","start":"2025-09-23T08:11:41.000Z","content":"boriskirov: commented","title":"Review by boriskirov - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"258","group":"discussion","start":"2025-09-23T08:11:41.000Z","content":"boriskirov","title":"Comment by boriskirov at 9/23/2025, 10:11:41 AM\n\n\"Let's use the badges for now, as we know these would be empty. \r\n\r\nThe preview is becoming a little ...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2371524039"},{"id":"302","group":"discussion","start":"2025-09-23T13:24:00.000Z","content":"mohamedhamed-ahmed","title":"Comment by mohamedhamed-ahmed at 9/23/2025, 3:24:00 PM\n\n\"@thomheymann Thanks for the review, I addressed your comments and implemented [support for ](https:/...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#issuecomment-3324009450"},{"id":"345","group":"discussion","start":"2025-09-23T14:30:11.000Z","content":"thomheymann","title":"Comment by thomheymann at 9/23/2025, 4:30:11 PM\n\n\"Do we need to hard code this or can we use an EUI size? \n\nhttps://eui.elastic.co/v106.6.0/docs/getti...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2372530376"},{"id":"346","group":"team-streams-program-team","start":"2025-09-23T14:33:33.000Z","content":"thomheymann: approved","title":"Review by thomheymann - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved"},{"id":"349","group":"team-streams-program-team","start":"2025-09-23T14:57:46.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"350","group":"discussion","start":"2025-09-23T14:57:46.000Z","content":"mohamedhamed-ahmed","title":"Comment by mohamedhamed-ahmed at 9/23/2025, 4:57:46 PM\n\n\"problem is size.l is 24px and I need exactly 26px otherwise the lines don't overlap and there is a m...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#discussion_r2372617460"},{"id":"351","group":"ci","start":"2025-09-23T15:35:16.000Z","content":"Build succeeded","title":"Automated build success notification - elasticmachine","type":"point","className":"ci-success"},{"id":"353","group":"admin","start":"2025-09-23T16:51:30.000Z","content":"PR Closed","type":"point","className":"admin-event closed"},{"id":"354","group":"admin","start":"2025-09-23T16:51:30.000Z","content":"PR Merged","type":"point","className":"admin-event merged"},{"id":"369","group":"admin","start":"2025-09-04T13:23:15.000Z","content":"📝 Issue #489 Created","title":"Issue #489: Partitioning UX improvements was created\n\nClick to view issue on GitHub","type":"point","className":"admin-event issue-created clickable","githubUrl":"https://github.com/elastic/streams-program/issues/489"},{"id":"370","group":"admin","start":"2025-09-18T21:37:03.000Z","content":"👤 Issue #489 Assigned to @mohamedhamed-ahmed","title":"Issue #489: Partitioning UX improvements was assigned to @mohamedhamed-ahmed\n\nClick to view issue on GitHub","type":"point","className":"admin-event issue-assigned clickable","githubUrl":"https://github.com/elastic/streams-program/issues/489"},{"id":"371","group":"admin","start":"2025-09-23T16:51:31.000Z","content":"✅ Issue #489 Closed","title":"Issue #489: Partitioning UX improvements was closed\n\nClick to view issue on GitHub","type":"point","className":"admin-event issue-closed clickable","githubUrl":"https://github.com/elastic/streams-program/issues/489"},{"id":"372","group":"admin","start":"2025-09-22T19:43:07.000Z","content":"📝 Issue #235995 Created","title":"Issue #235995: Failing test: x-pack/platform/plugins/shared/streams_app/test/scout/ui/tests/data_management/data_routing/reorder_routing_rules.spec.ts was created\n\nClick to view issue on GitHub","type":"point","className":"admin-event issue-created clickable","githubUrl":"https://github.com/elastic/kibana/issues/235995"},{"id":"373","group":"admin","start":"2025-09-23T07:55:34.000Z","content":"👤 Issue #235995 Assigned to @mohamedhamed-ahmed","title":"Issue #235995: Failing test: x-pack/platform/plugins/shared/streams_app/test/scout/ui/tests/data_management/data_routing/reorder_routing_rules.spec.ts was assigned to @mohamedhamed-ahmed\n\nClick to view issue on GitHub","type":"point","className":"admin-event issue-assigned clickable","githubUrl":"https://github.com/elastic/kibana/issues/235995"},{"id":"374","group":"admin","start":"2025-09-23T16:51:32.000Z","content":"✅ Issue #235995 Closed","title":"Issue #235995: Failing test: x-pack/platform/plugins/shared/streams_app/test/scout/ui/tests/data_management/data_routing/reorder_routing_rules.spec.ts was closed\n\nClick to view issue on GitHub","type":"point","className":"admin-event issue-closed clickable","githubUrl":"https://github.com/elastic/kibana/issues/235995"},{"id":"375","group":"team-streams-program-team","start":"2025-09-22T14:58:39.000Z","content":"thomheymann: commented","title":"Review by thomheymann - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3253292874"},{"id":"376","group":"team-streams-program-team","start":"2025-09-22T15:00:54.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3253372781"},{"id":"377","group":"team-streams-program-team","start":"2025-09-22T15:02:07.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3253380329"},{"id":"378","group":"team-streams-program-team","start":"2025-09-22T15:03:12.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3253386975"},{"id":"379","group":"team-streams-program-team","start":"2025-09-22T15:05:10.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3253397887"},{"id":"380","group":"team-streams-program-team","start":"2025-09-22T15:09:13.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3253423037"},{"id":"381","group":"team-streams-program-team","start":"2025-09-22T15:09:53.000Z","content":"thomheymann: commented","title":"Review by thomheymann - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3253427463"},{"id":"382","group":"team-streams-program-team","start":"2025-09-22T19:51:11.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3254937055"},{"id":"383","group":"team-streams-program-team","start":"2025-09-23T08:11:41.000Z","content":"boriskirov: commented","title":"Review by boriskirov - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3256778681"},{"id":"384","group":"team-streams-program-team","start":"2025-09-23T14:33:33.000Z","content":"thomheymann: approved","title":"Review by thomheymann - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3258304593"},{"id":"385","group":"team-streams-program-team","start":"2025-09-23T14:57:46.000Z","content":"mohamedhamed-ahmed: commented","title":"Review by mohamedhamed-ahmed - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/235961#pullrequestreview-3258432003"},{"group":"ci","start":"2025-09-22T14:04:32.000Z","end":"2025-09-22T14:04:33.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-386"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-387"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"comment","title":"comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-388"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"comment","title":"comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-389"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-390"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-391"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-392"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-393"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"comment","title":"comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-394"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"comment","title":"comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-395"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:04:34.000Z","content":"Auto-approve API docs","title":"Auto-approve API docs: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-396"},{"group":"ci","start":"2025-09-22T14:04:35.000Z","end":"2025-09-22T14:04:35.000Z","content":"comment","title":"comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-397"},{"group":"ci","start":"2025-09-22T14:04:36.000Z","end":"2025-09-22T14:04:40.000Z","content":"label-obs-ux-management-team","title":"label-obs-ux-management-team: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-398"},{"group":"ci","start":"2025-09-22T14:04:37.000Z","end":"2025-09-22T14:04:46.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-399"},{"group":"ci","start":"2025-09-22T14:04:49.000Z","end":"2025-09-22T14:04:53.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-400"},{"group":"ci","start":"2025-09-22T14:04:56.000Z","end":"2025-09-22T14:05:03.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-401"},{"group":"ci","start":"2025-09-22T14:05:04.000Z","end":"2025-09-22T14:05:04.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-402"},{"group":"ci","start":"2025-09-22T14:04:33.000Z","end":"2025-09-22T14:05:41.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-403"},{"group":"ci","start":"2025-09-22T14:04:34.000Z","end":"2025-09-22T14:05:42.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-404"},{"group":"ci","start":"2025-09-22T14:26:47.000Z","end":"2025-09-22T14:26:48.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-405"},{"group":"ci","start":"2025-09-22T14:26:52.000Z","end":"2025-09-22T14:26:59.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-406"},{"group":"ci","start":"2025-09-22T14:27:03.000Z","end":"2025-09-22T14:27:08.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-407"},{"group":"ci","start":"2025-09-22T14:27:14.000Z","end":"2025-09-22T14:27:25.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-408"},{"group":"ci","start":"2025-09-22T14:27:26.000Z","end":"2025-09-22T14:27:26.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-409"},{"group":"ci","start":"2025-09-22T14:26:49.000Z","end":"2025-09-22T14:27:57.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-410"},{"group":"ci","start":"2025-09-22T14:26:50.000Z","end":"2025-09-22T14:27:58.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-411"},{"group":"ci","start":"2025-09-22T14:28:48.000Z","end":"2025-09-22T14:28:48.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-412"},{"group":"ci","start":"2025-09-22T14:28:50.000Z","end":"2025-09-22T14:28:54.000Z","content":"comment","title":"comment: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-413"},{"group":"ci","start":"2025-09-22T14:35:20.000Z","end":"2025-09-22T14:35:21.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-414"},{"group":"ci","start":"2025-09-22T14:35:24.000Z","end":"2025-09-22T14:35:32.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-415"},{"group":"ci","start":"2025-09-22T14:35:35.000Z","end":"2025-09-22T14:35:40.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-416"},{"group":"ci","start":"2025-09-22T14:36:01.000Z","end":"2025-09-22T14:36:01.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-417"},{"group":"ci","start":"2025-09-22T14:35:47.000Z","end":"2025-09-22T14:36:01.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-418"},{"group":"ci","start":"2025-09-22T14:35:20.000Z","end":"2025-09-22T14:36:29.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-419"},{"group":"ci","start":"2025-09-22T14:35:21.000Z","end":"2025-09-22T14:36:30.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-420"},{"group":"ci","start":"2025-09-22T15:07:24.000Z","end":"2025-09-22T15:07:25.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-421"},{"group":"ci","start":"2025-09-22T15:07:29.000Z","end":"2025-09-22T15:07:36.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-422"},{"group":"ci","start":"2025-09-22T15:07:39.000Z","end":"2025-09-22T15:07:44.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-423"},{"group":"ci","start":"2025-09-22T15:08:16.000Z","end":"2025-09-22T15:08:16.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-424"},{"group":"ci","start":"2025-09-22T15:07:47.000Z","end":"2025-09-22T15:08:16.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-425"},{"group":"ci","start":"2025-09-22T15:07:28.000Z","end":"2025-09-22T15:08:41.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-426"},{"group":"ci","start":"2025-09-22T15:07:29.000Z","end":"2025-09-22T15:08:42.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-427"},{"group":"ci","start":"2025-09-22T14:37:08.000Z","end":"2025-09-22T15:09:20.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 32 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-428"},{"group":"ci","start":"2025-09-22T15:15:19.000Z","end":"2025-09-22T15:15:20.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-429"},{"group":"ci","start":"2025-09-22T15:15:24.000Z","end":"2025-09-22T15:15:33.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-430"},{"group":"ci","start":"2025-09-22T15:15:39.000Z","end":"2025-09-22T15:15:43.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-431"},{"group":"ci","start":"2025-09-22T15:15:46.000Z","end":"2025-09-22T15:15:55.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-432"},{"group":"ci","start":"2025-09-22T15:15:20.000Z","end":"2025-09-22T15:16:30.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-433"},{"group":"ci","start":"2025-09-22T15:15:21.000Z","end":"2025-09-22T15:16:31.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-434"},{"group":"ci","start":"2025-09-22T15:32:12.000Z","end":"2025-09-22T15:46:04.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 14 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-435"},{"group":"ci","start":"2025-09-22T15:15:25.000Z","end":"2025-09-22T18:09:01.000Z","content":"kibana-ci","title":"kibana-ci: 174 minutes - failure","type":"range","className":"ci-failure","style":"background-color: #FFB6C1;","id":"ci-436"},{"group":"ci","start":"2025-09-22T19:17:28.000Z","end":"2025-09-22T19:17:29.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-437"},{"group":"ci","start":"2025-09-22T19:17:32.000Z","end":"2025-09-22T19:17:36.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-438"},{"group":"ci","start":"2025-09-22T19:17:38.000Z","end":"2025-09-22T19:17:42.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-439"},{"group":"ci","start":"2025-09-22T19:17:44.000Z","end":"2025-09-22T19:17:45.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-440"},{"group":"ci","start":"2025-09-22T19:17:47.000Z","end":"2025-09-22T19:17:47.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - cancelled","type":"range","className":"ci-cancelled","style":"background-color: #FFB6C1;","id":"ci-441"},{"group":"ci","start":"2025-09-22T19:17:45.000Z","end":"2025-09-22T19:17:47.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - cancelled","type":"range","className":"ci-cancelled","style":"background-color: #FFB6C1;","id":"ci-442"},{"group":"ci","start":"2025-09-22T19:17:50.000Z","end":"2025-09-22T19:17:54.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-443"},{"group":"ci","start":"2025-09-22T19:17:56.000Z","end":"2025-09-22T19:18:01.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-444"},{"group":"ci","start":"2025-09-22T19:18:12.000Z","end":"2025-09-22T19:18:12.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-445"},{"group":"ci","start":"2025-09-22T19:18:03.000Z","end":"2025-09-22T19:18:12.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-446"},{"group":"ci","start":"2025-09-22T19:17:45.000Z","end":"2025-09-22T19:18:37.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-447"},{"group":"ci","start":"2025-09-22T19:17:45.000Z","end":"2025-09-22T19:18:38.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-448"},{"group":"ci","start":"2025-09-22T19:18:43.000Z","end":"2025-09-22T19:46:53.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 28 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-449"},{"group":"ci","start":"2025-09-22T19:17:49.000Z","end":"2025-09-22T21:17:33.000Z","content":"kibana-ci","title":"kibana-ci: 120 minutes - failure","type":"range","className":"ci-failure","style":"background-color: #FFB6C1;","id":"ci-450"},{"group":"ci","start":"2025-09-23T07:30:38.000Z","end":"2025-09-23T07:30:39.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-451"},{"group":"ci","start":"2025-09-23T07:30:43.000Z","end":"2025-09-23T07:30:48.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-452"},{"group":"ci","start":"2025-09-23T07:30:51.000Z","end":"2025-09-23T07:30:58.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-453"},{"group":"ci","start":"2025-09-23T07:31:12.000Z","end":"2025-09-23T07:31:25.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-454"},{"group":"ci","start":"2025-09-23T07:30:40.000Z","end":"2025-09-23T07:31:48.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-455"},{"group":"ci","start":"2025-09-23T07:30:39.000Z","end":"2025-09-23T07:31:48.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-456"},{"group":"ci","start":"2025-09-23T07:31:49.000Z","end":"2025-09-23T08:03:20.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 32 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-457"},{"group":"ci","start":"2025-09-23T08:06:16.000Z","end":"2025-09-23T08:06:17.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-458"},{"group":"ci","start":"2025-09-23T08:06:19.000Z","end":"2025-09-23T08:06:26.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-459"},{"group":"ci","start":"2025-09-23T08:06:29.000Z","end":"2025-09-23T08:06:33.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-460"},{"group":"ci","start":"2025-09-23T08:06:50.000Z","end":"2025-09-23T08:06:50.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-461"},{"group":"ci","start":"2025-09-23T08:06:36.000Z","end":"2025-09-23T08:06:50.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-462"},{"group":"ci","start":"2025-09-23T08:06:17.000Z","end":"2025-09-23T08:07:25.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-463"},{"group":"ci","start":"2025-09-23T08:06:17.000Z","end":"2025-09-23T08:07:26.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-464"},{"group":"ci","start":"2025-09-23T08:07:28.000Z","end":"2025-09-23T08:38:29.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 31 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-465"},{"group":"ci","start":"2025-09-23T10:23:03.000Z","end":"2025-09-23T10:23:04.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-466"},{"group":"ci","start":"2025-09-23T10:23:07.000Z","end":"2025-09-23T10:23:13.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-467"},{"group":"ci","start":"2025-09-23T10:23:17.000Z","end":"2025-09-23T10:23:24.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-468"},{"group":"ci","start":"2025-09-23T10:23:27.000Z","end":"2025-09-23T10:23:37.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-469"},{"group":"ci","start":"2025-09-23T10:23:38.000Z","end":"2025-09-23T10:23:38.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-470"},{"group":"ci","start":"2025-09-23T10:23:05.000Z","end":"2025-09-23T10:24:12.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-471"},{"group":"ci","start":"2025-09-23T10:23:04.000Z","end":"2025-09-23T10:24:12.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-472"},{"group":"ci","start":"2025-09-23T10:27:26.000Z","end":"2025-09-23T10:27:27.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-473"},{"group":"ci","start":"2025-09-23T10:27:32.000Z","end":"2025-09-23T10:27:41.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-474"},{"group":"ci","start":"2025-09-23T10:27:44.000Z","end":"2025-09-23T10:27:51.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-475"},{"group":"ci","start":"2025-09-23T10:28:05.000Z","end":"2025-09-23T10:28:05.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-476"},{"group":"ci","start":"2025-09-23T10:27:57.000Z","end":"2025-09-23T10:28:05.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-477"},{"group":"ci","start":"2025-09-23T10:27:27.000Z","end":"2025-09-23T10:28:35.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-478"},{"group":"ci","start":"2025-09-23T10:27:27.000Z","end":"2025-09-23T10:28:35.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-479"},{"group":"ci","start":"2025-09-23T10:28:47.000Z","end":"2025-09-23T10:55:23.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 27 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-480"},{"group":"ci","start":"2025-09-23T10:27:32.000Z","end":"2025-09-23T12:32:09.000Z","content":"kibana-ci","title":"kibana-ci: 125 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-481"},{"group":"ci","start":"2025-09-23T13:24:03.000Z","end":"2025-09-23T13:24:04.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-482"},{"group":"ci","start":"2025-09-23T14:05:27.000Z","end":"2025-09-23T14:05:28.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-483"},{"group":"ci","start":"2025-09-23T14:05:44.000Z","end":"2025-09-23T14:05:45.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-484"},{"group":"ci","start":"2025-09-23T14:05:47.000Z","end":"2025-09-23T14:05:52.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - cancelled","type":"range","className":"ci-cancelled","style":"background-color: #FFB6C1;","id":"ci-485"},{"group":"ci","start":"2025-09-23T14:06:03.000Z","end":"2025-09-23T14:06:03.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - cancelled","type":"range","className":"ci-cancelled","style":"background-color: #FFB6C1;","id":"ci-486"},{"group":"ci","start":"2025-09-23T14:06:09.000Z","end":"2025-09-23T14:06:16.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-487"},{"group":"ci","start":"2025-09-23T14:06:20.000Z","end":"2025-09-23T14:06:27.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-488"},{"group":"ci","start":"2025-09-23T14:05:44.000Z","end":"2025-09-23T14:06:36.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-489"},{"group":"ci","start":"2025-09-23T14:05:45.000Z","end":"2025-09-23T14:06:37.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-490"},{"group":"ci","start":"2025-09-23T14:06:30.000Z","end":"2025-09-23T14:06:39.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-491"},{"group":"ci","start":"2025-09-23T14:11:46.000Z","end":"2025-09-23T14:43:27.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 32 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-492"},{"group":"ci","start":"2025-09-23T14:05:52.000Z","end":"2025-09-23T16:51:28.000Z","content":"kibana-ci","title":"kibana-ci: 166 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-493"},{"group":"ci","start":"2025-09-23T16:51:37.000Z","end":"2025-09-23T16:51:37.000Z","content":"fetch_issues_to_label","title":"fetch_issues_to_label: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-494"},{"group":"ci","start":"2025-09-23T16:51:39.000Z","end":"2025-09-23T16:51:39.000Z","content":"Label issue ${{ matrix.issueId }} with ${{ matrix.labelId }}","title":"Label issue ${{ matrix.issueId }} with ${{ matrix.labelId }}: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-495"},{"group":"ci","start":"2025-09-23T16:51:38.000Z","end":"2025-09-23T16:51:45.000Z","content":"docs-preview / destroy","title":"docs-preview / destroy: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-496"},{"group":"ci","start":"2025-09-23T16:51:36.000Z","end":"2025-09-23T16:51:46.000Z","content":"undeploy-my-kibana","title":"undeploy-my-kibana: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-497"},{"group":"ci","start":"2025-09-23T16:51:36.000Z","end":"2025-09-23T16:51:54.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-498"},{"group":"ci","start":"2025-09-23T16:51:56.000Z","end":"2025-09-23T16:51:56.000Z","content":"Label and Backport","title":"Label and Backport: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-499"},{"group":"ci","start":"2025-09-23T16:51:57.000Z","end":"2025-09-23T16:51:57.000Z","content":"comment","title":"comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-500"},{"group":"ci","start":"2025-09-23T14:06:40.000Z","end":"2025-09-23T14:16:40.000Z","content":"docs-preview / comment (ongoing)","title":"docs-preview / comment: Still running","type":"range","className":"ci-running","style":"background-color: #FFA500;","id":"ci-501"},{"id":"502","group":"team-kibana-localization","start":"2025-09-22T14:04:29.000Z","end":"2025-09-23T16:51:30.000Z","content":"Awaiting code owner review (1.1d)","title":"Still waiting for kibana-localization review","type":"range","className":"awaiting-review pending"},{"id":"503","group":"team-streams-program-team","start":"2025-09-22T14:04:29.000Z","end":"2025-09-22T14:58:39.000Z","content":"Awaiting code owner review (0.9h)","title":"Waiting for streams-program-team review","type":"range","className":"awaiting-review"},{"id":"504","group":"feature-turnaround","start":"2025-09-04T13:23:15.000Z","end":"2025-09-23T16:51:31.000Z","content":"Issue #489 (2.7w)","title":"Feature Turnaround: Issue #489\nPartitioning UX improvements\n\nDuration: 2.7w\nCreated: 9/4/2025\nClosed: 9/23/2025\n\nClick to view issue on GitHub","type":"range","className":"feature-turnaround clickable","githubUrl":"https://github.com/elastic/streams-program/issues/489"},{"id":"505","group":"feature-turnaround","start":"2025-09-22T19:43:07.000Z","end":"2025-09-23T16:51:32.000Z","content":"Issue #235995 (22h)","title":"Feature Turnaround: Issue #235995\nFailing test: x-pack/platform/plugins/shared/streams_app/test/scout/ui/tests/data_management/data_routing/reorder_routing_rules.spec.ts\n\nDuration: 22h\nCreated: 9/22/2025\nClosed: 9/23/2025\n\nClick to view issue on GitHub","type":"range","className":"feature-turnaround clickable","githubUrl":"https://github.com/elastic/kibana/issues/235995"}]);
+
+        // Configuration options
+        const options = {
+            editable: false,
+            margin: { item: 10, axis: 5 },
+            orientation: 'top',
+            showCurrentTime: false,
+            zoomable: true,
+            moveable: true,
+            height: '500px',
+            stack: false,
+            format: {
+                minorLabels: {
+                    hour: 'HH:mm',
+                    day: 'D MMM'
+                },
+                majorLabels: {
+                    hour: 'ddd D MMMM',
+                    day: 'MMMM YYYY'
+                }
+            }
+        };
+
+        // Create timeline
+        const container = document.getElementById('timeline');
+        const timeline = new vis.Timeline(container, items, groups, options);
+
+        // Fit timeline to show all items with some padding
+        timeline.fit();
+        
+        // Zoom control functions
+        function zoomToPRProcess() {
+            const prStart = new Date('2025-09-22T14:04:29Z');
+            const prEnd = new Date('2025-09-23T16:51:30Z');
+            
+            // Add some padding (5% of the PR duration on each side)
+            const duration = prEnd.getTime() - prStart.getTime();
+            const padding = duration * 0.05;
+            
+            const zoomStart = new Date(prStart.getTime() - padding);
+            const zoomEnd = new Date(prEnd.getTime() + padding);
+            
+            timeline.setWindow(zoomStart, zoomEnd, {
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutCubic'
+                }
+            });
+        }
+        
+        function fitAllItems() {
+            timeline.fit({
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutCubic'
+                }
+            });
+        }
+        
+        // Make functions globally accessible
+        window.zoomToPRProcess = zoomToPRProcess;
+        window.fitAllItems = fitAllItems;
+        
+        // Add click handler for items
+        timeline.on('select', function (selection) {
+            if (selection.items.length > 0) {
+                const item = items.get(selection.items[0]);
+                
+                // Handle GitHub links for commits
+                if (item && item.githubUrl) {
+                    window.open(item.githubUrl, '_blank');
+                }
+                
+                // Log selected item for debugging
+                if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development') {
+                  console.log('Selected item:', item);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PR #236028 Timeline - [Cases] Add extract observables setting to cases SO mapping</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-timeline@7.7.0/standalone/umd/vis-timeline-graph2d.min.js"></script>
+    <link href="https://unpkg.com/vis-timeline@7.7.0/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style type="text/css">
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica', 'Arial', sans-serif; margin: 20px; }
+        .timeline { border: 1px solid #ccc; }
+        .vis-item.admin-event { background-color: #E3F2FD; border-color: #1976D2; }
+        .vis-item.admin-event.draft { background-color: #FFF3E0; border-color: #F57C00; }
+        .vis-item.admin-event.ready { background-color: #E8F5E8; border-color: #388E3C; }
+        .vis-item.admin-event.issue-created { background-color: #E8EAF6; border-color: #3F51B5; }
+        .vis-item.admin-event.issue-assigned { background-color: #E0F2F1; border-color: #00695C; }
+        .vis-item.admin-event.issue-unassigned { background-color: #FFF3E0; border-color: #FF9800; }
+        .vis-item.admin-event.issue-in-progress { background-color: #FFF3E0; border-color: #EF6C00; }
+        .vis-item.admin-event.issue-closed { background-color: #E8F5E8; border-color: #2E7D32; }
+        .vis-item.admin-event.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.admin-event.clickable:hover { 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.dev-commits { background-color: #E8F5E8; border-color: #388E3C; }
+        .vis-item.dev-commits.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.dev-commits.clickable:hover { 
+            background-color: #C8E6C9; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+                   .vis-item.review-approved { background-color: #C8E6C9; border-color: #2E7D32; }
+                   .vis-item.review-changes_requested { background-color: #FFCDD2; border-color: #C62828; }
+                   .vis-item.review-commented { background-color: #FFF3E0; border-color: #F57C00; }
+                   .vis-item.review-approved.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-approved.clickable:hover {
+                       background-color: #A5D6A7;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+                   .vis-item.review-changes_requested.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-changes_requested.clickable:hover {
+                       background-color: #FFABAE;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+                   .vis-item.review-commented.clickable {
+                       cursor: pointer;
+                       transition: box-shadow 0.2s ease;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }
+                   .vis-item.review-commented.clickable:hover {
+                       background-color: #FFE0B2;
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                       transform: translateY(-1px);
+                   }
+        .vis-item.discussion-comment { background-color: #F3E5F5; border-color: #7B1FA2; }
+        .vis-item.discussion-comment.clickable { 
+            cursor: pointer; 
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.discussion-comment.clickable:hover { 
+            background-color: #E1BEE7; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.ci-success { background-color: #90EE90; border-color: #2E7D32; }
+        .vis-item.ci-failure { background-color: #FFB6C1; border-color: #C62828; }
+        .vis-item.ci-bot-comment { background-color: #E1F5FE; border-color: #0277BD; }
+        .vis-item.merged { background-color: #81C784; border-color: #2E7D32; }
+        .vis-item.closed { background-color: #FFAB91; border-color: #D84315; }
+        .vis-item.awaiting-review { background-color: #FFF9C4; border-color: #F9A825; opacity: 0.7; }
+        .vis-item.awaiting-review.pending { background-color: #FFECB3; border-color: #F57F17; }
+        h1 { color: #333; }
+        h1 a { color: #1976D2; text-decoration: none; }
+        h1 a:hover { text-decoration: underline; }
+        .pr-info { 
+            background: #f5f5f5; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            border-left: 4px solid #2196F3;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .stat[title] {
+            cursor: help;
+            border: 2px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+        .stat[title]:hover {
+            border-color: #2196F3;
+        }
+        .issue-state {
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .issue-state-open {
+            background-color: #d73a49;
+            color: white;
+        }
+        .issue-state-closed {
+            background-color: #28a745;
+            color: white;
+        }
+        .vis-item.feature-turnaround { 
+            background-color: #E8F5E8; 
+            border-color: #4CAF50; 
+            border-width: 2px;
+        }
+        .vis-item.feature-turnaround.clickable {
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.feature-turnaround.clickable:hover {
+            background-color: #C8E6C9;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        .vis-item.release { 
+            background-color: #E3F2FD; 
+            border-color: #2196F3; 
+            border-width: 3px;
+            border-radius: 50%;
+            font-weight: bold;
+            color: #1976D2;
+        }
+        .vis-item.release.stable { 
+            background-color: #E8F5E8; 
+            border-color: #4CAF50; 
+            color: #2E7D32;
+        }
+        .vis-item.release.prerelease { 
+            background-color: #FFF3E0; 
+            border-color: #FF9800; 
+            color: #F57C00;
+        }
+        .vis-item.release.clickable {
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .vis-item.release.clickable:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: scale(1.1);
+        }
+        .vis-item.release.stable.clickable:hover {
+            background-color: #C8E6C9;
+        }
+        .vis-item.release.prerelease.clickable:hover {
+            background-color: #FFE0B2;
+        }
+        .vis-item.discussion { 
+            background-color: #F3E5F5; 
+            border-color: #9C27B0; 
+            border-width: 2px;
+            border-radius: 50%;
+            color: #6A1B9A;
+        }
+        .vis-item.discussion.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .vis-item.discussion.clickable:hover {
+            background-color: #E1BEE7;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: scale(1.05);
+        }
+        .timeline-controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .zoom-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: background-color 0.2s ease;
+        }
+        .zoom-button:hover {
+            background: #1976D2;
+        }
+        .zoom-button:active {
+            background: #1565C0;
+        }
+    </style>
+</head>
+<body>
+    <h1><a href="https://github.com/elastic/kibana/pull/236028" target="_blank">PR #236028: [Cases] Add extract observables setting to cases SO mapping</a></h1>
+    
+    <div class="pr-info">
+        <div style="margin-bottom: 10px;">
+            <strong>Author:</strong> christineweng | 
+            <strong>Created:</strong> 9/23/2025 | 
+            <strong>Status:</strong> open
+        </div>
+        
+        
+        
+        
+        
+        
+        
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-label">PR Duration</span>
+                <span class="stat-value">1.5dh (ongoing)</span>
+            </div>
+            <div class="stat" title="Composite metric combining CI time (25%), waiting time (30%), code complexity (20%), review iterations (15%), and duration (10%). Measures delivery friction from technical, organizational, and process obstacles. Score: 0-30=Low, 31-60=Medium, 61+=High friction">
+                <span class="stat-label">PR Delivery Friction</span>
+                <span class="stat-value" style="color: #F57C00; font-weight: bold;">39/100</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Commits</span>
+                <span class="stat-value">1</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Comments</span>
+                <span class="stat-value">3</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Review Comments</span>
+                <span class="stat-value">2</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Files Changed</span>
+                <span class="stat-value">34</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Additions</span>
+                <span class="stat-value">+257</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Deletions</span>
+                <span class="stat-value">-34</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Build Minutes</span>
+                <span class="stat-value">2.1h</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total time waited for approvals</span>
+                <span class="stat-value">2d</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="timeline-controls">
+        <button class="zoom-button" onclick="zoomToPRProcess()">🔍 Zoom to PR Process</button>
+        <button class="zoom-button" onclick="fitAllItems()">🗓️ Fit All</button>
+    </div>
+
+    <div id="timeline"></div>
+
+    <script type="text/javascript">
+        // Timeline data
+        const groups = new vis.DataSet([{"id":"releases","content":"🚀 Releases","order":1},{"id":"admin","content":"📋 Administrative","order":2},{"id":"dev","content":"👨‍💻 Development","order":3},{"id":"ci","content":"🔧 CI/CD","order":4},{"id":"team-kibana-core","content":"👥 kibana-core","order":5},{"id":"team-kibana-cases","content":"👥 kibana-cases","order":6},{"id":"additional-reviewers","content":"👥 Additional Reviewers","order":7},{"id":"discussion","content":"💭 Discussion","order":8}]);
+        const items = new vis.DataSet([{"id":"0","group":"admin","start":"2025-09-23T03:57:18.000Z","content":"PR Opened","title":"PR opened and immediately ready for review","type":"point","className":"admin-event ready"},{"id":"1","group":"dev","start":"2025-09-23T05:52:15.000Z","content":"1 commit","title":"1 commit pushed at 9/23/2025, 7:52:15 AM\n\nCommits:\n• 3afd7f7: add extract observables setting to SO (christineweng)\n\nClick to view commits on GitHub","type":"point","className":"dev-commits clickable","githubUrl":"https://github.com/elastic/kibana/commit/3afd7f7bb81c60fcb4ff09b0c2c8fa2e2361d7bb"},{"id":"2","group":"admin","start":"2025-09-23T15:14:29.000Z","content":"Ready for Review","title":"Draft PR marked as ready for review","type":"point","className":"admin-event ready"},{"id":"3","group":"ci","start":"2025-09-23T15:14:32.000Z","content":"Bot notification","title":"Automated notification from elasticmachine pinging @elastic/kibana-cases (team:cases) - elasticmachine","type":"point","className":"ci-bot-comment"},{"id":"4","group":"additional-reviewers","start":"2025-09-23T19:54:54.000Z","content":"PhilippeOberti: approved","title":"Review by PhilippeOberti - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved"},{"id":"24","group":"discussion","start":"2025-09-23T20:53:19.000Z","content":"christineweng","title":"Comment by christineweng at 9/23/2025, 10:53:19 PM\n\n\"## Files by Code Owner (non-cases teams)\r\n\r\n### elastic/appex-qa\r\n\r\n* x-pack/platform/test/serverles...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#issuecomment-3325518151"},{"id":"28","group":"additional-reviewers","start":"2025-09-23T21:13:02.000Z","content":"rylnd: approved","title":"Review by rylnd - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved"},{"id":"30","group":"ci","start":"2025-09-23T22:56:49.000Z","content":"Build failed","title":"Automated build failure notification - elasticmachine","type":"point","className":"ci-failure"},{"id":"32","group":"additional-reviewers","start":"2025-09-24T07:07:31.000Z","content":"csr: approved","title":"Review by csr - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved"},{"id":"33","group":"team-kibana-core","start":"2025-09-24T10:51:24.000Z","content":"jloleysens: approved","title":"Review by jloleysens - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved"},{"id":"34","group":"discussion","start":"2025-09-24T14:33:28.000Z","content":"jloleysens","title":"Comment by jloleysens at 9/24/2025, 4:33:28 PM\n\n\"My apologies for not calling this out in my first pass. These new mappings will need to be added in ...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#discussion_r2376019832"},{"id":"35","group":"team-kibana-core","start":"2025-09-24T14:33:34.000Z","content":"jloleysens: changes_requested","title":"Review by jloleysens - CHANGES_REQUESTED\n\nClick to view review on GitHub","type":"point","className":"review-changes_requested"},{"id":"36","group":"team-kibana-cases","start":"2025-09-24T14:45:45.000Z","content":"michaelolo24: commented","title":"Review by michaelolo24 - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented"},{"id":"37","group":"discussion","start":"2025-09-24T14:45:45.000Z","content":"michaelolo24","title":"Comment by michaelolo24 at 9/24/2025, 4:45:45 PM\n\n\"Hey @jloleysens . Model Version 5 hasn't gone out into serverless yet. I merged that yesterday just ...\"\n\nClick to view comment on GitHub","type":"point","className":"discussion-comment clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#discussion_r2376056765"},{"id":"38","group":"team-kibana-core","start":"2025-09-24T15:01:11.000Z","content":"jloleysens: approved","title":"Review by jloleysens - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved"},{"id":"39","group":"additional-reviewers","start":"2025-09-23T19:54:54.000Z","content":"PhilippeOberti: approved","title":"Review by PhilippeOberti - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#pullrequestreview-3259401755"},{"id":"40","group":"additional-reviewers","start":"2025-09-23T21:13:02.000Z","content":"rylnd: approved","title":"Review by rylnd - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#pullrequestreview-3259610398"},{"id":"41","group":"additional-reviewers","start":"2025-09-24T07:07:31.000Z","content":"csr: approved","title":"Review by csr - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#pullrequestreview-3261378309"},{"id":"42","group":"team-kibana-core","start":"2025-09-24T10:51:24.000Z","content":"jloleysens: approved","title":"Review by jloleysens - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#pullrequestreview-3262296933"},{"id":"43","group":"team-kibana-core","start":"2025-09-24T14:33:34.000Z","content":"jloleysens: changes_requested","title":"Review by jloleysens - CHANGES_REQUESTED\n\nClick to view review on GitHub","type":"point","className":"review-changes_requested clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#pullrequestreview-3263241466"},{"id":"44","group":"team-kibana-cases","start":"2025-09-24T14:45:45.000Z","content":"michaelolo24: commented","title":"Review by michaelolo24 - COMMENTED\n\nClick to view review on GitHub","type":"point","className":"review-commented clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#pullrequestreview-3263292773"},{"id":"45","group":"team-kibana-core","start":"2025-09-24T15:01:11.000Z","content":"jloleysens: approved","title":"Review by jloleysens - APPROVED\n\nClick to view review on GitHub","type":"point","className":"review-approved clickable","githubUrl":"https://github.com/elastic/kibana/pull/236028#pullrequestreview-3263354850"},{"group":"ci","start":"2025-09-23T20:51:15.000Z","end":"2025-09-23T20:51:16.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-46"},{"group":"ci","start":"2025-09-23T20:51:20.000Z","end":"2025-09-23T20:51:27.000Z","content":"docs-preview / match","title":"docs-preview / match: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-47"},{"group":"ci","start":"2025-09-23T20:51:29.000Z","end":"2025-09-23T20:51:34.000Z","content":"docs-preview / check","title":"docs-preview / check: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-48"},{"group":"ci","start":"2025-09-23T20:51:46.000Z","end":"2025-09-23T20:51:46.000Z","content":"docs-preview / comment","title":"docs-preview / comment: 0 minutes - skipped","type":"range","className":"ci-skipped","style":"background-color: #FFB6C1;","id":"ci-49"},{"group":"ci","start":"2025-09-23T20:51:38.000Z","end":"2025-09-23T20:51:46.000Z","content":"docs-preview / build","title":"docs-preview / build: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-50"},{"group":"ci","start":"2025-09-23T20:51:17.000Z","end":"2025-09-23T20:52:25.000Z","content":"security/snyk (Application Experience)","title":"security/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-51"},{"group":"ci","start":"2025-09-23T20:51:18.000Z","end":"2025-09-23T20:52:26.000Z","content":"license/snyk (Application Experience)","title":"license/snyk (Application Experience): 1 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-52"},{"group":"ci","start":"2025-09-23T20:53:21.000Z","end":"2025-09-23T20:53:22.000Z","content":"CLA","title":"CLA: 0 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-53"},{"group":"ci","start":"2025-09-23T20:53:28.000Z","end":"2025-09-23T21:21:46.000Z","content":"buildkite/docs-build-pr","title":"buildkite/docs-build-pr: 28 minutes - success","type":"range","className":"ci-success","style":"background-color: #90EE90;","id":"ci-54"},{"group":"ci","start":"2025-09-23T20:51:58.000Z","end":"2025-09-23T23:00:14.000Z","content":"kibana-ci","title":"kibana-ci: 128 minutes - failure","type":"range","className":"ci-failure","style":"background-color: #FFB6C1;","id":"ci-55"},{"id":"56","group":"team-kibana-core","start":"2025-09-23T15:14:29.000Z","end":"2025-09-24T10:51:24.000Z","content":"Awaiting code owner review (0.8d)","title":"Waiting for kibana-core review","type":"range","className":"awaiting-review"},{"id":"57","group":"team-kibana-cases","start":"2025-09-23T15:14:29.000Z","end":"2025-09-24T14:45:45.000Z","content":"Awaiting code owner review (1.0d)","title":"Waiting for kibana-cases review","type":"range","className":"awaiting-review"}]);
+
+        // Configuration options
+        const options = {
+            editable: false,
+            margin: { item: 10, axis: 5 },
+            orientation: 'top',
+            showCurrentTime: false,
+            zoomable: true,
+            moveable: true,
+            height: '500px',
+            stack: false,
+            format: {
+                minorLabels: {
+                    hour: 'HH:mm',
+                    day: 'D MMM'
+                },
+                majorLabels: {
+                    hour: 'ddd D MMMM',
+                    day: 'MMMM YYYY'
+                }
+            }
+        };
+
+        // Create timeline
+        const container = document.getElementById('timeline');
+        const timeline = new vis.Timeline(container, items, groups, options);
+
+        // Fit timeline to show all items with some padding
+        timeline.fit();
+        
+        // Zoom control functions
+        function zoomToPRProcess() {
+            const prStart = new Date('2025-09-23T03:57:18Z');
+            const prEnd = new Date('2025-09-24T15:09:05.667Z');
+            
+            // Add some padding (5% of the PR duration on each side)
+            const duration = prEnd.getTime() - prStart.getTime();
+            const padding = duration * 0.05;
+            
+            const zoomStart = new Date(prStart.getTime() - padding);
+            const zoomEnd = new Date(prEnd.getTime() + padding);
+            
+            timeline.setWindow(zoomStart, zoomEnd, {
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutCubic'
+                }
+            });
+        }
+        
+        function fitAllItems() {
+            timeline.fit({
+                animation: {
+                    duration: 500,
+                    easingFunction: 'easeInOutCubic'
+                }
+            });
+        }
+        
+        // Make functions globally accessible
+        window.zoomToPRProcess = zoomToPRProcess;
+        window.fitAllItems = fitAllItems;
+        
+        // Add click handler for items
+        timeline.on('select', function (selection) {
+            if (selection.items.length > 0) {
+                const item = items.get(selection.items[0]);
+                
+                // Handle GitHub links for commits
+                if (item && item.githubUrl) {
+                    window.open(item.githubUrl, '_blank');
+                }
+                
+                // Log selected item for debugging
+                if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development') {
+                  console.log('Selected item:', item);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

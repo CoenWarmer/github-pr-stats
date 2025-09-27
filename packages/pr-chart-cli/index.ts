@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 import * as dotenv from 'dotenv';
-import { CLI } from './cli';
-import { PRGanttGenerator } from './gantt-generator';
-import { logger } from '../logger';
+import { CLI } from './src/cli';
+import { PRGanttGenerator } from './src/gantt-generator';
+import { logger } from '../shared/logger';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from repo root
+dotenv.config({ path: '../../.env' });
 
 async function main() {
   try {

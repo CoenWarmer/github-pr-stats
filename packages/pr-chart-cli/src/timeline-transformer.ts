@@ -4,8 +4,8 @@ import {
   VisTimelineData,
   VisTimelineGroup,
   VisTimelineItem,
-} from './types';
-import { formatDuration } from './utils';
+} from '../types';
+import { formatDuration } from '../utils';
 
 export class PRTimelineToVisJS {
   transformPRsToTimeline(
@@ -27,14 +27,32 @@ export class PRTimelineToVisJS {
       }
     });
 
-    // Define the parallel tracks - starting with Feature Turnaround at the top
+    // Define the parallel tracks - starting with Releases at the top
     const groups: VisTimelineGroup[] = [];
 
     let order = 1;
 
-    // Add Feature Turnaround row at the top if there are closed linked issues
+    groups.push({
+      id: 'releases',
+      content: '🚀 Releases',
+      order: order++,
+    });
+
+    // Add Discussion row if there are Slack messages
+    const hasSlackMessages = pr.slack_messages && pr.slack_messages.length > 0;
+
+    if (hasSlackMessages) {
+      groups.push({
+        id: 'discussion',
+        content: '💬 Discussion',
+        order: order++,
+      });
+    }
+
+    // Add Feature Turnaround row if there are closed linked issues
     const hasClosedLinkedIssues =
       pr.linked_issues?.some(issue => issue.closed_at) || false;
+
     if (hasClosedLinkedIssues) {
       groups.push({
         id: 'feature-turnaround',
@@ -138,6 +156,20 @@ export class PRTimelineToVisJS {
     const awaitingItems = this.createAwaitingReviewItems(pr, itemId);
     items.push(...awaitingItems.items);
     itemId = awaitingItems.nextItemId;
+
+    // Add Release items for releases after merge
+    if (pr.releases && pr.releases.length > 0) {
+      const releaseItems = this.createReleaseItems(pr, itemId);
+      items.push(...releaseItems.items);
+      itemId = releaseItems.nextItemId;
+    }
+
+    // Add Slack Discussion items
+    if (pr.slack_messages && pr.slack_messages.length > 0) {
+      const discussionItems = this.createDiscussionItems(pr, itemId);
+      items.push(...discussionItems.items);
+      itemId = discussionItems.nextItemId;
+    }
 
     // Add Feature Turnaround items for closed linked issues
     if (owner && repo) {
@@ -872,6 +904,105 @@ export class PRTimelineToVisJS {
       (turnaroundItem as any).githubUrl = issue.url;
 
       items.push(turnaroundItem);
+      itemId++;
+    }
+
+    return { items, nextItemId: itemId };
+  }
+
+  private createReleaseItems(
+    pr: PullRequestStats,
+    startingItemId: number
+  ): { items: VisTimelineItem[]; nextItemId: number } {
+    const items: VisTimelineItem[] = [];
+    let itemId = startingItemId;
+
+    if (!pr.releases || pr.releases.length === 0) {
+      return { items, nextItemId: itemId };
+    }
+
+    // Create release item for the first release published after PR merge
+    const firstRelease = pr.releases[0]; // Releases are already sorted by date
+    if (firstRelease) {
+      const releaseDate = new Date(firstRelease.published_at);
+      const mergeDate = pr.merged_at ? new Date(pr.merged_at) : null;
+
+      // Calculate time from merge to release
+      let timeToRelease = '';
+      if (mergeDate) {
+        const durationMs = releaseDate.getTime() - mergeDate.getTime();
+        const durationDays =
+          Math.round((durationMs / (1000 * 60 * 60 * 24)) * 10) / 10;
+
+        if (durationDays < 1) {
+          const hours = Math.round(durationDays * 24);
+          timeToRelease = `${hours}h after merge`;
+        } else if (durationDays < 7) {
+          timeToRelease = `${durationDays}d after merge`;
+        } else {
+          const weeks = Math.round((durationDays / 7) * 10) / 10;
+          timeToRelease = `${weeks}w after merge`;
+        }
+      }
+
+      const releaseItem: VisTimelineItem = {
+        id: itemId.toString(),
+        group: 'releases',
+        start: releaseDate.toISOString(),
+        content: `${firstRelease.tag_name}${firstRelease.prerelease ? ' (pre)' : ''}`,
+        title: `Release: ${firstRelease.name || firstRelease.tag_name}\n${firstRelease.prerelease ? 'Pre-release\n' : ''}Published: ${releaseDate.toLocaleDateString()} ${releaseDate.toLocaleTimeString()}\n${timeToRelease ? timeToRelease + '\n' : ''}\nClick to view release on GitHub`,
+        type: 'point',
+        className: `release ${firstRelease.prerelease ? 'prerelease' : 'stable'} clickable`,
+      };
+
+      // Add GitHub URL for clickable release
+      (releaseItem as any).githubUrl = firstRelease.html_url;
+
+      items.push(releaseItem);
+      itemId++;
+    }
+
+    return { items, nextItemId: itemId };
+  }
+
+  private createDiscussionItems(
+    pr: PullRequestStats,
+    startingItemId: number
+  ): { items: VisTimelineItem[]; nextItemId: number } {
+    const items: VisTimelineItem[] = [];
+    let itemId = startingItemId;
+
+    if (!pr.slack_messages || pr.slack_messages.length === 0) {
+      return { items, nextItemId: itemId };
+    }
+
+    // Create discussion items for Slack messages
+    for (const message of pr.slack_messages) {
+      const messageDate = new Date(message.timestamp);
+
+      // Truncate long messages for display
+      const maxLength = 60;
+      let displayText = message.text.replace(/\n/g, ' ').trim();
+      if (displayText.length > maxLength) {
+        displayText = displayText.substring(0, maxLength) + '...';
+      }
+
+      const discussionItem: VisTimelineItem = {
+        id: itemId.toString(),
+        group: 'discussion',
+        start: messageDate.toISOString(),
+        content: `💬 ${message.username || 'Unknown'}: ${displayText}`,
+        title: `Slack Discussion\nChannel: #${message.channel_name || message.channel}\nUser: ${message.username || message.user}\nTime: ${messageDate.toLocaleDateString()} ${messageDate.toLocaleTimeString()}\n\nMessage:\n${message.text}\n\nClick to view in Slack`,
+        type: 'point',
+        className: 'discussion slack-message clickable',
+      };
+
+      // Add Slack permalink for clickable message
+      if (message.permalink) {
+        (discussionItem as any).slackUrl = message.permalink;
+      }
+
+      items.push(discussionItem);
       itemId++;
     }
 

@@ -1,0 +1,439 @@
+{
+  "groups": [
+    {
+      "id": "releases",
+      "content": "🚀 Releases",
+      "order": 1
+    },
+    {
+      "id": "admin",
+      "content": "📋 Administrative",
+      "order": 2
+    },
+    {
+      "id": "dev",
+      "content": "👨‍💻 Development",
+      "order": 3
+    },
+    {
+      "id": "ci",
+      "content": "🔧 CI/CD",
+      "order": 4
+    },
+    {
+      "id": "additional-reviewers",
+      "content": "👥 Additional Reviewers",
+      "order": 5
+    },
+    {
+      "id": "discussion",
+      "content": "💭 Discussion",
+      "order": 6
+    }
+  ],
+  "items": [
+    {
+      "id": "0",
+      "group": "dev",
+      "start": "2024-03-29T21:06:52.000Z",
+      "content": "3 commits",
+      "title": "3 commits pushed at 3/29/2024, 10:06:52 PM\n\nCommits:\n• 8402b2e: Fix dark mode (Coen Warmer)\n• 2cd3e85: [CI] Auto-commit changed files from 'node scrip... (kibanamachine)\n• d7ce3e6: Cleanup (Coen Warmer)\n\nClick to view commits on GitHub",
+      "type": "point",
+      "className": "dev-commits clickable",
+      "githubUrl": "https://github.com/elastic/kibana/commit/8402b2efb6b6cbe4935cbb33bddf6665c2c3b72e"
+    },
+    {
+      "id": "1",
+      "group": "admin",
+      "start": "2024-03-29T21:12:13.000Z",
+      "content": "PR Opened",
+      "title": "PR opened and immediately ready for review",
+      "type": "point",
+      "className": "admin-event ready"
+    },
+    {
+      "id": "2",
+      "group": "ci",
+      "start": "2024-03-29T21:12:19.000Z",
+      "content": "Bot notification",
+      "title": "Automated notification from elasticmachine pinging @elastic/obs-knowledge-team (team:obs-knowledge) - elasticmachine",
+      "type": "point",
+      "className": "ci-bot-comment"
+    },
+    {
+      "id": "3",
+      "group": "discussion",
+      "start": "2024-03-29T21:12:27.000Z",
+      "content": "ghost",
+      "title": "Comment by ghost at 3/29/2024, 10:12:27 PM\n\n\"\n### :robot: GitHub comments\n\n<details><summary>Expand to view the GitHub comments</summary>\n<p>\n\nJu...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#issuecomment-2027741923"
+    },
+    {
+      "id": "4",
+      "group": "additional-reviewers",
+      "start": "2024-03-29T21:18:39.000Z",
+      "content": "CoenWarmer: commented",
+      "title": "Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented"
+    },
+    {
+      "id": "5",
+      "group": "discussion",
+      "start": "2024-03-29T21:18:39.000Z",
+      "content": "CoenWarmer",
+      "title": "Comment by CoenWarmer at 3/29/2024, 10:18:39 PM\n\n\"This is the change to get the embeddable to render correctly in dark mode when no container is passe...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1544880251"
+    },
+    {
+      "id": "6",
+      "group": "discussion",
+      "start": "2024-03-29T21:19:18.000Z",
+      "content": "CoenWarmer",
+      "title": "Comment by CoenWarmer at 3/29/2024, 10:19:18 PM\n\n\"`newChat` icon is added to Eui and Eui upgrade is included in Kibana so we can get rid of our own im...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1544880593"
+    },
+    {
+      "id": "7",
+      "group": "additional-reviewers",
+      "start": "2024-03-29T21:19:19.000Z",
+      "content": "CoenWarmer: commented",
+      "title": "Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented"
+    },
+    {
+      "id": "8",
+      "group": "discussion",
+      "start": "2024-04-02T08:09:58.000Z",
+      "content": "dgieselaar",
+      "title": "Comment by dgieselaar at 4/2/2024, 10:09:58 AM\n\n\"Probably want to avoid `async` here - if the `getEditLensConfiguration` call fails, there's no error...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1547361762"
+    },
+    {
+      "id": "9",
+      "group": "discussion",
+      "start": "2024-04-02T08:11:27.000Z",
+      "content": "CoenWarmer",
+      "title": "Comment by CoenWarmer at 4/2/2024, 10:11:27 AM\n\n\"@elasticmachine merge upstream\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#issuecomment-2031351869"
+    },
+    {
+      "id": "10",
+      "group": "dev",
+      "start": "2024-04-02T08:11:30.000Z",
+      "content": "4 commits",
+      "title": "4 commits pushed at 4/2/2024, 10:11:30 AM\n\nCommits:\n• 95b7616: Merge branch 'main' into bug/assistant-dark-mode (Kibana Machine)\n• f44cc29: Merge branch 'main' into bug/assistant-dark-mode (Kibana Machine)\n• c984149: Merge branch 'bug/assistant-dark-mode' of githu... (Coen Warmer)\n• 7a4d30e: Merge branch 'main' of github.com:elastic/kiban... (Coen Warmer)\n\nClick to view commits on GitHub",
+      "type": "point",
+      "className": "dev-commits clickable",
+      "githubUrl": "https://github.com/elastic/kibana/commit/95b7616c7147cb5a65ac6e6e8f57e99a30cada04"
+    },
+    {
+      "id": "11",
+      "group": "discussion",
+      "start": "2024-04-02T08:12:27.000Z",
+      "content": "dgieselaar",
+      "title": "Comment by dgieselaar at 4/2/2024, 10:12:27 AM\n\n\"Is this for Lens to fix, or for us to fix?\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1547365645"
+    },
+    {
+      "id": "12",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T08:14:40.000Z",
+      "content": "dgieselaar: approved",
+      "title": "Review by dgieselaar - APPROVED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-approved"
+    },
+    {
+      "id": "13",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T09:12:18.000Z",
+      "content": "CoenWarmer: commented",
+      "title": "Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented"
+    },
+    {
+      "id": "14",
+      "group": "discussion",
+      "start": "2024-04-02T09:12:18.000Z",
+      "content": "CoenWarmer",
+      "title": "Comment by CoenWarmer at 4/2/2024, 11:12:18 AM\n\n\"Ultimately it is for Lens to fix this as we don't own the code. [This comment](https://github.com/el...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1547463166"
+    },
+    {
+      "id": "15",
+      "group": "discussion",
+      "start": "2024-04-02T09:24:10.000Z",
+      "content": "stratoula",
+      "title": "Comment by stratoula at 4/2/2024, 11:24:10 AM\n\n\"Maybe is better to add this here https://github.com/elastic/kibana/blob/main/x-pack/plugins/lens/pub...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1547484171"
+    },
+    {
+      "id": "16",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T09:24:11.000Z",
+      "content": "stratoula: commented",
+      "title": "Review by stratoula - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented"
+    },
+    {
+      "id": "17",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T09:48:53.000Z",
+      "content": "dgieselaar: commented",
+      "title": "Review by dgieselaar - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented"
+    },
+    {
+      "id": "18",
+      "group": "discussion",
+      "start": "2024-04-02T09:48:53.000Z",
+      "content": "dgieselaar",
+      "title": "Comment by dgieselaar at 4/2/2024, 11:48:53 AM\n\n\"Stratoula already mentioned this I think, what I mean is that we're not wrapping wherever we mount t...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1547521584"
+    },
+    {
+      "id": "19",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T10:27:39.000Z",
+      "content": "CoenWarmer: commented",
+      "title": "Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented"
+    },
+    {
+      "id": "20",
+      "group": "discussion",
+      "start": "2024-04-02T10:27:39.000Z",
+      "content": "CoenWarmer",
+      "title": "Comment by CoenWarmer at 4/2/2024, 12:27:39 PM\n\n\"Yes we do https://github.com/elastic/kibana/blob/74386d037dc271b07ef46c1747c647360ac0df85/x-pack/plu...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1547579750"
+    },
+    {
+      "id": "21",
+      "group": "discussion",
+      "start": "2024-04-02T10:44:47.000Z",
+      "content": "dgieselaar",
+      "title": "Comment by dgieselaar at 4/2/2024, 12:44:47 PM\n\n\"I think we mount the edit lens component manually though. \"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1547605675"
+    },
+    {
+      "id": "22",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T10:44:48.000Z",
+      "content": "dgieselaar: commented",
+      "title": "Review by dgieselaar - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented"
+    },
+    {
+      "id": "23",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T10:53:53.000Z",
+      "content": "stratoula: approved",
+      "title": "Review by stratoula - APPROVED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-approved"
+    },
+    {
+      "id": "24",
+      "group": "discussion",
+      "start": "2024-04-02T11:05:48.000Z",
+      "content": "kibana-ci",
+      "title": "Comment by kibana-ci at 4/2/2024, 1:05:48 PM\n\n\"## :green_heart: Build Succeeded\n* [Buildkite Build](https://buildkite.com/elastic/kibana-pull-reque...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#issuecomment-2031713929"
+    },
+    {
+      "id": "25",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T11:08:57.000Z",
+      "content": "stratoula: commented",
+      "title": "Review by stratoula - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented"
+    },
+    {
+      "id": "26",
+      "group": "discussion",
+      "start": "2024-04-02T11:08:57.000Z",
+      "content": "stratoula",
+      "title": "Comment by stratoula at 4/2/2024, 1:08:57 PM\n\n\"We do and possibly this can be fixed on the assistant too. But I am fine if the fix is applied to th...\"\n\nClick to view comment on GitHub",
+      "type": "point",
+      "className": "discussion-comment clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#discussion_r1547646722"
+    },
+    {
+      "id": "27",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T11:11:32.000Z",
+      "content": "dgieselaar: approved",
+      "title": "Review by dgieselaar - APPROVED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-approved"
+    },
+    {
+      "id": "28",
+      "group": "admin",
+      "start": "2024-04-02T11:28:50.000Z",
+      "content": "PR Closed",
+      "type": "point",
+      "className": "admin-event closed"
+    },
+    {
+      "id": "29",
+      "group": "admin",
+      "start": "2024-04-02T11:28:50.000Z",
+      "content": "PR Merged",
+      "type": "point",
+      "className": "admin-event merged"
+    },
+    {
+      "id": "30",
+      "group": "additional-reviewers",
+      "start": "2024-03-29T21:18:39.000Z",
+      "content": "CoenWarmer: commented",
+      "title": "Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1969616316"
+    },
+    {
+      "id": "31",
+      "group": "additional-reviewers",
+      "start": "2024-03-29T21:19:19.000Z",
+      "content": "CoenWarmer: commented",
+      "title": "Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1969616725"
+    },
+    {
+      "id": "32",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T08:14:40.000Z",
+      "content": "dgieselaar: approved",
+      "title": "Review by dgieselaar - APPROVED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-approved clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1972970125"
+    },
+    {
+      "id": "33",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T09:12:18.000Z",
+      "content": "CoenWarmer: commented",
+      "title": "Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973127573"
+    },
+    {
+      "id": "34",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T09:24:11.000Z",
+      "content": "stratoula: commented",
+      "title": "Review by stratoula - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973159239"
+    },
+    {
+      "id": "35",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T09:48:53.000Z",
+      "content": "dgieselaar: commented",
+      "title": "Review by dgieselaar - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973219444"
+    },
+    {
+      "id": "36",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T10:27:39.000Z",
+      "content": "CoenWarmer: commented",
+      "title": "Review by CoenWarmer - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973316117"
+    },
+    {
+      "id": "37",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T10:44:48.000Z",
+      "content": "dgieselaar: commented",
+      "title": "Review by dgieselaar - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973355851"
+    },
+    {
+      "id": "38",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T10:53:53.000Z",
+      "content": "stratoula: approved",
+      "title": "Review by stratoula - APPROVED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-approved clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973385462"
+    },
+    {
+      "id": "39",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T11:08:57.000Z",
+      "content": "stratoula: commented",
+      "title": "Review by stratoula - COMMENTED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-commented clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973423644"
+    },
+    {
+      "id": "40",
+      "group": "additional-reviewers",
+      "start": "2024-04-02T11:11:32.000Z",
+      "content": "dgieselaar: approved",
+      "title": "Review by dgieselaar - APPROVED\n\nClick to view review on GitHub",
+      "type": "point",
+      "className": "review-approved clickable",
+      "githubUrl": "https://github.com/elastic/kibana/pull/179716#pullrequestreview-1973428784"
+    },
+    {
+      "id": "41",
+      "group": "releases",
+      "start": "2024-04-08T20:14:55.000Z",
+      "content": "v8.13.2",
+      "title": "Release: Kibana 8.13.2\nPublished: 4/8/2024 10:14:55 PM\n6.4d after merge\n\nClick to view release on GitHub",
+      "type": "point",
+      "className": "release stable clickable",
+      "githubUrl": "https://github.com/elastic/kibana/releases/tag/v8.13.2"
+    }
+  ]
+}

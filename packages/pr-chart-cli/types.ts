@@ -45,6 +45,29 @@ export interface LinkedIssue {
   lifecycle_events: IssueLifecycleEvent[];
 }
 
+export interface Release {
+  id: number;
+  name: string;
+  tag_name: string;
+  published_at: string;
+  html_url: string;
+  prerelease: boolean;
+  draft: boolean;
+}
+
+export interface SlackMessage {
+  ts: string;
+  text: string;
+  user: string;
+  username?: string;
+  channel: string;
+  channel_name?: string;
+  permalink: string;
+  timestamp: string; // ISO string
+  thread_ts?: string;
+  reply_count?: number;
+}
+
 export interface PullRequestStats {
   id: string | number;
   url: string;
@@ -67,6 +90,8 @@ export interface PullRequestStats {
   timeline: TimelineEvent[];
   codeowners?: { teams: string[]; individuals: string[] };
   linked_issues?: LinkedIssue[];
+  releases?: Release[];
+  slack_messages?: SlackMessage[];
 }
 
 export interface ReviewTiming {

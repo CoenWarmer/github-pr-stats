@@ -3,9 +3,9 @@ import * as path from 'path';
 import { PRDataFetcher } from './pr-data-fetcher';
 import { PRTimelineToVisJS } from './timeline-transformer';
 import { HTMLGenerator } from './html-generator';
-import { FileUtils, BrowserUtils } from './utils';
-import { CLIOptions } from './types';
-import { logger } from '../logger';
+import { FileUtils, BrowserUtils } from '../utils';
+import { CLIOptions } from '../types';
+import { logger } from '../../shared/logger';
 
 export class PRGanttGenerator {
   private dataFetcher: PRDataFetcher;
@@ -14,12 +14,13 @@ export class PRGanttGenerator {
 
   constructor() {
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+    const SLACK_TOKEN = process.env.SLACK_TOKEN || '';
 
     if (!GITHUB_TOKEN) {
       throw new Error('GITHUB_TOKEN environment variable is required');
     }
 
-    this.dataFetcher = new PRDataFetcher(GITHUB_TOKEN);
+    this.dataFetcher = new PRDataFetcher(GITHUB_TOKEN, SLACK_TOKEN);
     this.transformer = new PRTimelineToVisJS();
     this.htmlGenerator = new HTMLGenerator();
   }

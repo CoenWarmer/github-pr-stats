@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { logger } from '../logger';
+import { logger } from '../shared/logger';
 
 export class FileUtils {
   static ensureDirectoryExists(dirPath: string): void {
