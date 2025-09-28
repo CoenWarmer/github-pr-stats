@@ -3,6 +3,7 @@ import {
   formatDuration,
   calculateDeliveryFriction,
   formatDeliveryFriction,
+  formatDurationBetweenDates,
 } from '@/lib/utils';
 import { EuiFlexGroup, EuiPanel, EuiStat } from '@elastic/eui';
 
@@ -12,8 +13,9 @@ interface PRStatsProps {
 
 export default function PRStats({ pr }: PRStatsProps) {
   // Calculate build minutes (simplified calculation)
-  const totalBuildMinutes =
-    pr.timeline.filter(event => event.type === 'ci_completed').length * 10; // Rough estimate
+  const totalBuildMinutes = pr.timeline
+    .filter(event => event.type === 'ci_run' && !event.hidden_from_timeline)
+    .reduce((acc, event) => acc + (event.duration_ms || 0), 0);
 
   // Calculate waiting minutes
   const totalWaitingMinutes =
@@ -59,15 +61,26 @@ export default function PRStats({ pr }: PRStatsProps) {
       {/* Statistics */}
       <EuiPanel hasBorder hasShadow={false}>
         <EuiFlexGroup direction="row">
-          <EuiStat
-            title={formatDuration(pr.turnaround_time_hours, 'hours')}
-            description="Total PR Duration"
-            titleSize="m"
-          />
+          {pr.closed_at ? (
+            <EuiStat
+              title={formatDuration(pr.turnaround_time_hours, 'hours')}
+              description="Run time"
+              titleSize="s"
+              reverse
+            />
+          ) : (
+            <EuiStat
+              title={formatDurationBetweenDates(pr.created_at, new Date())}
+              description="Run time (so far)"
+              titleSize="s"
+              reverse
+            />
+          )}
           <EuiStat
             title={frictionFormatted.value}
             description="Delivery Friction"
-            titleSize="m"
+            titleSize="s"
+            reverse
             titleColor={
               frictionFormatted.color === '#22C55E'
                 ? 'success'
@@ -79,44 +92,52 @@ export default function PRStats({ pr }: PRStatsProps) {
           <EuiStat
             title={pr.commits.toString()}
             description="Commits"
-            titleSize="m"
+            titleSize="s"
+            reverse
           />
           <EuiStat
             title={pr.comments.toString()}
             description="Comments"
-            titleSize="m"
+            titleSize="s"
+            reverse
           />
           <EuiStat
             title={pr.review_comments.toString()}
             description="Review Comments"
-            titleSize="m"
+            titleSize="s"
+            reverse
           />
           <EuiStat
             title={pr.changed_files.toString()}
             description="Files Changed"
-            titleSize="m"
+            titleSize="s"
+            reverse
           />
           <EuiStat
             title={`+${pr.additions}`}
             description="Additions"
-            titleSize="m"
+            titleSize="s"
+            reverse
             titleColor="success"
           />
           <EuiStat
             title={`-${pr.deletions}`}
             description="Deletions"
-            titleSize="m"
+            titleSize="s"
+            reverse
             titleColor="danger"
           />
           <EuiStat
-            title={formatDuration(totalBuildMinutes, 'minutes')}
-            description="Total Build Minutes"
-            titleSize="m"
+            title={formatDuration(totalBuildMinutes, 'ms')}
+            description="Total build time"
+            titleSize="s"
+            reverse
           />
           <EuiStat
             title={formatDuration(totalWaitingMinutes, 'minutes')}
-            description="Time awaiting approvals"
-            titleSize="m"
+            description="Time awaiting code reviews"
+            titleSize="s"
+            reverse
           />
         </EuiFlexGroup>
       </EuiPanel>

@@ -5,13 +5,21 @@ import {
   LinkedIssue,
   IssueLifecycleEvent,
   PullRequestStats,
+  BuildkiteBuild,
+  BuildkiteJob,
 } from './types';
 import { logger } from './logger';
 
 export class GitHubCollector {
   public octokit: Octokit;
+  private buildkiteToken?: string;
+  private buildkiteOrgSlug?: string;
 
-  constructor(token?: string) {
+  constructor(
+    token?: string,
+    buildkiteToken?: string,
+    buildkiteOrgSlug?: string
+  ) {
     const authToken = token || process.env.GITHUB_TOKEN;
 
     if (!authToken) {
@@ -26,6 +34,13 @@ export class GitHubCollector {
       auth: authToken,
       userAgent: 'pr-stats-app/1.0.0',
     });
+
+    this.buildkiteToken = buildkiteToken || process.env.BUILDKITE_TOKEN;
+    this.buildkiteOrgSlug = buildkiteOrgSlug || process.env.BUILDKITE_ORG_SLUG;
+
+    if (this.buildkiteToken && this.buildkiteOrgSlug) {
+      logger.info('Buildkite integration enabled');
+    }
   }
 
   private isWildcardPattern(pattern: string): boolean {
@@ -129,7 +144,7 @@ export class GitHubCollector {
         }
       }
 
-      // Add commit events
+      // Add commit events and fetch Buildkite builds for each commit
       for (const group of commitGroups) {
         timeline.push({
           type: 'commits_added',
@@ -137,6 +152,39 @@ export class GitHubCollector {
           commit_count: group.commits.length,
           commits: group.commits,
         });
+
+        // Fetch Buildkite builds for each commit in the group
+        for (const commitInfo of group.commits) {
+          const fullSha = commits.find(c =>
+            c.sha.startsWith(commitInfo.sha)
+          )?.sha;
+          if (fullSha) {
+            const buildkiteBuilds =
+              await this.getBuildkiteBuildsForCommit(fullSha);
+
+            for (const build of buildkiteBuilds) {
+              // Create enriched CI events from Buildkite data
+              const buildkiteEvents = this.createCIEventsFromBuildkiteBuild(
+                build,
+                {
+                  includeJobs: true, // Create job events for cache
+                  hideJobsFromTimeline: true, // But hide them from timeline display
+                }
+              );
+
+              // Add the enriched events to timeline
+              timeline.push(...buildkiteEvents);
+
+              logger.debug('Added Buildkite events for commit', {
+                commitSha: fullSha.substring(0, 8),
+                buildId: build.id,
+                state: build.state,
+                pipelineName: build.pipeline.name,
+                eventCount: buildkiteEvents.length,
+              });
+            }
+          }
+        }
       }
 
       // Add comments
@@ -182,65 +230,47 @@ export class GitHubCollector {
       logger.info(`Fetching CI runs for ${commits.length} commits`);
 
       try {
-        const { data: checkRuns } = await this.octokit.rest.checks.listForRef({
-          owner,
-          repo,
-          ref: prData.headSha,
-          per_page: 100,
-        });
-
-        for (const checkRun of checkRuns.check_runs) {
-          if (checkRun.started_at) {
-            if (checkRun.completed_at && checkRun.conclusion) {
-              // Create a single duration-based CI event
-
-              timeline.push({
-                type: 'ci_run',
-                date: checkRun.started_at,
-                end_date: checkRun.completed_at,
-                workflow_name: checkRun.name,
-                ci_conclusion: checkRun.conclusion,
-                ci_status: 'completed',
-                build_url: checkRun.details_url || undefined,
-              });
-            } else {
-              // Create a point-in-time event for started (still running)
-              timeline.push({
-                type: 'ci_started',
-                date: checkRun.started_at,
-                workflow_name: checkRun.name,
-                ci_status: 'started',
-                build_url: checkRun.details_url || undefined,
-              });
-            }
-          }
-        }
-
+        // for (const checkRun of checkRuns.check_runs) {
+        //   if (checkRun.started_at) {
+        //     if (checkRun.completed_at && checkRun.conclusion) {
+        //       // Create a single duration-based CI event
+        //       timeline.push({
+        //         type: 'ci_run',
+        //         date: checkRun.started_at,
+        //         end_date: checkRun.completed_at,
+        //         workflow_name: checkRun.name,
+        //         ci_conclusion: checkRun.conclusion,
+        //         ci_status: 'completed',
+        //         build_url: checkRun.details_url || undefined,
+        //       });
+        //     } else {
+        //       // Create a point-in-time event for started (still running)
+        //       timeline.push({
+        //         type: 'ci_started',
+        //         date: checkRun.started_at,
+        //         workflow_name: checkRun.name,
+        //         ci_status: 'started',
+        //         build_url: checkRun.details_url || undefined,
+        //       });
+        //     }
+        //   }
+        // }
         // Also fetch legacy commit statuses
-
-        const { data: statuses } =
-          await this.octokit.rest.repos.listCommitStatusesForRef({
-            owner,
-            repo,
-            ref: prData.headSha,
-            per_page: 100,
-          });
-
-        for (const status of statuses) {
-          if (status.created_at) {
-            timeline.push({
-              type:
-                status.state === 'success' || status.state === 'failure'
-                  ? 'ci_completed'
-                  : 'ci_started',
-              date: status.created_at,
-              workflow_name: status.context || 'CI Check',
-              ci_conclusion: status.state,
-              ci_status: status.state === 'pending' ? 'started' : 'completed',
-              build_url: status.target_url || undefined,
-            });
-          }
-        }
+        // for (const status of statuses) {
+        //   if (status.created_at) {
+        //     timeline.push({
+        //       type:
+        //         status.state === 'success' || status.state === 'failure'
+        //           ? 'ci_completed'
+        //           : 'ci_started',
+        //       date: status.created_at,
+        //       workflow_name: status.context || 'CI Check',
+        //       ci_conclusion: status.state,
+        //       ci_status: status.state === 'pending' ? 'started' : 'completed',
+        //       build_url: status.target_url || undefined,
+        //     });
+        //   }
+        // }
       } catch (error) {
         logger.warn('Could not fetch PR-level check runs', {
           error: error instanceof Error ? error.message : String(error),
@@ -309,7 +339,17 @@ export class GitHubCollector {
         console.log('Error fetching timeline events:', error);
       }
 
-      logger.info(`Built timeline with ${timeline.length} events`);
+      // Add awaiting review events
+      const awaitingReviewEvents = this.createAwaitingReviewEvents(
+        prData,
+        timeline
+      );
+      timeline.push(...awaitingReviewEvents);
+
+      logger.info(
+        `Built timeline with ${timeline.length} events (including ${awaitingReviewEvents.length} awaiting review events)`
+      );
+
       return timeline;
     } catch (error) {
       logger.error('Error building timeline for PR', {
@@ -818,5 +858,483 @@ export class GitHubCollector {
         },
       ];
     }
+  }
+
+  /**
+   * Fetch Buildkite builds for a specific commit SHA
+   */
+  async getBuildkiteBuildsForCommit(
+    commitSha: string
+  ): Promise<BuildkiteBuild[]> {
+    if (!this.buildkiteToken || !this.buildkiteOrgSlug) {
+      logger.debug('Buildkite integration not configured');
+      return [];
+    }
+
+    try {
+      // Fetch all builds for the organization, filtered by commit
+      const apiUrl = `https://api.buildkite.com/v2/organizations/${this.buildkiteOrgSlug}/builds?commit=${commitSha}&per_page=100`;
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${this.buildkiteToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        logger.warn(
+          `Buildkite API error: ${response.status} ${response.statusText}`,
+          { apiUrl, commitSha }
+        );
+        return [];
+      }
+
+      const builds: BuildkiteBuild[] = await response.json();
+
+      logger.debug(
+        `Found ${builds.length} Buildkite builds for commit ${commitSha.substring(0, 8)}`,
+        {
+          commitSha: commitSha.substring(0, 8),
+          buildCount: builds.length,
+          pipelines: builds.map(b => b.pipeline.name),
+        }
+      );
+
+      return builds;
+    } catch (error) {
+      logger.warn('Error fetching Buildkite builds for commit', {
+        error: error instanceof Error ? error.message : String(error),
+        commitSha: commitSha.substring(0, 8),
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Fetch Buildkite build information from a Buildkite URL (legacy method for backward compatibility)
+   */
+  async getBuildkiteBuild(buildUrl: string): Promise<BuildkiteBuild | null> {
+    if (!this.buildkiteToken || !this.buildkiteOrgSlug) {
+      logger.debug('Buildkite integration not configured');
+      return null;
+    }
+
+    try {
+      // Extract pipeline slug and build number from URL
+      // Example: https://buildkite.com/elastic/kibana-pull-request/builds/339958
+      const pipelineSlug = this.extractBuildkitePipelineSlug(buildUrl);
+      const buildNumber = this.extractBuildkiteBuildNumber(buildUrl);
+
+      if (!pipelineSlug || !buildNumber) {
+        logger.warn(
+          'Could not extract pipeline slug or build number from URL',
+          {
+            buildUrl,
+            pipelineSlug,
+            buildNumber,
+          }
+        );
+        return null;
+      }
+
+      // Fetch the specific build using the API
+      const apiUrl = `https://api.buildkite.com/v2/organizations/${this.buildkiteOrgSlug}/pipelines/${pipelineSlug}/builds/${buildNumber}`;
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${this.buildkiteToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        logger.warn(
+          `Buildkite API error: ${response.status} ${response.statusText}`,
+          { apiUrl }
+        );
+        return null;
+      }
+
+      const build: BuildkiteBuild = await response.json();
+
+      logger.debug(
+        `Found Buildkite build ${build.number} for pipeline ${build.pipeline.slug}`,
+        {
+          buildId: build.id,
+          state: build.state,
+          pipelineName: build.pipeline.name,
+        }
+      );
+
+      return build;
+    } catch (error) {
+      logger.warn('Error fetching Buildkite build', {
+        error: error instanceof Error ? error.message : String(error),
+        buildUrl,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Extract Buildkite pipeline slug from a Buildkite URL
+   */
+  private extractBuildkitePipelineSlug(url: string): string | null {
+    // Example: https://buildkite.com/elastic/kibana-pull-request/builds/339958
+    const match = url.match(/buildkite\.com\/[^\/]+\/([^\/]+)\/builds/);
+    return match ? match[1] : null;
+  }
+
+  /**
+   * Extract Buildkite build number from a Buildkite URL
+   */
+  private extractBuildkiteBuildNumber(url: string): string | null {
+    // Example: https://buildkite.com/elastic/kibana-pull-request/builds/339958
+    const match = url.match(/builds\/(\d+)/);
+    return match ? match[1] : null;
+  }
+
+  /**
+   * Create enriched CI events from Buildkite build data
+   */
+  createCIEventsFromBuildkiteBuild(
+    build: BuildkiteBuild,
+    options: { includeJobs?: boolean; hideJobsFromTimeline?: boolean } = {}
+  ): TimelineEvent[] {
+    const events: TimelineEvent[] = [];
+
+    // Calculate duration for the main build
+    const startTime = build.started_at || build.created_at;
+    const endTime = build.finished_at;
+    let durationMs = 0;
+
+    if (startTime && endTime) {
+      durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+    }
+
+    // Create main build event
+    const buildEvent: TimelineEvent = {
+      type: build.state === 'running' ? 'ci_started' : 'ci_run',
+      date: startTime,
+      end_date: endTime || undefined,
+      workflow_name: build.pipeline.name,
+      ci_conclusion: this.mapBuildkiteStateToCIConclusion(build.state),
+      ci_status: build.state === 'running' ? 'started' : 'completed',
+      build_url: build.web_url,
+      buildkite_build_id: build.id,
+      buildkite_pipeline_slug: build.pipeline.slug,
+      // Add duration information
+      duration_ms: durationMs,
+      duration_minutes: Math.round(durationMs / (1000 * 60)),
+      duration_hours: Math.round((durationMs / (1000 * 60 * 60)) * 100) / 100, // 2 decimal places
+    };
+
+    events.push(buildEvent);
+
+    // Optionally create events for individual jobs if needed
+    const { includeJobs = true, hideJobsFromTimeline = true } = options;
+
+    if (includeJobs && build.jobs && build.jobs.length > 0) {
+      for (const job of build.jobs) {
+        if (job.type === 'script' && job.name) {
+          // Calculate duration for individual job
+          const jobStartTime = job.started_at || job.created_at;
+          const jobEndTime = job.finished_at;
+          let jobDurationMs = 0;
+
+          if (jobStartTime && jobEndTime) {
+            jobDurationMs =
+              new Date(jobEndTime).getTime() - new Date(jobStartTime).getTime();
+          }
+
+          const jobEvent: TimelineEvent = {
+            type: job.state === 'running' ? 'ci_started' : 'ci_run',
+            date: jobStartTime,
+            end_date: jobEndTime || undefined,
+            workflow_name: `${build.pipeline.name} - ${job.name}`,
+            ci_conclusion: this.mapBuildkiteJobStateToCIConclusion(job.state),
+            ci_status: job.state === 'running' ? 'started' : 'completed',
+            build_url: job.web_url,
+            buildkite_build_id: build.id,
+            buildkite_pipeline_slug: build.pipeline.slug,
+            // Add job duration information
+            duration_ms: jobDurationMs,
+            duration_minutes: Math.round(jobDurationMs / (1000 * 60)),
+            duration_hours:
+              Math.round((jobDurationMs / (1000 * 60 * 60)) * 100) / 100,
+            // Hide job events from timeline display (but keep in cache)
+            hidden_from_timeline: hideJobsFromTimeline,
+          };
+
+          events.push(jobEvent);
+        }
+      }
+    }
+
+    logger.debug(`Created ${events.length} CI events from Buildkite build`, {
+      buildId: build.id,
+      pipelineName: build.pipeline.name,
+      state: build.state,
+      jobCount: build.jobs?.length || 0,
+    });
+
+    return events;
+  }
+
+  /**
+   * Map Buildkite job state to GitHub CI conclusion
+   */
+  private mapBuildkiteJobStateToCIConclusion(
+    state: BuildkiteJob['state']
+  ): string {
+    switch (state) {
+      case 'passed':
+        return 'success';
+      case 'failed':
+      case 'broken':
+      case 'timed_out':
+        return 'failure';
+      case 'canceled':
+        return 'cancelled';
+      case 'blocked':
+        return 'action_required';
+      case 'skipped':
+        return 'skipped';
+      case 'waiting':
+      case 'pending':
+      case 'running':
+        return 'in_progress';
+      default:
+        return 'neutral';
+    }
+  }
+
+  /**
+   * Map Buildkite build state to GitHub CI conclusion
+   */
+  private mapBuildkiteStateToCIConclusion(
+    state: BuildkiteBuild['state']
+  ): string {
+    switch (state) {
+      case 'passed':
+        return 'success';
+      case 'failed':
+        return 'failure';
+      case 'canceled':
+      case 'canceling':
+        return 'cancelled';
+      case 'blocked':
+        return 'action_required';
+      case 'skipped':
+      case 'not_run':
+        return 'skipped';
+      case 'running':
+      case 'scheduled':
+        return 'in_progress';
+      default:
+        return 'neutral';
+    }
+  }
+
+  /**
+   * Create awaiting review timeline events
+   */
+  createAwaitingReviewEvents(
+    pr: PullRequestStats,
+    timeline: TimelineEvent[]
+  ): TimelineEvent[] {
+    const awaitingEvents: TimelineEvent[] = [];
+
+    // Sort timeline events by date
+    const sortedEvents = [...timeline].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    let reviewPeriodStart: Date | null = null;
+    let reviewPeriodCount = 0;
+
+    // Determine when PR becomes ready for review
+    const readyForReviewDate = this.findReadyForReviewDate(pr, sortedEvents);
+    if (readyForReviewDate) {
+      reviewPeriodStart = readyForReviewDate;
+    }
+
+    // Process events to find review periods
+    for (const event of sortedEvents) {
+      const eventDate = new Date(event.date);
+
+      // If we're in a review period and get a review from a code owner team member
+      if (reviewPeriodStart && this.isCodeOwnerReview(event)) {
+        // End the current review period
+        const durationHours = Math.round(
+          (eventDate.getTime() - reviewPeriodStart.getTime()) / (1000 * 60 * 60)
+        );
+
+        // Assign to the first team of the reviewer
+        const targetTeam = event.reviewer_teams?.[0] || 'unknown';
+
+        // End the awaiting period 1 second before the review to ensure proper ordering
+        const awaitingEndTime = new Date(eventDate.getTime() - 1000);
+
+        awaitingEvents.push({
+          type: 'awaiting_review',
+          date: reviewPeriodStart.toISOString(),
+          end_date: awaitingEndTime.toISOString(),
+          workflow_name: `Awaiting Review - ${targetTeam}`,
+          reviewer: event.reviewer,
+          reviewer_teams: [targetTeam],
+          duration_ms: awaitingEndTime.getTime() - reviewPeriodStart.getTime(),
+          duration_minutes: Math.round(
+            (awaitingEndTime.getTime() - reviewPeriodStart.getTime()) /
+              (1000 * 60)
+          ),
+          duration_hours: durationHours,
+        });
+
+        reviewPeriodStart = null;
+        reviewPeriodCount++;
+      }
+
+      // Start a new review period after commits are pushed (if not already in one)
+      if (
+        !reviewPeriodStart &&
+        (event.type === 'commits_pushed' || event.type === 'commits_added')
+      ) {
+        reviewPeriodStart = eventDate;
+      }
+
+      // Start review period when PR becomes ready for review
+      if (!reviewPeriodStart && event.type === 'ready_for_review') {
+        reviewPeriodStart = eventDate;
+      }
+    }
+
+    // If there's an ongoing review period at the end, close it with PR closure/merge
+    if (reviewPeriodStart) {
+      const prEndDate = pr.closed_at || pr.merged_at;
+      if (prEndDate) {
+        const endDate = new Date(prEndDate);
+        const durationHours = Math.round(
+          (endDate.getTime() - reviewPeriodStart.getTime()) / (1000 * 60 * 60)
+        );
+
+        // Try to find the specific team that was requested for review during this period
+        const reviewPeriodStartTime = reviewPeriodStart.getTime();
+        const prEndTime = endDate.getTime();
+
+        // Look for team review requests during this review period
+        const teamRequestsInPeriod = timeline
+          .filter(event => event.type === 'team_review_requested')
+          .filter(event => {
+            const eventTime = new Date(event.date).getTime();
+            return eventTime >= reviewPeriodStartTime && eventTime <= prEndTime;
+          })
+          .sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          ); // Most recent first
+
+        // Use the most recent team request in this period, or fall back to code owner teams
+        const codeOwnerTeams = this.extractCodeOwners(pr);
+        let targetTeam: string;
+
+        if (
+          teamRequestsInPeriod.length > 0 &&
+          teamRequestsInPeriod[0].requested_team
+        ) {
+          targetTeam = teamRequestsInPeriod[0].requested_team;
+        } else if (codeOwnerTeams.length > 0) {
+          targetTeam = codeOwnerTeams[0];
+        } else {
+          targetTeam = 'discussion';
+        }
+
+        const durationMs = endDate.getTime() - reviewPeriodStart.getTime();
+
+        awaitingEvents.push({
+          type: 'awaiting_review',
+          date: reviewPeriodStart.toISOString(),
+          end_date: prEndDate,
+          workflow_name: `Awaiting Re-review - ${targetTeam}`,
+          reviewer_teams:
+            targetTeam !== 'discussion' ? [targetTeam] : undefined,
+          duration_ms: durationMs,
+          duration_minutes: Math.round(durationMs / (1000 * 60)),
+          duration_hours: durationHours,
+        });
+      }
+    }
+
+    logger.debug(`Created ${awaitingEvents.length} awaiting review events`);
+    return awaitingEvents;
+  }
+
+  /**
+   * Finds when the PR became ready for review
+   */
+  private findReadyForReviewDate(
+    pr: PullRequestStats,
+    sortedEvents: TimelineEvent[]
+  ): Date | null {
+    // Look for explicit ready_for_review event
+    const readyEvent = sortedEvents.find(
+      event => event.type === 'ready_for_review'
+    );
+    if (readyEvent) {
+      return new Date(readyEvent.date);
+    }
+
+    // If no explicit ready event, assume ready when created (if not draft)
+    // or when first commits are pushed
+    const firstCommitEvent = sortedEvents.find(
+      event => event.type === 'commits_pushed' || event.type === 'commits_added'
+    );
+
+    if (firstCommitEvent) {
+      return new Date(firstCommitEvent.date);
+    }
+
+    // Fallback to PR creation date
+    return new Date(pr.created_at);
+  }
+
+  /**
+   * Checks if an event is a review from a code owner team member
+   */
+  private isCodeOwnerReview(event: TimelineEvent): boolean {
+    if (event.type !== 'review') {
+      return false;
+    }
+
+    // Only reviewers who are part of code owner teams can end awaiting review periods
+    if (event.reviewer_teams && event.reviewer_teams.length > 0) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Extracts all code owner teams from the PR timeline
+   */
+  private extractCodeOwners(pr: PullRequestStats): string[] {
+    const codeOwnerTeams = new Set<string>();
+
+    // Extract teams from review events
+    pr.timeline.forEach(event => {
+      if (event.type === 'review') {
+        if (event.reviewer_teams && event.reviewer_teams.length > 0) {
+          // Add all teams for this reviewer
+          event.reviewer_teams.forEach(team => {
+            codeOwnerTeams.add(team);
+          });
+        }
+      }
+    });
+
+    const result = Array.from(codeOwnerTeams).sort();
+
+    // Only return actual teams - no fallback to individual reviewers
+    return result;
   }
 }

@@ -14,7 +14,6 @@ import {
   EuiButtonGroup,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiSpacer,
   EuiText,
   EuiToolTip,
 } from '@elastic/eui';
@@ -87,27 +86,32 @@ function TimelineItemWithLevel({
         content={
           <div>
             <EuiText>
-              {item.isPointInTime ? (
-                <>{new Date(item.span.start).toLocaleString()}</>
-              ) : (
-                <ul>
-                  <li>
-                    <strong>Start:</strong>
+              <ul>
+                <li>
+                  <strong>{item.content}</strong>
+                </li>
+                {item.isPointInTime ? (
+                  <li>{new Date(item.span.start).toLocaleString()}</li>
+                ) : (
+                  <>
+                    <li>
+                      <strong>Start:</strong>
 
-                    {new Date(item.span.start).toLocaleString()}
-                  </li>
+                      {new Date(item.span.start).toLocaleString()}
+                    </li>
 
-                  <li>
-                    <strong>End:</strong>
+                    <li>
+                      <strong>End:</strong>
 
-                    {new Date(item.span.end).toLocaleString()}
-                  </li>
-                  <li>
-                    <strong>Actual Duration:</strong>
-                    {formatDuration(item.actualDuration)}
-                  </li>
-                </ul>
-              )}
+                      {new Date(item.span.end).toLocaleString()}
+                    </li>
+                    <li>
+                      <strong>Actual Duration:</strong>
+                      {formatDuration(item.actualDuration)}
+                    </li>
+                  </>
+                )}
+              </ul>
             </EuiText>
           </div>
         }
@@ -354,8 +358,18 @@ function TimeAxisRow({
           display: 'flex',
           alignItems: 'center',
           width: '150px',
+          backgroundColor: '#0B1628', // Match the background
+          zIndex: 11, // Higher than the sticky container
+          position: 'relative', // Ensure it stays in place
+          paddingLeft: '12px', // Match the padding of row labels
         }}
-      ></div>
+      >
+        <span
+          style={{ fontWeight: 'bold', color: '#ffffff', fontSize: '14px' }}
+        >
+          Timeline
+        </span>
+      </div>
       <div
         style={{
           position: 'relative',
@@ -565,8 +579,10 @@ export default function Chart({ data }: TimelineProps) {
     scrollTop: number;
   } | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(800); // Default width
+  const [actualContentHeight, setActualContentHeight] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollableRef = useRef<HTMLDivElement>(null);
+  const timelineContentRef = useRef<HTMLDivElement>(null);
 
   // Measure container width
   useEffect(() => {
@@ -822,29 +838,48 @@ export default function Chart({ data }: TimelineProps) {
     };
   }, [isDragging, dragStart, fullRange]);
 
-  // Mouse wheel zoom handler
-  const handleWheel = (e: React.WheelEvent) => {
-    // Don't interfere with wheel events while dragging
-    if (isDragging) {
-      return;
-    }
+  // Mouse wheel zoom handler (will be attached manually with passive: false)
+  const handleWheel = useCallback(
+    (e: WheelEvent) => {
+      // Don't interfere with wheel events while dragging
+      if (isDragging) {
+        return;
+      }
 
-    e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const timelineWidth = rect.width - 150; // Subtract sidebar width
+      // Prevent default scrolling and stop event propagation to page
+      e.preventDefault();
+      e.stopPropagation();
 
-    // Calculate center percent more precisely
-    // Ensure we're only considering the timeline area (after the 150px sidebar)
-    const timelineMouseX = mouseX - 150; // Mouse position relative to timeline start
-    const centerPercent = Math.max(
-      0,
-      Math.min(1, timelineMouseX / timelineWidth)
-    );
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const timelineWidth = rect.width - 150; // Subtract sidebar width
 
-    const zoomFactor = e.deltaY > 0 ? 0.8 : 1.25; // Zoom out or in
-    handleZoom(zoomFactor, centerPercent);
-  };
+      // Calculate center percent more precisely
+      // Ensure we're only considering the timeline area (after the 150px sidebar)
+      const timelineMouseX = mouseX - 150; // Mouse position relative to timeline start
+      const centerPercent = Math.max(
+        0,
+        Math.min(1, timelineMouseX / timelineWidth)
+      );
+
+      const zoomFactor = e.deltaY > 0 ? 0.8 : 1.25; // Zoom out or in
+      handleZoom(zoomFactor, centerPercent);
+    },
+    [isDragging, handleZoom]
+  );
+
+  // Attach wheel event listener manually with passive: false to allow preventDefault
+  useEffect(() => {
+    const timelineElement = timelineContentRef.current;
+    if (!timelineElement) return;
+
+    // Add wheel event listener with passive: false to allow preventDefault
+    timelineElement.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      timelineElement.removeEventListener('wheel', handleWheel);
+    };
+  }, [handleWheel]);
 
   // Mouse drag handlers
   const handleMouseDown = useCallback(
@@ -940,6 +975,21 @@ export default function Chart({ data }: TimelineProps) {
 
     return { items, rows };
   }, [data]);
+
+  // Measure actual content height after rendering
+  useEffect(() => {
+    const updateContentHeight = () => {
+      if (timelineContentRef.current) {
+        const height = timelineContentRef.current.scrollHeight;
+        setActualContentHeight(height - 50); // Subtract TimeAxisRow height
+      }
+    };
+
+    // Update after a short delay to ensure all rows are rendered
+    const timeoutId = setTimeout(updateContentHeight, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [rows, items, timelineRange, zoomLevel, containerWidth]);
 
   // Calculate total content height based on row heights
   const totalContentHeight = useMemo(() => {
@@ -1046,9 +1096,7 @@ export default function Chart({ data }: TimelineProps) {
       style={{
         width: '100%',
         height: '100%',
-        // minHeight: '400px',
-        // border: '1px solid #d1d5db',
-        // borderRadius: '8px',
+        position: 'relative',
         overflow: 'hidden',
       }}
     >
@@ -1057,14 +1105,15 @@ export default function Chart({ data }: TimelineProps) {
         direction="row"
         justifyContent="spaceBetween"
         alignItems="center"
+        gutterSize="s"
         style={{
+          position: 'absolute',
+          zIndex: 99999,
+          left: '0',
           width: 'max-content',
           justifySelf: 'flex-end',
         }}
       >
-        <EuiFlexItem>
-          <span>Zoom: {zoomLevel.toFixed(2)}x</span>
-        </EuiFlexItem>
         <EuiFlexItem>
           <EuiButtonGroup
             legend="Timeline controls"
@@ -1107,13 +1156,17 @@ export default function Chart({ data }: TimelineProps) {
             isIconOnly
           />
         </EuiFlexItem>
+        <EuiFlexItem>
+          <span>{zoomLevel.toFixed(2)}x</span>
+        </EuiFlexItem>
       </EuiFlexGroup>
-      <EuiSpacer size="m" />
 
       {/* Timeline Content */}
       <div
-        ref={scrollableRef}
-        onWheel={handleWheel}
+        ref={el => {
+          scrollableRef.current = el;
+          timelineContentRef.current = el;
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -1134,15 +1187,27 @@ export default function Chart({ data }: TimelineProps) {
           timelineRange={timelineRange}
           zoomLevel={zoomLevel}
           containerWidth={containerWidth}
-          totalContentHeight={totalContentHeight}
+          totalContentHeight={
+            actualContentHeight > 0 ? actualContentHeight : totalContentHeight
+          }
         />
 
-        {/* Time Axis Row */}
-        <TimeAxisRow
-          timelineRange={timelineRange}
-          zoomLevel={zoomLevel}
-          containerWidth={containerWidth}
-        />
+        {/* Sticky Time Axis Row */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            backgroundColor: '#0B1628', // Match the background
+            borderBottom: '1px solid #e5e7eb',
+          }}
+        >
+          <TimeAxisRow
+            timelineRange={timelineRange}
+            zoomLevel={zoomLevel}
+            containerWidth={containerWidth}
+          />
+        </div>
 
         {/* Timeline Rows */}
         {rows.map(row => {

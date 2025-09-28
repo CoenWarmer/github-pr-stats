@@ -13,6 +13,14 @@ export interface TimelineEvent {
   ci_conclusion?: string;
   ci_status?: string;
   build_url?: string;
+  buildkite_build_id?: string;
+  buildkite_pipeline_slug?: string;
+  // Duration fields (calculated at data collection time)
+  duration_ms?: number;
+  duration_minutes?: number;
+  duration_hours?: number;
+  // Control visibility in frontend
+  hidden_from_timeline?: boolean;
   submitted_at?: string;
   time_to_review_hours?: number;
   reviewer_teams?: string[];
@@ -27,6 +35,60 @@ export interface TimelineEvent {
   issue_title?: string;
   assignee?: string;
   requested_team?: string;
+}
+
+// Buildkite API Types
+export interface BuildkiteBuild {
+  id: string;
+  number: number;
+  state:
+    | 'running'
+    | 'scheduled'
+    | 'passed'
+    | 'failed'
+    | 'blocked'
+    | 'canceled'
+    | 'canceling'
+    | 'skipped'
+    | 'not_run';
+  blocked: boolean;
+  message: string;
+  commit: string;
+  branch: string;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  url: string;
+  web_url: string;
+  pipeline: {
+    id: string;
+    slug: string;
+    name: string;
+    url: string;
+    web_url: string;
+  };
+  jobs: BuildkiteJob[];
+}
+
+export interface BuildkiteJob {
+  id: string;
+  name: string | null;
+  state:
+    | 'waiting'
+    | 'pending'
+    | 'running'
+    | 'passed'
+    | 'failed'
+    | 'blocked'
+    | 'canceled'
+    | 'skipped'
+    | 'broken'
+    | 'timed_out';
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  web_url: string;
+  type: 'script' | 'waiter' | 'manual' | 'trigger';
 }
 
 export interface IssueLifecycleEvent {
