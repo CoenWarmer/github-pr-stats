@@ -13,6 +13,9 @@ import {
   EuiButtonGroup,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiSpacer,
+  EuiText,
+  EuiToolTip,
 } from '@elastic/eui';
 
 // Define our own types since we're not using dnd-timeline's hooks
@@ -44,6 +47,7 @@ type TimelineItemType = ItemDefinition & {
   githubUrl?: string;
   slackUrl?: string;
   color?: string;
+  isPointInTime?: boolean;
 };
 
 function TimelineItemWithLevel({
@@ -77,17 +81,65 @@ function TimelineItemWithLevel({
       }}
       onClick={() => onClick(item)}
     >
-      <EuiBadge
-        color={item.color || 'primary'}
-        style={{
-          maxWidth: '100%',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
+      <EuiToolTip
+        content={
+          <div>
+            <EuiText>
+              {item.isPointInTime ? (
+                <>{new Date(item.span.start).toLocaleString()}</>
+              ) : (
+                <ul>
+                  <li>
+                    <strong>Start:</strong>
+
+                    {new Date(item.span.start).toLocaleString()}
+                  </li>
+
+                  <li>
+                    <strong>End:</strong>
+
+                    {new Date(item.span.end).toLocaleString()}
+                  </li>
+                  <li>
+                    <strong>Actual Duration:</strong>
+                    {(() => {
+                      if (item.isPointInTime) {
+                        return 'Point in time (no duration)';
+                      }
+
+                      const actualDurationMs = item.span.end - item.span.start;
+                      const actualDurationMinutes =
+                        actualDurationMs / (1000 * 60);
+
+                      if (actualDurationMinutes < 1) {
+                        return `${Math.round(actualDurationMs / 1000)} seconds`;
+                      } else if (actualDurationMinutes < 60) {
+                        return `${Math.round(actualDurationMinutes)} minutes`;
+                      } else {
+                        const hours = Math.floor(actualDurationMinutes / 60);
+                        const minutes = Math.round(actualDurationMinutes % 60);
+                        return `${hours}h ${minutes}m`;
+                      }
+                    })()}
+                  </li>
+                </ul>
+              )}
+            </EuiText>
+          </div>
+        }
       >
-        {item.content}
-      </EuiBadge>
+        <EuiBadge
+          color={item.color || 'primary'}
+          style={{
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {item.content}
+        </EuiBadge>
+      </EuiToolTip>
     </div>
   );
 }
@@ -133,9 +185,9 @@ function TimelineRow({
         const leftPixels = (leftPercent / 100) * timelineWidth;
         const itemDuration = item.span.end - item.span.start;
         const widthPercent = (itemDuration / totalDuration) * 100;
-        const widthPixels = Math.max(20, (widthPercent / 100) * timelineWidth); // Minimum 20px width
+        const widthPixels = Math.max(80, (widthPercent / 100) * timelineWidth); // Minimum 80px width for readability
 
-        return {
+        const result = {
           ...item,
           leftPixels,
           widthPixels,
@@ -143,6 +195,8 @@ function TimelineRow({
           endTime: item.span.end,
           level: 0, // Will be calculated below
         };
+
+        return result;
       })
       .sort((a, b) => a.startTime - b.startTime);
 
@@ -879,6 +933,7 @@ export default function Chart({ data }: TimelineProps) {
         githubUrl: item.githubUrl as string,
         slackUrl: item.slackUrl as string,
         color: item.color,
+        isPointInTime: item.isPointInTime,
       };
     });
 
@@ -901,15 +956,6 @@ export default function Chart({ data }: TimelineProps) {
   };
 
   // No longer needed since we're not using dnd-timeline context
-
-  // Debug logging
-  console.log('Chart Debug:', {
-    timelineRange,
-    totalItems: items.length,
-    totalRows: rows.length,
-    sampleItem: items[0],
-    sampleSpan: items[0]?.span,
-  });
 
   return (
     <div
@@ -980,6 +1026,7 @@ export default function Chart({ data }: TimelineProps) {
           />
         </EuiFlexItem>
       </EuiFlexGroup>
+      <EuiSpacer size="m" />
 
       {/* Timeline Content */}
       <div

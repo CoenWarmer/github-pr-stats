@@ -24,6 +24,7 @@ const EVENT_CONTENT: Record<string, { emoji: string; text: string }> = {
   draft: { emoji: '📝', text: 'Draft' },
   commit: { emoji: '📝', text: 'Commit' },
   commits_pushed: { emoji: '📝', text: 'Commits' },
+  commits_added: { emoji: '📝', text: 'Commits Added' },
   review: { emoji: '👀', text: 'Review' },
   comment: { emoji: '💬', text: 'Comment' },
   issue_comment: { emoji: '💬', text: 'Comment' },
@@ -45,12 +46,6 @@ function getEventGroup(eventType: string): string {
  * Creates display content for a timeline event
  */
 function createEventContent(event: TimelineEvent): string {
-  console.log('Event Content Debug:', {
-    type: event.type,
-    workflow_name: event.workflow_name,
-    hasBaseContent: !!EVENT_CONTENT[event.type],
-  });
-
   const baseContent = EVENT_CONTENT[event.type];
 
   // Handle CI events first (before checking baseContent)
@@ -65,6 +60,17 @@ function createEventContent(event: TimelineEvent): string {
     // Handle specific event types with custom formatting
     if (event.type === 'commits_pushed' && event.commit_count) {
       return `${baseContent.emoji} ${event.commit_count} commit${event.commit_count > 1 ? 's' : ''}`;
+    }
+
+    if (
+      event.type === 'commits_added' &&
+      event.commits &&
+      event.commits.length > 0
+    ) {
+      // Show the first commit's SHA (shortened to 7 characters)
+      const firstCommit = event.commits[0];
+      const shortSha = firstCommit.sha.substring(0, 7);
+      return `${baseContent.emoji} \`${shortSha}\` added`;
     }
 
     if (event.type === 'review' && event.reviewer && event.state) {
@@ -187,17 +193,28 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
   ];
 
   // Transform timeline events to timeline items
-  const items: TimelineItem[] = pr.timeline.map((event, index) => ({
-    id: `event_${index}`,
-    group: getEventGroup(event.type),
-    start: event.date,
-    end: event.end_date,
-    content: createEventContent(event),
-    title: createEventTitle(event),
-    className: createEventClassName(event),
-    githubUrl: event.comment_url || event.build_url,
-    color: createEventColor(event),
-  }));
+  const items: TimelineItem[] = pr.timeline
+    .map((event, index) => {
+      return {
+        id: `event_${index}`,
+        group: getEventGroup(event.type),
+        start: event.date,
+        end: event.end_date,
+        content: createEventContent(event),
+        title: createEventTitle(event),
+        className: createEventClassName(event),
+        githubUrl: event.comment_url || event.build_url,
+        color: createEventColor(event),
+        isPointInTime: !event.end_date, // Track if this was originally a point-in-time event
+      };
+    })
+    .filter(
+      item =>
+        item.start !== null &&
+        item.start !== undefined &&
+        !isNaN(new Date(item.start).getTime())
+    )
+    .filter(item => !item.content.includes('PR Created')); // Remove PR Created events
 
   // Add PR lifecycle item if we have end date
   const prEnd = pr.closed_at || pr.merged_at;

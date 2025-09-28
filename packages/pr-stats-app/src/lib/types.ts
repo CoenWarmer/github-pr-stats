@@ -103,6 +103,7 @@ export interface TimelineItem {
   githubUrl?: string;
   slackUrl?: string;
   color?: string;
+  isPointInTime?: boolean;
 }
 
 export interface TimelineData {
