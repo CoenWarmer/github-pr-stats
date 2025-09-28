@@ -182,30 +182,18 @@ export class GitHubCollector {
       logger.info(`Fetching CI runs for ${commits.length} commits`);
 
       try {
-        console.log('Fetching check runs for ref:', prData.headSha);
         const { data: checkRuns } = await this.octokit.rest.checks.listForRef({
           owner,
           repo,
           ref: prData.headSha,
           per_page: 100,
         });
-        console.log('Found check runs:', checkRuns.check_runs.length);
 
         for (const checkRun of checkRuns.check_runs) {
           if (checkRun.started_at) {
             if (checkRun.completed_at && checkRun.conclusion) {
               // Create a single duration-based CI event
-              console.log('Creating ci_run event:', {
-                name: checkRun.name,
-                started_at: checkRun.started_at,
-                completed_at: checkRun.completed_at,
-                conclusion: checkRun.conclusion,
-                duration_minutes: Math.round(
-                  (new Date(checkRun.completed_at).getTime() -
-                    new Date(checkRun.started_at).getTime()) /
-                    (1000 * 60)
-                ),
-              });
+
               timeline.push({
                 type: 'ci_run',
                 date: checkRun.started_at,
@@ -217,11 +205,6 @@ export class GitHubCollector {
               });
             } else {
               // Create a point-in-time event for started (still running)
-              console.log('Creating ci_started event:', {
-                name: checkRun.name,
-                started_at: checkRun.started_at,
-                status: 'started',
-              });
               timeline.push({
                 type: 'ci_started',
                 date: checkRun.started_at,
@@ -234,7 +217,7 @@ export class GitHubCollector {
         }
 
         // Also fetch legacy commit statuses
-        console.log('Fetching commit statuses for ref:', prData.headSha);
+
         const { data: statuses } =
           await this.octokit.rest.repos.listCommitStatusesForRef({
             owner,
@@ -242,19 +225,9 @@ export class GitHubCollector {
             ref: prData.headSha,
             per_page: 100,
           });
-        console.log('Found commit statuses:', statuses.length);
 
         for (const status of statuses) {
           if (status.created_at) {
-            console.log('Creating commit status event:', {
-              context: status.context,
-              state: status.state,
-              created_at: status.created_at,
-              type:
-                status.state === 'success' || status.state === 'failure'
-                  ? 'ci_completed'
-                  : 'ci_started',
-            });
             timeline.push({
               type:
                 status.state === 'success' || status.state === 'failure'
@@ -305,6 +278,37 @@ export class GitHubCollector {
         });
       }
 
+      // Also fetch timeline events to capture team review requests
+      try {
+        const { data: timelineEvents } =
+          await this.octokit.rest.issues.listEventsForTimeline({
+            owner,
+            repo,
+            issue_number: prNumber,
+            per_page: 100,
+          });
+
+        // Look for review_requested events for teams
+        const teamRequestEvents = timelineEvents.filter(
+          (event: any) =>
+            event.event === 'review_requested' && event.requested_team
+        );
+
+        // Add these as timeline events for tracking
+        for (const event of teamRequestEvents) {
+          const eventAny = event as any;
+          if (eventAny.requested_team) {
+            timeline.push({
+              type: 'team_review_requested',
+              date: eventAny.created_at || prData.created_at,
+              requested_team: eventAny.requested_team.slug,
+            });
+          }
+        }
+      } catch (error) {
+        console.log('Error fetching timeline events:', error);
+      }
+
       logger.info(`Built timeline with ${timeline.length} events`);
       return timeline;
     } catch (error) {
@@ -324,7 +328,9 @@ export class GitHubCollector {
     authorTeams: string[],
     prCommits: any[],
     prComments: any[],
-    prAuthor: string
+    prAuthor: string,
+    requestedTeams: string[] = [],
+    timelineEvents: TimelineEvent[] = []
   ): Promise<ReviewTiming[]> {
     try {
       const { data: reviews } = await this.octokit.rest.pulls.listReviews({
@@ -420,13 +426,31 @@ export class GitHubCollector {
           (submittedDate.getTime() - prCreatedDate.getTime()) /
           (1000 * 60 * 60);
 
-        const reviewerTeams = await this.getUserTeams(review.user.login, owner);
+        // Extract all teams that were ever requested from timeline events
+        const allRequestedTeams = [
+          ...new Set([
+            ...requestedTeams, // Current pending teams
+            ...timelineEvents
+              .filter(e => e.type === 'team_review_requested')
+              .map(e => e.requested_team)
+              .filter((team): team is string => Boolean(team)),
+          ]),
+        ];
+
+        // Get reviewer teams - use all requested teams as the source of truth for code owners
+        const reviewerTeams = await this.getReviewerTeams(
+          review.user.login,
+          owner,
+          allRequestedTeams
+        );
 
         if (logger.level === 'debug') {
           logger.debug('Processing review', {
             reviewer: review.user.login,
             state: review.state,
             submitted_at: review.submitted_at,
+            reviewerTeams,
+            requestedTeams,
           });
         }
 
@@ -462,18 +486,61 @@ export class GitHubCollector {
     }
   }
 
-  async getUserTeams(username: string, org: string): Promise<string[]> {
+  async getUserTeams(_username: string, _org: string): Promise<string[]> {
     try {
-      const { data: teams } = await this.octokit.rest.orgs.listTeamsForUser({
-        org,
-        username,
-        per_page: 100,
-      });
-      return teams.map(team => team.slug);
-    } catch (error) {
-      // User might not be public member or teams might not be accessible
+      // This method is kept for backward compatibility but may not work reliably
+      // for private team memberships
+      return [];
+    } catch (_error) {
       return [];
     }
+  }
+
+  async getReviewerTeams(
+    username: string,
+    org: string,
+    requestedTeams: string[]
+  ): Promise<string[]> {
+    // Simple heuristic: If teams were requested for review and someone reviewed,
+    // we assume they're from one of the requested teams (reasonable for code owner reviews)
+
+    if (requestedTeams.length === 0) {
+      // No teams were requested, so this reviewer is not part of code owner teams
+      return [];
+    }
+
+    const userTeamsInRequested: string[] = [];
+
+    // Check each requested team to see if the user is a member
+    for (const teamSlug of requestedTeams) {
+      try {
+        // Use the GitHub API to check team membership
+        await this.octokit.rest.teams.getMembershipForUserInOrg({
+          org,
+          team_slug: teamSlug,
+          username,
+        });
+
+        // If no error, user is a member of this team
+        userTeamsInRequested.push(teamSlug);
+      } catch (error: any) {
+        // User is not a member of this team, or we don't have permission to see it
+        console.log(
+          `❌ ${username} is not a member of team ${teamSlug} (or no permission)`
+        );
+      }
+    }
+
+    if (userTeamsInRequested.length > 0) {
+      return userTeamsInRequested;
+    }
+
+    // Fallback: if we can't determine team membership, assume they belong to the first requested team
+    // This handles cases where team membership is private or we don't have the right permissions
+    console.log(
+      `⚠️ Could not determine team membership for ${username}, assigning to first requested team: ${requestedTeams[0]}`
+    );
+    return [requestedTeams[0]];
   }
 
   async parseCodeowners(

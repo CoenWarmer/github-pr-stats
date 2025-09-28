@@ -1,7 +1,6 @@
 import { PullRequestStats } from '@/lib/types';
 import {
-  formatTime,
-  formatDurationInHours,
+  formatDuration,
   calculateDeliveryFriction,
   formatDeliveryFriction,
 } from '@/lib/utils';
@@ -61,14 +60,14 @@ export default function PRStats({ pr }: PRStatsProps) {
       <EuiPanel hasBorder hasShadow={false}>
         <EuiFlexGroup direction="row">
           <EuiStat
-            title={`${formatDurationInHours(pr.turnaround_time_hours)}h`}
+            title={formatDuration(pr.turnaround_time_hours, 'hours')}
             description="Total PR Duration"
-            titleSize="l"
+            titleSize="m"
           />
           <EuiStat
             title={frictionFormatted.value}
             description="Delivery Friction"
-            titleSize="l"
+            titleSize="m"
             titleColor={
               frictionFormatted.color === '#22C55E'
                 ? 'success'
@@ -80,44 +79,44 @@ export default function PRStats({ pr }: PRStatsProps) {
           <EuiStat
             title={pr.commits.toString()}
             description="Commits"
-            titleSize="l"
+            titleSize="m"
           />
           <EuiStat
             title={pr.comments.toString()}
             description="Comments"
-            titleSize="l"
+            titleSize="m"
           />
           <EuiStat
             title={pr.review_comments.toString()}
             description="Review Comments"
-            titleSize="l"
+            titleSize="m"
           />
           <EuiStat
             title={pr.changed_files.toString()}
             description="Files Changed"
-            titleSize="l"
+            titleSize="m"
           />
           <EuiStat
             title={`+${pr.additions}`}
             description="Additions"
-            titleSize="l"
+            titleSize="m"
             titleColor="success"
           />
           <EuiStat
             title={`-${pr.deletions}`}
             description="Deletions"
-            titleSize="l"
+            titleSize="m"
             titleColor="danger"
           />
           <EuiStat
-            title={formatTime(totalBuildMinutes)}
+            title={formatDuration(totalBuildMinutes, 'minutes')}
             description="Total Build Minutes"
-            titleSize="l"
+            titleSize="m"
           />
           <EuiStat
-            title={formatTime(totalWaitingMinutes)}
-            description="Total time waited for approvals"
-            titleSize="l"
+            title={formatDuration(totalWaitingMinutes, 'minutes')}
+            description="Time awaiting approvals"
+            titleSize="m"
           />
         </EuiFlexGroup>
       </EuiPanel>

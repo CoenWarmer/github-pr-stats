@@ -26,6 +26,7 @@ export interface TimelineEvent {
   issue_number?: number;
   issue_title?: string;
   assignee?: string;
+  requested_team?: string;
 }
 
 export interface IssueLifecycleEvent {
@@ -55,6 +56,7 @@ export interface PullRequestStats {
   author: string;
   changed_files: number;
   created_at: string;
+  headSha: string;
   closed_at: string | null;
   merged_at: string | null;
   updated_at: string;
@@ -69,6 +71,7 @@ export interface PullRequestStats {
   timeline: TimelineEvent[];
   codeowners?: { teams: string[]; individuals: string[] };
   linked_issues?: LinkedIssue[];
+  requested_teams?: string[];
 }
 
 export interface ReviewTiming {

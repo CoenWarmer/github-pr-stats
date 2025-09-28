@@ -209,13 +209,6 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const forceRefresh = searchParams.get('force') === 'true';
 
-    console.log('API Route Debug:', {
-      url: request.url,
-      forceRefresh,
-      prNumber: prNum,
-      searchParams: Object.fromEntries(searchParams.entries()),
-    });
-
     const cacheKey = getCacheKey(owner, repo, prNum);
 
     // Try to get cached data if not forcing refresh
@@ -283,17 +276,8 @@ export async function GET(
       collector.getLinkedIssues(owner, repo, pr.body),
     ]);
 
-    // Get review timings
-    const reviewTimings = await collector.getReviewTimings(
-      owner,
-      repo,
-      prNum,
-      pr.created_at,
-      userTeams,
-      prCommits.data,
-      issueComments.data,
-      pr.user?.login || ''
-    );
+    // Extract requested teams from PR data
+    const requestedTeams = pr.requested_teams?.map(team => team.slug) || [];
 
     // Prepare PR data for timeline building
     const prData = {
@@ -313,7 +297,31 @@ export async function GET(
       draft: pr.draft,
     };
 
-    // Build timeline
+    // First, build a basic timeline to get team request events
+    const basicTimeline = await collector.buildPRTimeline(
+      owner,
+      repo,
+      prNum,
+      prData,
+      [], // Empty review timings for now
+      linkedIssues
+    );
+
+    // Get review timings with access to timeline events
+    const reviewTimings = await collector.getReviewTimings(
+      owner,
+      repo,
+      prNum,
+      pr.created_at,
+      userTeams,
+      prCommits.data,
+      issueComments.data,
+      pr.user?.login || '',
+      requestedTeams,
+      basicTimeline
+    );
+
+    // Build final timeline with review timings
     const timeline = await collector.buildPRTimeline(
       owner,
       repo,
@@ -372,6 +380,7 @@ export async function GET(
       timeline: timeline,
       codeowners: codeowners,
       linked_issues: linkedIssues,
+      requested_teams: requestedTeams,
     };
 
     logger.info(`Timeline events collected: ${timeline.length}`);

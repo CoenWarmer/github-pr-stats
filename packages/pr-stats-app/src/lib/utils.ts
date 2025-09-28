@@ -1,10 +1,13 @@
+// Time conversion utilities
+type TimeUnit = 'ms' | 'seconds' | 'minutes' | 'hours' | 'days';
+
 /**
- * Helper utility to format duration for display
+ * Helper utility to format duration between two dates
  * @param startTime Start time as Date or ISO string
  * @param endTime End time as Date or ISO string
  * @returns Formatted duration string (e.g., "4.5h" or "2.3d")
  */
-export function formatDuration(
+export function formatDurationBetweenDates(
   startTime: Date | string,
   endTime: Date | string
 ): string {
@@ -12,49 +15,7 @@ export function formatDuration(
   const end = typeof endTime === 'string' ? new Date(endTime) : endTime;
 
   const durationMs = end.getTime() - start.getTime();
-  const durationHours = durationMs / (1000 * 60 * 60);
-
-  if (durationHours < 12) {
-    // Show in hours with 1 decimal place if under 12 hours
-    return `${durationHours.toFixed(1)}h`;
-  } else {
-    // Show in days with 1 decimal place if over 12 hours
-    const durationDays = durationHours / 24;
-    return `${durationDays.toFixed(1)}d`;
-  }
-}
-
-/**
- * Helper utility to format duration for display in hours
- * @returns Formatted duration string (e.g., "4.5h" or "2.3d")
- */
-export function formatDurationInHours(hours: number): string {
-  if (hours < 12) {
-    // Show in hours with 1 decimal place if under 12 hours
-    return `${hours.toFixed(1)}h`;
-  } else {
-    // Show in days with 1 decimal place if over 12 hours
-    const durationDays = hours / 24;
-    return `${durationDays.toFixed(1)}d`;
-  }
-}
-
-/**
- * Format time in minutes to a more readable format
- * @param minutes Time in minutes
- * @returns Formatted time string (e.g., "4.5h", "2.3d")
- */
-export function formatTime(minutes: number): string {
-  if (minutes > 780) {
-    // More than 13 hours (780 minutes)
-    const days = Math.round(minutes / 1440); // 1440 minutes in a day
-    return `${days}d`;
-  }
-  if (minutes >= 60) {
-    const hours = Math.round((minutes / 60) * 10) / 10; // Round to 1 decimal
-    return `${hours}h`;
-  }
-  return `${Math.round(minutes)}m`;
+  return formatDurationMs(durationMs, 1); // Use 1 decimal place for consistency
 }
 
 /**
@@ -65,7 +26,13 @@ export function formatTime(minutes: number): string {
  * @returns Friction score (0-100)
  */
 export function calculateDeliveryFriction(
-  pr: any,
+  pr: {
+    additions: number;
+    deletions: number;
+    commits: number;
+    review_comments: number;
+    turnaround_time_hours: number;
+  },
   totalBuildMinutes: number,
   totalWaitingMinutes: number
 ): number {
@@ -126,3 +93,142 @@ export function openGitHubUrl(url: string): void {
   }
 }
 
+/**
+ * Converts time from one unit to another
+ * @param value - The time value to convert
+ * @param fromUnit - The unit to convert from
+ * @param toUnit - The unit to convert to
+ * @returns The converted time value
+ */
+export function convertTime(
+  value: number,
+  fromUnit: TimeUnit,
+  toUnit: TimeUnit
+): number {
+  // Convert to milliseconds first
+  let milliseconds: number;
+
+  switch (fromUnit) {
+    case 'ms':
+      milliseconds = value;
+      break;
+    case 'seconds':
+      milliseconds = value * 1000;
+      break;
+    case 'minutes':
+      milliseconds = value * 1000 * 60;
+      break;
+    case 'hours':
+      milliseconds = value * 1000 * 60 * 60;
+      break;
+    case 'days':
+      milliseconds = value * 1000 * 60 * 60 * 24;
+      break;
+    default:
+      throw new Error(`Unknown time unit: ${fromUnit}`);
+  }
+
+  // Convert from milliseconds to target unit
+  switch (toUnit) {
+    case 'ms':
+      return milliseconds;
+    case 'seconds':
+      return milliseconds / 1000;
+    case 'minutes':
+      return milliseconds / (1000 * 60);
+    case 'hours':
+      return milliseconds / (1000 * 60 * 60);
+    case 'days':
+      return milliseconds / (1000 * 60 * 60 * 24);
+    default:
+      throw new Error(`Unknown time unit: ${toUnit}`);
+  }
+}
+
+/**
+ * Formats a duration in milliseconds to a human-readable string
+ * @param durationMs - Duration in milliseconds
+ * @param precision - Number of decimal places (default: 0)
+ * @returns Formatted duration string with appropriate unit
+ */
+export function formatDurationMs(
+  durationMs: number,
+  precision: number = 0
+): string {
+  if (durationMs === 0) {
+    return 'Point in time (no duration)';
+  }
+
+  const seconds = durationMs / 1000;
+  const minutes = seconds / 60;
+  const hours = minutes / 60;
+  const days = hours / 24;
+
+  if (days >= 1) {
+    return `${days.toFixed(precision)} day${days >= 2 ? 's' : ''}`;
+  } else if (hours >= 1) {
+    const wholeHours = Math.floor(hours);
+    const remainingMinutes = Math.round((hours - wholeHours) * 60);
+    if (remainingMinutes > 0) {
+      return `${wholeHours}h ${remainingMinutes}m`;
+    }
+    return `${wholeHours}h`;
+  } else if (minutes >= 1) {
+    return `${Math.round(minutes)} minute${Math.round(minutes) !== 1 ? 's' : ''}`;
+  } else {
+    return `${Math.round(seconds)} second${Math.round(seconds) !== 1 ? 's' : ''}`;
+  }
+}
+
+/**
+ * Unified duration formatter that handles different input types
+ * @param input - Can be milliseconds (number), minutes (with 'minutes' unit), or hours (with 'hours' unit)
+ * @param unit - Optional unit specification ('ms', 'minutes', 'hours')
+ * @param precision - Number of decimal places (default: 0)
+ * @returns Formatted duration string
+ */
+export function formatDuration(
+  input: number,
+  unit: 'ms' | 'minutes' | 'hours' = 'ms',
+  precision: number = 0
+): string {
+  let durationMs: number;
+
+  switch (unit) {
+    case 'minutes':
+      durationMs = input * 60 * 1000;
+      break;
+    case 'hours':
+      durationMs = input * 60 * 60 * 1000;
+      break;
+    case 'ms':
+    default:
+      durationMs = input;
+      break;
+  }
+
+  return formatDurationMs(durationMs, precision);
+}
+
+/**
+ * Converts a duration to the most appropriate time breakdown
+ * @param durationMs - Duration in milliseconds
+ * @returns Object with breakdown of time units
+ */
+export function getTimeBreakdown(durationMs: number): {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  milliseconds: number;
+} {
+  const days = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor(
+    (durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+  );
+  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+  const milliseconds = Math.floor(durationMs % 1000);
+
+  return { days, hours, minutes, seconds, milliseconds };
+}

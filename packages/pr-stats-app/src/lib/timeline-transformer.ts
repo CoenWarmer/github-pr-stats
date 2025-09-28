@@ -70,7 +70,7 @@ function createEventContent(event: TimelineEvent): string {
       // Show the first commit's SHA (shortened to 7 characters)
       const firstCommit = event.commits[0];
       const shortSha = firstCommit.sha.substring(0, 7);
-      return `${baseContent.emoji} \`${shortSha}\` added`;
+      return `${baseContent.emoji} ${shortSha} added`;
     }
 
     if (event.type === 'review' && event.reviewer && event.state) {
@@ -180,16 +180,288 @@ function createEventColor(event: TimelineEvent): string {
 }
 
 /**
+ * Creates awaiting review timeline items based on PR events
+ */
+function createAwaitingReviewItems(pr: PullRequestStats): TimelineItem[] {
+  const awaitingItems: TimelineItem[] = [];
+
+  // Sort timeline events by date
+  const sortedEvents = [...pr.timeline].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  let reviewPeriodStart: Date | null = null;
+  let reviewPeriodCount = 0;
+
+  // Determine when PR becomes ready for review
+  const readyForReviewDate = findReadyForReviewDate(pr, sortedEvents);
+  if (readyForReviewDate) {
+    reviewPeriodStart = readyForReviewDate;
+  }
+
+  // Process events to find review periods
+  for (const event of sortedEvents) {
+    const eventDate = new Date(event.date);
+
+    // If we're in a review period and get a review from a code owner team member
+    if (reviewPeriodStart && isCodeOwnerReview(event)) {
+      // End the current review period
+      const durationHours = Math.round(
+        (eventDate.getTime() - reviewPeriodStart.getTime()) / (1000 * 60 * 60)
+      );
+
+      // Assign to the first team of the reviewer
+      const targetTeam = event.reviewer_teams?.[0] || 'unknown'; // We know this exists because isCodeOwnerReview returned true
+
+      // End the awaiting period 1 second before the review to ensure proper ordering
+      const awaitingEndTime = new Date(eventDate.getTime() - 1000);
+
+      awaitingItems.push({
+        id: `awaiting_review_${reviewPeriodCount}`,
+        group: `reviewer_${targetTeam}`,
+        start: reviewPeriodStart.toISOString(),
+        end: awaitingEndTime.toISOString(),
+        content: `⏳ Awaiting Review`,
+        title: `Awaiting Review\nDuration: ${durationHours}h\nTeam: ${targetTeam}\nReviewer: ${event.reviewer || 'Unknown'}`,
+        color: 'warning',
+      });
+
+      reviewPeriodStart = null;
+      reviewPeriodCount++;
+    }
+
+    // Start a new review period after commits are pushed (if not already in one)
+    if (
+      !reviewPeriodStart &&
+      (event.type === 'commits_pushed' || event.type === 'commits_added')
+    ) {
+      reviewPeriodStart = eventDate;
+    }
+
+    // Start review period when PR becomes ready for review
+    if (!reviewPeriodStart && event.type === 'ready_for_review') {
+      reviewPeriodStart = eventDate;
+    }
+  }
+
+  // If there's an ongoing review period at the end, close it with PR closure/merge
+  // For ongoing periods, we'll assign to the first available code owner or create a general review row
+  if (reviewPeriodStart) {
+    const prEndDate = pr.closed_at || pr.merged_at;
+    if (prEndDate) {
+      const endDate = new Date(prEndDate);
+      const durationHours = Math.round(
+        (endDate.getTime() - reviewPeriodStart.getTime()) / (1000 * 60 * 60)
+      );
+
+      // Try to find the specific team that was requested for review during this period
+      const reviewPeriodStartTime = reviewPeriodStart.getTime();
+      const prEndTime = endDate.getTime();
+
+      // Look for team review requests during this review period
+      const teamRequestsInPeriod = pr.timeline
+        .filter(event => event.type === 'team_review_requested')
+        .filter(event => {
+          const eventTime = new Date(event.date).getTime();
+          return eventTime >= reviewPeriodStartTime && eventTime <= prEndTime;
+        })
+        .sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        ); // Most recent first
+
+      // Use the most recent team request in this period, or fall back to code owner teams
+      const codeOwnerTeams = extractCodeOwners(pr);
+      let targetTeam: string;
+
+      if (
+        teamRequestsInPeriod.length > 0 &&
+        teamRequestsInPeriod[0].requested_team
+      ) {
+        targetTeam = teamRequestsInPeriod[0].requested_team;
+      } else if (codeOwnerTeams.length > 0) {
+        targetTeam = codeOwnerTeams[0];
+      } else {
+        targetTeam = 'discussion';
+      }
+
+      const targetGroup =
+        targetTeam === 'discussion' ? 'discussion' : `reviewer_${targetTeam}`;
+
+      awaitingItems.push({
+        id: `awaiting_review_${reviewPeriodCount}`,
+        group: targetGroup,
+        start: reviewPeriodStart.toISOString(),
+        end: prEndDate,
+        content: `⏳ Awaiting Re-review`,
+        title: `Awaiting Re-review (after changes)\nDuration: ${durationHours}h\nTeam: ${targetTeam}\nEnded: PR ${pr.merged_at ? 'merged' : 'closed'}`,
+        color: 'warning',
+      });
+    }
+  }
+
+  return awaitingItems;
+}
+
+/**
+ * Finds when the PR became ready for review
+ */
+function findReadyForReviewDate(
+  pr: PullRequestStats,
+  sortedEvents: TimelineEvent[]
+): Date | null {
+  // Look for explicit ready_for_review event
+  const readyEvent = sortedEvents.find(
+    event => event.type === 'ready_for_review'
+  );
+  if (readyEvent) {
+    return new Date(readyEvent.date);
+  }
+
+  // If no explicit ready event, assume ready when created (if not draft)
+  // or when first commits are pushed
+  const firstCommitEvent = sortedEvents.find(
+    event => event.type === 'commits_pushed' || event.type === 'commits_added'
+  );
+
+  if (firstCommitEvent) {
+    return new Date(firstCommitEvent.date);
+  }
+
+  // Fallback to PR creation date
+  return new Date(pr.created_at);
+}
+
+/**
+ * Checks if an event is a review from a code owner team member
+ */
+function isCodeOwnerReview(event: TimelineEvent): boolean {
+  if (event.type !== 'review') {
+    return false;
+  }
+
+  // Only reviewers who are part of code owner teams can end awaiting review periods
+  if (event.reviewer_teams && event.reviewer_teams.length > 0) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Extracts all code owner teams from the PR timeline
+ */
+function extractCodeOwners(pr: PullRequestStats): string[] {
+  const codeOwnerTeams = new Set<string>();
+
+  // Extract teams from review events
+  pr.timeline.forEach(event => {
+    if (event.type === 'review') {
+      if (event.reviewer_teams && event.reviewer_teams.length > 0) {
+        // Add all teams for this reviewer
+        event.reviewer_teams.forEach(team => {
+          codeOwnerTeams.add(team);
+        });
+      }
+    }
+  });
+
+  const result = Array.from(codeOwnerTeams).sort();
+
+  // Only return actual teams - no fallback to individual reviewers
+  return result;
+}
+
+/**
+ * Checks if there are any additional reviewers (not part of code owner teams)
+ */
+function hasAdditionalReviewers(pr: PullRequestStats): boolean {
+  // Check if there are any reviewers who are not part of code owner teams
+  return pr.timeline.some(
+    event =>
+      event.type === 'review' &&
+      event.reviewer &&
+      (!event.reviewer_teams || event.reviewer_teams.length === 0)
+  );
+}
+
+/**
+ * Gets the appropriate group/row for an event, considering code owners
+ */
+function getEventGroupForCodeOwners(
+  eventType: string,
+  event: TimelineEvent
+): string {
+  // Handle review events
+  if (eventType === 'review' && event.reviewer) {
+    // If reviewer is part of code owner teams, route to specific team row
+    if (event.reviewer_teams && event.reviewer_teams.length > 0) {
+      // Use the first team (or we could implement more sophisticated logic)
+      return `reviewer_${event.reviewer_teams[0]}`;
+    }
+    // If reviewer is not part of any code owner teams, route to additional reviewers
+    else {
+      return 'additional_reviewers';
+    }
+  }
+
+  // Use the original group logic for non-review events
+  return getEventGroup(eventType);
+}
+
+/**
  * Transforms PR timeline events into dnd-timeline format
  */
 export function transformToTimelineData(pr: PullRequestStats): TimelineData {
-  // Create timeline groups (rows) - simplified and dynamic
+  // Use requested teams as the primary source of code owner teams
+  const requestedTeams = pr.requested_teams || [];
+
+  // Also extract teams from actual reviews (in case there are teams not in requested_teams)
+  const reviewerTeams = extractCodeOwners(pr);
+
+  // Extract teams from team review request events in timeline
+  const timelineRequestedTeams = pr.timeline
+    .filter(event => event.type === 'team_review_requested')
+    .map(event => event.requested_team)
+    .filter((team): team is string => Boolean(team));
+
+  // Combine all sources and deduplicate
+  const allCodeOwnerTeams = [
+    ...new Set([
+      ...requestedTeams,
+      ...reviewerTeams,
+      ...timelineRequestedTeams,
+    ]),
+  ].sort();
+
+  const codeOwners = allCodeOwnerTeams;
+  const hasAdditionalReviewersFlag = hasAdditionalReviewers(pr);
+
+  // Create timeline groups (rows) - with dynamic code owner team rows
   const groups: TimelineGroup[] = [
     { id: 'admin', content: '📋 Administrative', order: 1 },
     { id: 'dev', content: '👨‍💻 Development', order: 2 },
     { id: 'ci', content: '🔧 CI/CD', order: 3 },
-    { id: 'review', content: '👀 Reviews', order: 4 },
-    { id: 'discussion', content: '💬 Discussion', order: 5 },
+    // Add code owner team rows
+    ...codeOwners.map((teamName, index) => ({
+      id: `reviewer_${teamName}`,
+      content: `👥 ${teamName}`,
+      order: 4 + index,
+    })),
+    // Add additional reviewers row if there are any
+    ...(hasAdditionalReviewersFlag
+      ? [
+          {
+            id: 'additional_reviewers',
+            content: '👤 Additional reviewers',
+            order: 4 + codeOwners.length,
+          },
+        ]
+      : []),
+    {
+      id: 'discussion',
+      content: '💬 Discussion',
+      order: 4 + codeOwners.length + (hasAdditionalReviewersFlag ? 1 : 0),
+    },
   ];
 
   // Transform timeline events to timeline items
@@ -197,7 +469,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
     .map((event, index) => {
       return {
         id: `event_${index}`,
-        group: getEventGroup(event.type),
+        group: getEventGroupForCodeOwners(event.type, event),
         start: event.date,
         end: event.end_date,
         content: createEventContent(event),
@@ -215,6 +487,28 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         !isNaN(new Date(item.start).getTime())
     )
     .filter(item => !item.content.includes('PR Created')); // Remove PR Created events
+
+  // Add awaiting review periods
+  const awaitingReviewItems = createAwaitingReviewItems(pr);
+  items.push(...awaitingReviewItems);
+
+  // Sort all items chronologically by start time
+  // For items with the same start time, prioritize awaiting review items first
+  items.sort((a, b) => {
+    const aTime = new Date(a.start).getTime();
+    const bTime = new Date(b.start).getTime();
+
+    if (aTime === bTime) {
+      // If times are equal, prioritize awaiting review items to appear first
+      const aIsAwaiting = a.content.includes('Awaiting Review');
+      const bIsAwaiting = b.content.includes('Awaiting Review');
+
+      if (aIsAwaiting && !bIsAwaiting) return -1;
+      if (!aIsAwaiting && bIsAwaiting) return 1;
+    }
+
+    return aTime - bTime;
+  });
 
   // Add PR lifecycle item if we have end date
   const prEnd = pr.closed_at || pr.merged_at;

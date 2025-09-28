@@ -8,6 +8,7 @@ import React, {
   useRef,
 } from 'react';
 import { TimelineData } from '@/lib/types';
+import { formatDuration } from '@/lib/utils';
 import {
   EuiBadge,
   EuiButtonGroup,
@@ -48,6 +49,7 @@ type TimelineItemType = ItemDefinition & {
   slackUrl?: string;
   color?: string;
   isPointInTime?: boolean;
+  actualDuration: number; // Duration in milliseconds
 };
 
 function TimelineItemWithLevel({
@@ -102,25 +104,7 @@ function TimelineItemWithLevel({
                   </li>
                   <li>
                     <strong>Actual Duration:</strong>
-                    {(() => {
-                      if (item.isPointInTime) {
-                        return 'Point in time (no duration)';
-                      }
-
-                      const actualDurationMs = item.span.end - item.span.start;
-                      const actualDurationMinutes =
-                        actualDurationMs / (1000 * 60);
-
-                      if (actualDurationMinutes < 1) {
-                        return `${Math.round(actualDurationMs / 1000)} seconds`;
-                      } else if (actualDurationMinutes < 60) {
-                        return `${Math.round(actualDurationMinutes)} minutes`;
-                      } else {
-                        const hours = Math.floor(actualDurationMinutes / 60);
-                        const minutes = Math.round(actualDurationMinutes % 60);
-                        return `${hours}h ${minutes}m`;
-                      }
-                    })()}
+                    {formatDuration(item.actualDuration)}
                   </li>
                 </ul>
               )}
@@ -135,6 +119,8 @@ function TimelineItemWithLevel({
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            fontSize: '14px',
+            lineHeight: '24px',
           }}
         >
           {item.content}
@@ -241,6 +227,8 @@ function TimelineRow({
           display: 'flex',
           alignItems: 'center',
           width: '150px',
+          zIndex: 9,
+          backgroundColor: '#0B1628',
         }}
       >
         <span>{row.title}</span>
@@ -411,10 +399,12 @@ function GlobalVerticalGridLines({
   timelineRange,
   zoomLevel,
   containerWidth,
+  totalContentHeight,
 }: {
   timelineRange: Range;
   zoomLevel?: number;
   containerWidth: number;
+  totalContentHeight?: number;
 }) {
   const gridLines = useMemo(() => {
     const totalDuration = timelineRange.end - timelineRange.start;
@@ -498,9 +488,9 @@ function GlobalVerticalGridLines({
       style={{
         position: 'absolute',
         top: 0,
-        bottom: 0,
         left: '150px', // Start after the row labels
         right: 0,
+        height: totalContentHeight ? `${totalContentHeight}px` : '100%',
         pointerEvents: 'none',
         zIndex: 0, // Behind timeline items
       }}
@@ -516,9 +506,9 @@ function GlobalVerticalGridLines({
             style={{
               position: 'absolute',
               top: 0,
-              bottom: 0,
               left: '0',
               width: '1px',
+              height: '100%', // Full height of the container
               backgroundColor: line.isMajor ? '#d1d5db' : '#e5e7eb',
               opacity: line.isMajor ? 0.7 : 0.4,
               pointerEvents: 'none',
@@ -908,18 +898,21 @@ export default function Chart({ data }: TimelineProps) {
     const items: TimelineItemType[] = data.items.map(item => {
       const startTime = new Date(item.start).getTime();
       let endTime: number;
+      let actualDuration: number;
 
       if (item.end) {
         endTime = new Date(item.end).getTime();
+        actualDuration = endTime - startTime; // Store the actual duration
+
         // For very short CI jobs, ensure minimum 5-minute visibility
-        const duration = endTime - startTime;
-        if (duration < 5 * 60 * 1000) {
+        if (actualDuration < 5 * 60 * 1000) {
           // Less than 5 minutes
           endTime = startTime + 5 * 60 * 1000; // Make it 5 minutes for visibility
         }
       } else {
-        // Default 30 minutes for point-in-time events
+        // Default 30 minutes for point-in-time events (for display only)
         endTime = startTime + 30 * 60 * 1000;
+        actualDuration = 0; // Point-in-time events have no duration
       }
 
       return {
@@ -934,6 +927,7 @@ export default function Chart({ data }: TimelineProps) {
         slackUrl: item.slackUrl as string,
         color: item.color,
         isPointInTime: item.isPointInTime,
+        actualDuration: actualDuration,
       };
     });
 
@@ -946,6 +940,94 @@ export default function Chart({ data }: TimelineProps) {
 
     return { items, rows };
   }, [data]);
+
+  // Calculate total content height based on row heights
+  const totalContentHeight = useMemo(() => {
+    let totalHeight = 50; // Start with TimeAxisRow height
+
+    rows.forEach(row => {
+      const rowItems = items.filter(item => item.rowId === row.id);
+      if (rowItems.length === 0) {
+        totalHeight += 60; // Minimum row height
+        return;
+      }
+
+      // Calculate collision levels for this row (same logic as in TimelineRow)
+      const totalDuration = timelineRange.end - timelineRange.start;
+      const timelineWidth = containerWidth - 150;
+
+      if (totalDuration <= 0 || timelineWidth <= 0) {
+        totalHeight += 60;
+        return;
+      }
+
+      // Calculate positions and detect collisions
+      const itemsWithPositions = rowItems.map(item => {
+        const startPercent =
+          ((item.span.start - timelineRange.start) / totalDuration) * 100;
+        const endPercent =
+          ((item.span.end - timelineRange.start) / totalDuration) * 100;
+        const widthPercent = endPercent - startPercent;
+        const widthPixels = Math.max(80, (widthPercent / 100) * timelineWidth);
+        const leftPixels = (startPercent / 100) * timelineWidth;
+
+        return {
+          ...item,
+          startPercent,
+          endPercent,
+          widthPercent,
+          widthPixels,
+          leftPixels,
+          level: 0,
+        };
+      });
+
+      // Sort by start time for collision detection
+      itemsWithPositions.sort((a, b) => a.span.start - b.span.start);
+
+      // Assign levels to avoid collisions
+      itemsWithPositions.forEach((item, index) => {
+        let level = 0;
+        let hasCollision = true;
+
+        while (hasCollision) {
+          hasCollision = false;
+
+          // Check for collisions with previous items at this level
+          for (let i = 0; i < index; i++) {
+            const prevItem = itemsWithPositions[i];
+            if (prevItem.level === level) {
+              // Check if items overlap horizontally
+              const itemEnd = item.leftPixels + item.widthPixels;
+              const prevEnd = prevItem.leftPixels + prevItem.widthPixels;
+
+              if (
+                !(item.leftPixels >= prevEnd || prevItem.leftPixels >= itemEnd)
+              ) {
+                hasCollision = true;
+                break;
+              }
+            }
+          }
+
+          if (hasCollision) {
+            level++;
+          }
+        }
+
+        item.level = level;
+      });
+
+      const maxLevel = Math.max(
+        0,
+        ...itemsWithPositions.map(item => item.level)
+      );
+      const rowHeight = Math.max(60, (maxLevel + 1) * 35 + 25);
+      totalHeight += rowHeight;
+    });
+
+    return totalHeight;
+  }, [items, rows, timelineRange, containerWidth]);
 
   const handleItemClick = (item: { githubUrl?: string; slackUrl?: string }) => {
     if (item.githubUrl) {
@@ -1052,6 +1134,7 @@ export default function Chart({ data }: TimelineProps) {
           timelineRange={timelineRange}
           zoomLevel={zoomLevel}
           containerWidth={containerWidth}
+          totalContentHeight={totalContentHeight}
         />
 
         {/* Time Axis Row */}
