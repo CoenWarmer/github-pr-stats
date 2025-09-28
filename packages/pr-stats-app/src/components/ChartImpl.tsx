@@ -139,14 +139,12 @@ function TimelineRow({
   items,
   onItemClick,
   timelineRange,
-  zoomLevel,
   containerWidth,
 }: {
   row: RowDefinition & { title: string };
   items: TimelineItemType[];
   onItemClick: (item: { githubUrl?: string; slackUrl?: string }) => void;
   timelineRange: Range;
-  zoomLevel?: number;
   containerWidth: number;
 }) {
   // Calculate collision-free positions for overlapping items
@@ -275,14 +273,49 @@ function TimeAxisRow({
   // Generate time markers
   const markers = useMemo(() => {
     const totalDuration = timelineRange.end - timelineRange.start;
+    const timelineWidth = containerWidth - 150; // Subtract sidebar width
 
-    // Determine appropriate interval based on duration and zoom level
-    let intervalMs: number;
+    // Calculate how much space each marker needs (approximate)
+    const estimatedLabelWidth = 120; // pixels per label
+    const maxMarkersForWidth = Math.floor(timelineWidth / estimatedLabelWidth);
+
+    // Calculate the minimum interval needed to prevent overlap
+    const minIntervalForSpace = totalDuration / maxMarkersForWidth;
+
+    // Determine appropriate interval based on zoom level, duration, and available space
     let formatOptions: Intl.DateTimeFormatOptions;
 
-    if (zoomLevel && zoomLevel >= 30) {
-      // High zoom - show hourly markers with time
-      intervalMs = 60 * 60 * 1000; // 1 hour
+    // Define possible intervals in ascending order
+    const intervals = [
+      { ms: 5 * 60 * 1000, label: '5min' }, // 5 minutes
+      { ms: 15 * 60 * 1000, label: '15min' }, // 15 minutes
+      { ms: 30 * 60 * 1000, label: '30min' }, // 30 minutes
+      { ms: 60 * 60 * 1000, label: '1h' }, // 1 hour
+      { ms: 2 * 60 * 60 * 1000, label: '2h' }, // 2 hours
+      { ms: 4 * 60 * 60 * 1000, label: '4h' }, // 4 hours
+      { ms: 6 * 60 * 60 * 1000, label: '6h' }, // 6 hours
+      { ms: 12 * 60 * 60 * 1000, label: '12h' }, // 12 hours
+      { ms: 24 * 60 * 60 * 1000, label: '1d' }, // 1 day
+      { ms: 2 * 24 * 60 * 60 * 1000, label: '2d' }, // 2 days
+      { ms: 7 * 24 * 60 * 60 * 1000, label: '1w' }, // 1 week
+    ];
+
+    // Find the smallest interval that's larger than our minimum space requirement
+    const selectedInterval =
+      intervals.find(interval => interval.ms >= minIntervalForSpace) ||
+      intervals[intervals.length - 1];
+    const intervalMs = selectedInterval.ms;
+
+    // Set format options based on the selected interval
+    if (intervalMs < 60 * 60 * 1000) {
+      // Less than 1 hour - show time only
+      formatOptions = {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      };
+    } else if (intervalMs < 24 * 60 * 60 * 1000) {
+      // Less than 1 day - show date and time
       formatOptions = {
         hour: '2-digit',
         minute: '2-digit',
@@ -290,26 +323,16 @@ function TimeAxisRow({
         day: 'numeric',
         hour12: false,
       };
-    } else if (totalDuration < 24 * 60 * 60 * 1000) {
-      // Less than 24 hours - show every 2 hours
-      intervalMs = 2 * 60 * 60 * 1000;
-      formatOptions = {
-        hour: '2-digit',
-        minute: '2-digit',
-        month: 'short',
-        day: 'numeric',
-      };
-    } else if (totalDuration < 7 * 24 * 60 * 60 * 1000) {
-      // Less than 7 days - show every 12 hours
-      intervalMs = 12 * 60 * 60 * 1000;
+    } else if (intervalMs < 7 * 24 * 60 * 60 * 1000) {
+      // Less than 1 week - show date with hours
       formatOptions = {
         hour: '2-digit',
         month: 'short',
         day: 'numeric',
+        hour12: false,
       };
     } else {
-      // More than 7 days - show daily
-      intervalMs = 24 * 60 * 60 * 1000;
+      // 1 week or more - show date only
       formatOptions = {
         month: 'short',
         day: 'numeric',
@@ -323,16 +346,68 @@ function TimeAxisRow({
     const expandedStart = timelineRange.start - expandedDuration;
     const expandedEnd = timelineRange.end + expandedDuration;
 
-    let currentTime = Math.ceil(expandedStart / intervalMs) * intervalMs;
+    // Align to appropriate time boundaries based on interval
+    let currentTime: number;
+    if (intervalMs < 60 * 60 * 1000) {
+      // For sub-hour intervals (5min, 15min, 30min), align to the nearest hour boundary
+      const startDate = new Date(expandedStart);
+      startDate.setMinutes(0, 0, 0);
+      currentTime = startDate.getTime();
+
+      // Go back to ensure we start before the expanded start
+      while (currentTime > expandedStart) {
+        currentTime -= intervalMs;
+      }
+    } else if (intervalMs < 24 * 60 * 60 * 1000) {
+      // For hourly intervals, align to hour boundaries but don't force specific hours
+      const startDate = new Date(expandedStart);
+      startDate.setMinutes(0, 0, 0);
+      currentTime = startDate.getTime();
+
+      // Go back to ensure we start before the expanded start
+      while (currentTime > expandedStart) {
+        currentTime -= intervalMs;
+      }
+    } else {
+      // For daily+ intervals, align to midnight
+      const startDate = new Date(expandedStart);
+      startDate.setHours(0, 0, 0, 0);
+      currentTime = startDate.getTime();
+
+      // Go back to ensure we start before the expanded start
+      while (currentTime > expandedStart) {
+        currentTime -= intervalMs;
+      }
+    }
+
+    // Debug logging for interval selection
+    if (zoomLevel && zoomLevel > 15) {
+      console.log('Time axis interval selection:', {
+        zoomLevel,
+        totalDuration:
+          Math.round((totalDuration / (1000 * 60 * 60 * 24)) * 100) / 100 +
+          ' days',
+        timelineWidth,
+        maxMarkersForWidth,
+        minIntervalForSpace:
+          Math.round(minIntervalForSpace / (1000 * 60)) + ' minutes',
+        selectedInterval: selectedInterval.label,
+        alignedStartTime: new Date(currentTime).toLocaleString(),
+      });
+    }
 
     while (currentTime <= expandedEnd) {
-      const leftPercent =
-        ((currentTime - timelineRange.start) / totalDuration) * 100;
+      // Calculate pixel position instead of percentage for more stable positioning
+      const timelineWidth = containerWidth - 150; // Subtract sidebar width
+      const leftPixels =
+        ((currentTime - timelineRange.start) / totalDuration) * timelineWidth;
+
       // Include markers that are well outside the visible area for smooth scrolling
-      if (leftPercent >= -300 && leftPercent <= 400) {
+      // Use pixel-based range checking for consistency
+      if (leftPixels >= -timelineWidth * 3 && leftPixels <= timelineWidth * 4) {
         timeMarkers.push({
           time: currentTime,
-          leftPercent: leftPercent, // Don't clamp - let markers scroll naturally
+          leftPixels: leftPixels, // Use pixels instead of percentage
           label: new Date(currentTime).toLocaleDateString(
             'en-US',
             formatOptions
@@ -343,7 +418,7 @@ function TimeAxisRow({
     }
 
     return timeMarkers;
-  }, [timelineRange, zoomLevel]);
+  }, [timelineRange, zoomLevel, containerWidth]);
 
   return (
     <div
@@ -382,10 +457,6 @@ function TimeAxisRow({
         {/* Grid lines are now rendered once for the entire timeline */}
 
         {markers.map((marker, index) => {
-          // Calculate pixel position for translateX (subtract 150px for sidebar)
-          const timelineWidth = containerWidth - 150;
-          const leftPixels = (marker.leftPercent / 100) * timelineWidth;
-
           return (
             <div
               key={index}
@@ -397,7 +468,7 @@ function TimeAxisRow({
                 paddingLeft: '4px',
                 display: 'flex',
                 alignItems: 'center',
-                transform: `translateX(${leftPixels}px)`,
+                transform: `translateX(${marker.leftPixels}px)`,
               }}
             >
               <span>{marker.label}</span>
@@ -459,13 +530,14 @@ function GlobalVerticalGridLines({
     let currentTime = Math.ceil(expandedStart / intervalMs) * intervalMs;
 
     // Add major grid lines (hours/days)
+    const timelineWidth = containerWidth - 150; // Subtract sidebar width
     while (currentTime <= expandedEnd) {
-      const leftPercent =
-        ((currentTime - timelineRange.start) / totalDuration) * 100;
+      const leftPixels =
+        ((currentTime - timelineRange.start) / totalDuration) * timelineWidth;
       // Include lines that are well outside the visible area for smooth panning
-      if (leftPercent >= -300 && leftPercent <= 400) {
+      if (leftPixels >= -timelineWidth * 3 && leftPixels <= timelineWidth * 4) {
         gridLines.push({
-          leftPercent,
+          leftPixels,
           isMajor: true,
         });
       }
@@ -478,15 +550,20 @@ function GlobalVerticalGridLines({
         Math.ceil(expandedStart / minorIntervalMs) * minorIntervalMs;
 
       while (minorCurrentTime <= expandedEnd) {
-        const leftPercent =
-          ((minorCurrentTime - timelineRange.start) / totalDuration) * 100;
+        const leftPixels =
+          ((minorCurrentTime - timelineRange.start) / totalDuration) *
+          timelineWidth;
 
         // Only add if it's not already a major line (not on the hour)
         const isOnHour = minorCurrentTime % (60 * 60 * 1000) === 0;
 
-        if (!isOnHour && leftPercent >= -300 && leftPercent <= 400) {
+        if (
+          !isOnHour &&
+          leftPixels >= -timelineWidth * 3 &&
+          leftPixels <= timelineWidth * 4
+        ) {
           gridLines.push({
-            leftPercent,
+            leftPixels,
             isMajor: false,
           });
         }
@@ -495,7 +572,7 @@ function GlobalVerticalGridLines({
     }
 
     return gridLines;
-  }, [timelineRange, zoomLevel]);
+  }, [timelineRange, zoomLevel, containerWidth]);
 
   return (
     <div
@@ -510,10 +587,6 @@ function GlobalVerticalGridLines({
       }}
     >
       {gridLines.map((line, index) => {
-        // Calculate pixel position for translateX
-        const timelineWidth = containerWidth - 150;
-        const leftPixels = (line.leftPercent / 100) * timelineWidth;
-
         return (
           <div
             key={index}
@@ -526,7 +599,7 @@ function GlobalVerticalGridLines({
               backgroundColor: line.isMajor ? '#d1d5db' : '#e5e7eb',
               opacity: line.isMajor ? 0.7 : 0.4,
               pointerEvents: 'none',
-              transform: `translateX(${leftPixels}px)`,
+              transform: `translateX(${line.leftPixels}px)`,
             }}
           />
         );
@@ -1164,8 +1237,9 @@ export default function Chart({ data }: TimelineProps) {
       {/* Timeline Content */}
       <div
         ref={el => {
-          scrollableRef.current = el;
-          timelineContentRef.current = el;
+          // Use Object.assign to bypass readonly restriction
+          Object.assign(scrollableRef, { current: el });
+          Object.assign(timelineContentRef, { current: el });
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -1219,7 +1293,6 @@ export default function Chart({ data }: TimelineProps) {
               items={rowItems}
               onItemClick={handleItemClick}
               timelineRange={timelineRange}
-              zoomLevel={zoomLevel}
               containerWidth={containerWidth}
             />
           );

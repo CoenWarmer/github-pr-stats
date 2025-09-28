@@ -273,7 +273,7 @@ export async function GET(
       }),
       collector.getUserTeams(pr.user?.login || '', owner),
       collector.parseCodeowners(owner, repo, prNum),
-      collector.getLinkedIssues(owner, repo, pr.body),
+      collector.getLinkedIssues(owner, repo, pr.body, prNum),
     ]);
 
     // Extract requested teams from PR data

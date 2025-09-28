@@ -587,7 +587,7 @@ export class GitHubCollector {
     owner: string,
     repo: string,
     prNumber: number
-  ): Promise<{ teams: string[]; individuals: string[] }> {
+  ): Promise<{ teams: string[] }> {
     try {
       const { data: file } = await this.octokit.rest.repos.getContent({
         owner,
@@ -601,7 +601,6 @@ export class GitHubCollector {
         const lines = content.split('\n');
 
         const teams = new Set<string>();
-        const individuals = new Set<string>();
 
         for (const line of lines) {
           const trimmed = line.trim();
@@ -616,9 +615,6 @@ export class GitHubCollector {
                     // Team (format: @org/team-name)
                     const teamName = name.split('/')[1];
                     teams.add(teamName);
-                  } else {
-                    // Individual (format: @username)
-                    individuals.add(name);
                   }
                 }
               }
@@ -628,7 +624,6 @@ export class GitHubCollector {
 
         return {
           teams: Array.from(teams),
-          individuals: Array.from(individuals),
         };
       }
     } catch (error) {
@@ -637,53 +632,170 @@ export class GitHubCollector {
       });
     }
 
-    return { teams: [], individuals: [] };
+    return { teams: [] };
   }
 
   /**
    * Extract issue numbers from PR body/description and fetch issue details
+   * Also checks PR timeline events for connected issues
    */
   async getLinkedIssues(
     owner: string,
     repo: string,
-    prBody: string | null
+    prBody: string | null,
+    prNumber?: number
   ): Promise<LinkedIssue[]> {
+    logger.debug('getLinkedIssues called', {
+      owner,
+      repo,
+      bodyLength: prBody?.length || 0,
+      bodyPreview: prBody?.substring(0, 200) || 'null',
+    });
+
     if (!prBody) {
+      logger.debug('PR body is null or empty, returning empty linked issues');
       return [];
     }
 
     try {
       // Extract issue references from PR body
       const issuePatterns = [
-        /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|address(?:e[sd])?)\s+#(\d+)/gi,
-        /(?:related\s+to|see|ref(?:erence)?)\s+#(\d+)/gi,
-        /#(\d+)/g, // Generic issue references
+        // Keywords followed by issue numbers
+        /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|address(?:e[sd])?)\s*:?\s*#(\d+)/gi,
+        /(?:related\s+to|see|ref(?:erence)?|relates?\s+to)\s*:?\s*#(\d+)/gi,
+        // GitHub's closing keywords
+        /(?:closes?|fixes?|resolves?)\s+#(\d+)/gi,
+        // Generic issue references (but be more specific to avoid false positives)
+        /(?:^|\s)#(\d+)(?:\s|$|[.,!?])/g,
+        // Cross-repository references (owner/repo#number)
+        /(?:^|\s)[\w-]+\/[\w-]+#(\d+)(?:\s|$|[.,!?])/g,
+        // Full GitHub URLs to issues in same repository
+        new RegExp(`https://github\\.com/${owner}/${repo}/issues/(\\d+)`, 'gi'),
+        // Full GitHub URLs to issues in any repository (extract issue number only)
+        /https:\/\/github\.com\/[\w-]+\/[\w-]+\/issues\/(\d+)/gi,
       ];
 
       const issueNumbers = new Set<number>();
+      const crossRepoIssues = new Set<{
+        owner: string;
+        repo: string;
+        number: number;
+      }>();
 
       for (const pattern of issuePatterns) {
         let match;
         while ((match = pattern.exec(prBody)) !== null) {
           const issueNumber = parseInt(match[1]);
           if (issueNumber) {
-            issueNumbers.add(issueNumber);
+            // Check if this is a cross-repository URL pattern
+            if (pattern.source.includes('github\\.com')) {
+              // Extract owner and repo from the full match
+              const urlMatch = match[0].match(
+                /https:\/\/github\.com\/([\w-]+)\/([\w-]+)\/issues\/(\d+)/
+              );
+              if (urlMatch) {
+                const [, matchOwner, matchRepo, matchNumber] = urlMatch;
+                if (matchOwner === owner && matchRepo === repo) {
+                  // Same repository - add to regular issue numbers
+                  issueNumbers.add(issueNumber);
+                  logger.debug(`Found same-repo issue URL: #${issueNumber}`);
+                } else {
+                  // Cross-repository - add to cross-repo set
+                  crossRepoIssues.add({
+                    owner: matchOwner,
+                    repo: matchRepo,
+                    number: parseInt(matchNumber),
+                  });
+                  logger.debug(
+                    `Found cross-repo issue: ${matchOwner}/${matchRepo}#${matchNumber}`
+                  );
+                }
+              }
+            } else {
+              // Regular pattern - assume same repository
+              issueNumbers.add(issueNumber);
+              logger.debug(
+                `Found issue reference: #${issueNumber} with pattern: ${pattern.source}`
+              );
+            }
           }
         }
       }
 
-      if (issueNumbers.size === 0) {
-        logger.debug('No issue references found in PR body');
+      if (issueNumbers.size === 0 && crossRepoIssues.size === 0) {
+        logger.debug('No issue references found in PR body', { prBody });
         return [];
       }
 
       logger.debug(
-        `Found ${issueNumbers.size} issue references: ${Array.from(issueNumbers).join(', ')}`
+        `Found ${issueNumbers.size} same-repo issue references from PR body: ${Array.from(issueNumbers).join(', ')}`
+      );
+
+      if (crossRepoIssues.size > 0) {
+        logger.debug(
+          `Found ${crossRepoIssues.size} cross-repo issue references: ${Array.from(
+            crossRepoIssues
+          )
+            .map(i => `${i.owner}/${i.repo}#${i.number}`)
+            .join(', ')}`
+        );
+      }
+
+      // Also check PR timeline events for connected issues if PR number is provided
+      if (prNumber) {
+        try {
+          const { data: timelineEvents } =
+            await this.octokit.rest.issues.listEventsForTimeline({
+              owner,
+              repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+
+          for (const event of timelineEvents) {
+            // Look for "connected" or "cross-referenced" events that link to issues
+            if (
+              event.event === 'connected' ||
+              event.event === 'cross-referenced'
+            ) {
+              const source = (
+                event as {
+                  source?: {
+                    issue?: { number: number; pull_request?: unknown };
+                  };
+                }
+              ).source;
+              if (source?.issue && !source.issue.pull_request) {
+                issueNumbers.add(source.issue.number);
+                logger.debug(
+                  `Found connected issue from timeline: #${source.issue.number}`
+                );
+              }
+            }
+          }
+        } catch (timelineError) {
+          logger.warn('Error fetching PR timeline for linked issues', {
+            error:
+              timelineError instanceof Error
+                ? timelineError.message
+                : String(timelineError),
+          });
+        }
+      }
+
+      if (issueNumbers.size === 0 && crossRepoIssues.size === 0) {
+        logger.debug('No issue references found in PR body or timeline');
+        return [];
+      }
+
+      logger.debug(
+        `Total issue references found: ${issueNumbers.size} same-repo + ${crossRepoIssues.size} cross-repo`
       );
 
       // Fetch issue details for all referenced issues
       const issues: LinkedIssue[] = [];
 
+      // Fetch same-repository issues
       for (const issueNumber of issueNumbers) {
         try {
           const { data: issue } = await this.octokit.rest.issues.get({
@@ -740,7 +852,73 @@ export class GitHubCollector {
         }
       }
 
-      logger.info(`Found ${issues.length} linked issues for PR`);
+      // Fetch cross-repository issues
+      for (const crossRepoIssue of crossRepoIssues) {
+        try {
+          const { data: issue } = await this.octokit.rest.issues.get({
+            owner: crossRepoIssue.owner,
+            repo: crossRepoIssue.repo,
+            issue_number: crossRepoIssue.number,
+          });
+
+          // Skip if it's actually a PR
+          if (issue.pull_request) {
+            continue;
+          }
+
+          // Fetch issue lifecycle events
+          const lifecycleEvents = await this.getIssueLifecycleEvents(
+            crossRepoIssue.owner,
+            crossRepoIssue.repo,
+            crossRepoIssue.number,
+            issue.created_at
+          );
+
+          issues.push({
+            number: issue.number,
+            title: issue.title,
+            url: issue.html_url,
+            state: issue.state,
+            labels: issue.labels
+              .map(label =>
+                typeof label === 'string' ? label : label.name || ''
+              )
+              .filter(Boolean),
+            assignees:
+              issue.assignees?.map(assignee => assignee.login || '') || [],
+            created_at: issue.created_at,
+            closed_at: issue.closed_at,
+            lifecycle_events: lifecycleEvents,
+          });
+
+          logger.debug(
+            `Fetched cross-repo issue ${crossRepoIssue.owner}/${crossRepoIssue.repo}#${crossRepoIssue.number}: ${issue.title} with ${lifecycleEvents.length} lifecycle events`
+          );
+
+          // Add small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (issueError) {
+          logger.warn(
+            `Could not fetch cross-repo issue ${crossRepoIssue.owner}/${crossRepoIssue.repo}#${crossRepoIssue.number}`,
+            {
+              error:
+                issueError instanceof Error
+                  ? issueError.message
+                  : String(issueError),
+            }
+          );
+          // Continue with other issues if one fails
+          continue;
+        }
+      }
+
+      logger.info(`Found ${issues.length} linked issues for PR`, {
+        sameRepoIssues: Array.from(issueNumbers),
+        crossRepoIssues: Array.from(crossRepoIssues).map(
+          i => `${i.owner}/${i.repo}#${i.number}`
+        ),
+        successfullyFetched: issues.map(i => `#${i.number}: ${i.title}`),
+      });
       return issues;
     } catch (error) {
       logger.error('Error fetching linked issues', {

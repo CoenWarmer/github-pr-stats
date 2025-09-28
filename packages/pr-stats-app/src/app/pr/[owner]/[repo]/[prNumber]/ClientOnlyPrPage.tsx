@@ -17,6 +17,7 @@ import {
   EuiEmptyPrompt,
   EuiButtonIcon,
   EuiIcon,
+  EuiBadge,
 } from '@elastic/eui';
 import PRStats from '@/components/PRStats';
 
@@ -204,11 +205,43 @@ export default function ClientOnlyPrPage() {
               rel="noopener noreferrer"
             >
               {prStats?.title}
-              <EuiIcon type="popout" size="s" style={{ marginLeft: '4px' }} />
+              <EuiIcon type="popout" size="m" style={{ marginLeft: '4px' }} />
             </a>
           </>
         }
-        description={<></>}
+        description={
+          <>
+            <EuiFlexGroup direction="row" gutterSize="s">
+              {prStats?.linked_issues?.map(issue => (
+                <>
+                  <EuiFlexItem key={issue.number} grow={false}>
+                    <EuiText size="s">
+                      <a
+                        href={issue.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        #{issue.number}
+                      </a>
+                      <span> • </span>
+                      <span>{issue.title}</span>
+                    </EuiText>
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiBadge>{issue.state.toUpperCase()}</EuiBadge>
+                    {issue.labels.length > 0 && (
+                      <span>
+                        {issue.labels.map(label => (
+                          <EuiBadge key={label}>{label}</EuiBadge>
+                        ))}
+                      </span>
+                    )}
+                  </EuiFlexItem>
+                </>
+              ))}
+            </EuiFlexGroup>
+          </>
+        }
         rightSideItems={[
           <EuiButtonIcon
             key="refresh"

@@ -8,7 +8,7 @@ import {
 
 // Event type to group mapping for cleaner organization
 const EVENT_GROUPS = {
-  admin: ['opened', 'closed', 'merged', 'ready_for_review', 'draft'],
+  admin: ['opened', 'closed', 'merged', 'ready_for_review', 'draft', 'issue_'],
   dev: ['commit', 'commits_pushed', 'head_ref_force_pushed'],
   review: ['review', 'review_requested', 'review_dismissed', 'awaiting_review'],
   discussion: ['comment', 'issue_comment'],
@@ -29,6 +29,11 @@ const EVENT_CONTENT: Record<string, { emoji: string; text: string }> = {
   comment: { emoji: '💬', text: 'Comment' },
   issue_comment: { emoji: '💬', text: 'Comment' },
   awaiting_review: { emoji: '⏳', text: 'Awaiting Review' },
+  issue_created: { emoji: '🎫', text: 'Issue Created' },
+  issue_assigned: { emoji: '👤', text: 'Issue Assigned' },
+  issue_unassigned: { emoji: '👤', text: 'Issue Unassigned' },
+  issue_closed: { emoji: '✅', text: 'Issue Closed' },
+  issue_in_progress: { emoji: '🔄', text: 'Issue In Progress' },
 };
 
 /**
@@ -66,6 +71,19 @@ function createEventContent(event: TimelineEvent): string {
         : `⏳ Awaiting Review`;
     }
     return `⏳ Awaiting Review`;
+  }
+
+  // Handle issue events with specific information
+  if (event.type.startsWith('issue_')) {
+    const baseContent = EVENT_CONTENT[event.type];
+    if (baseContent) {
+      if (event.issue_title && event.issue_number) {
+        return `${baseContent.emoji} ${baseContent.text}: #${event.issue_number} ${event.issue_title}`;
+      } else if (event.issue_number) {
+        return `${baseContent.emoji} ${baseContent.text}: #${event.issue_number}`;
+      }
+      return `${baseContent.emoji} ${baseContent.text}`;
+    }
   }
 
   if (baseContent) {
