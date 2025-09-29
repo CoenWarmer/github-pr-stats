@@ -261,7 +261,7 @@ export default function ClientOnlyPrPage() {
       <EuiPageTemplate.Header>
         {prStats && <PRStats pr={prStats} />}
       </EuiPageTemplate.Header>
-      <EuiPageTemplate.Section>
+      <EuiPageTemplate.Section style={{ height: '100%', paddingInline: '0px' }}>
         <Chart data={data} />
       </EuiPageTemplate.Section>
     </EuiPageTemplate>

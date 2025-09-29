@@ -16,6 +16,7 @@ import {
   EuiFlexItem,
   EuiText,
   EuiToolTip,
+  useEuiTheme,
 } from '@elastic/eui';
 
 // Define our own types since we're not using dnd-timeline's hooks
@@ -147,6 +148,8 @@ function TimelineRow({
   timelineRange: Range;
   containerWidth: number;
 }) {
+  const { colorMode } = useEuiTheme();
+
   // Calculate collision-free positions for overlapping items
   const itemsWithLevels = useMemo(() => {
     const totalDuration = timelineRange.end - timelineRange.start;
@@ -229,8 +232,9 @@ function TimelineRow({
           display: 'flex',
           alignItems: 'center',
           width: '150px',
+          paddingLeft: '24px',
           zIndex: 9,
-          backgroundColor: '#0B1628',
+          backgroundColor: colorMode === 'DARK' ? '#0B1628' : '#ffffff',
         }}
       >
         <span>{row.title}</span>
@@ -270,6 +274,8 @@ function TimeAxisRow({
   zoomLevel?: number;
   containerWidth: number;
 }) {
+  const { colorMode } = useEuiTheme();
+
   // Generate time markers
   const markers = useMemo(() => {
     const totalDuration = timelineRange.end - timelineRange.start;
@@ -433,7 +439,7 @@ function TimeAxisRow({
           display: 'flex',
           alignItems: 'center',
           width: '150px',
-          backgroundColor: '#0B1628', // Match the background
+          backgroundColor: colorMode === 'DARK' ? '#0B1628' : '#ffffff', // Match the background
           zIndex: 11, // Higher than the sticky container
           position: 'relative', // Ensure it stays in place
           paddingLeft: '12px', // Match the padding of row labels
@@ -609,6 +615,8 @@ function GlobalVerticalGridLines({
 }
 
 export default function Chart({ data }: TimelineProps) {
+  const { colorMode } = useEuiTheme();
+
   // Calculate the full time range from the data
   const fullRange = useMemo(() => {
     const times = data.items
@@ -1182,9 +1190,11 @@ export default function Chart({ data }: TimelineProps) {
         style={{
           position: 'absolute',
           zIndex: 99999,
-          left: '0',
+          left: '24px',
           width: 'max-content',
           justifySelf: 'flex-end',
+          backgroundColor: colorMode === 'DARK' ? '#0B1628' : '#ffffff',
+          paddingRight: '8px',
         }}
       >
         <EuiFlexItem>
@@ -1246,7 +1256,7 @@ export default function Chart({ data }: TimelineProps) {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         style={{
-          height: '440px',
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
           cursor: isDragging ? 'grabbing' : 'grab',
@@ -1272,7 +1282,7 @@ export default function Chart({ data }: TimelineProps) {
             position: 'sticky',
             top: 0,
             zIndex: 10,
-            backgroundColor: '#0B1628', // Match the background
+            backgroundColor: colorMode === 'DARK' ? '#0B1628' : '#ffffff', // Match the background
             borderBottom: '1px solid #e5e7eb',
           }}
         >
