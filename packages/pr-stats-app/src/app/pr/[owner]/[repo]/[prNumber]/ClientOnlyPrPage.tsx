@@ -4,11 +4,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { TimelineData, ApiResponse, PullRequestStats } from '@/lib/types';
 import { transformToTimelineData } from '@/lib/timeline-transformer';
-import Chart from '@/components/ChartImpl';
+import { Chart } from '@/components/Chart';
 import {
   EuiPageTemplate,
   EuiText,
-  EuiSpacer,
   EuiPanel,
   EuiFlexGroup,
   EuiFlexItem,
@@ -209,39 +208,6 @@ export default function ClientOnlyPrPage() {
             </a>
           </>
         }
-        description={
-          <>
-            <EuiFlexGroup direction="row" gutterSize="s">
-              {prStats?.linked_issues?.map(issue => (
-                <>
-                  <EuiFlexItem key={issue.number} grow={false}>
-                    <EuiText size="s">
-                      <a
-                        href={issue.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        #{issue.number}
-                      </a>
-                      <span> • </span>
-                      <span>{issue.title}</span>
-                    </EuiText>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiBadge>{issue.state.toUpperCase()}</EuiBadge>
-                    {issue.labels.length > 0 && (
-                      <span>
-                        {issue.labels.map(label => (
-                          <EuiBadge key={label}>{label}</EuiBadge>
-                        ))}
-                      </span>
-                    )}
-                  </EuiFlexItem>
-                </>
-              ))}
-            </EuiFlexGroup>
-          </>
-        }
         rightSideItems={[
           <EuiButtonIcon
             key="refresh"
@@ -261,7 +227,35 @@ export default function ClientOnlyPrPage() {
       <EuiPageTemplate.Header>
         {prStats && <PRStats pr={prStats} />}
       </EuiPageTemplate.Header>
-      <EuiPageTemplate.Section style={{ height: '100%', paddingInline: '0px' }}>
+
+      <EuiPageTemplate.Section>
+        <EuiFlexGroup direction="row" gutterSize="s">
+          {prStats?.linked_issues?.map(issue => (
+            <EuiFlexItem key={issue.number} grow={false}>
+              <EuiText size="s">
+                <a href={issue.url} target="_blank" rel="noopener noreferrer">
+                  #{issue.number}
+                </a>
+                <span> • </span>
+                <span>{issue.title}</span>
+              </EuiText>
+              <EuiBadge>{issue.state.toUpperCase()}</EuiBadge>
+              {issue.labels.length > 0 && (
+                <span>
+                  {issue.labels.map(label => (
+                    <EuiBadge key={label}>{label}</EuiBadge>
+                  ))}
+                </span>
+              )}
+            </EuiFlexItem>
+          ))}
+        </EuiFlexGroup>
+      </EuiPageTemplate.Section>
+
+      <EuiPageTemplate.Section
+        style={{ height: '100%', paddingInline: '0px' }}
+        restrictWidth="100%"
+      >
         <Chart data={data} />
       </EuiPageTemplate.Section>
     </EuiPageTemplate>

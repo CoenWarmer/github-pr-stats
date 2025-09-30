@@ -3,7 +3,7 @@
 import { EuiLoadingSpinner } from '@elastic/eui';
 import dynamic from 'next/dynamic';
 
-export const Chart = dynamic(() => import('./ChartImpl'), {
+export const Chart = dynamic(() => import('./D3Timeline'), {
   ssr: false,
   loading: () => (
     <div>

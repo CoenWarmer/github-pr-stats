@@ -44,7 +44,7 @@ export default function ClientOnlyPage() {
   };
 
   return (
-    <EuiPageTemplate restrictWidth="1200px">
+    <EuiPageTemplate>
       <EuiPageTemplate.Header
         pageTitle="📊 GitHub PR Stats"
         description="Analyze pull request metrics and visualize the development timeline"

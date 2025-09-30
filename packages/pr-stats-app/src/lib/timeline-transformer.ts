@@ -268,6 +268,18 @@ function getEventGroupForCodeOwners(
     }
   }
 
+  // Handle awaiting review events - assign to the team that needs to review
+  if (eventType === 'awaiting_review') {
+    if (event.reviewer_teams && event.reviewer_teams.length > 0) {
+      // Use the first team that needs to review
+      return `reviewer_${event.reviewer_teams[0]}`;
+    }
+    // If no specific team, route to additional reviewers
+    else {
+      return 'additional_reviewers';
+    }
+  }
+
   // Use the original group logic for non-review events
   return getEventGroup(eventType);
 }
