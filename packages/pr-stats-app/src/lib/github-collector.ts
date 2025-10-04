@@ -168,7 +168,7 @@ export class GitHubCollector {
                 build,
                 {
                   includeJobs: true, // Create job events for cache
-                  hideJobsFromTimeline: true, // But hide them from timeline display
+                  hideJobsFromTimeline: false, // Show them in timeline (in collapsible CI Jobs row)
                 }
               );
 
@@ -223,57 +223,6 @@ export class GitHubCollector {
           comment_content: comment.body || '',
           comment_url: comment.html_url,
           comment_id: comment.id,
-        });
-      }
-
-      // Fetch check runs
-      logger.info(`Fetching CI runs for ${commits.length} commits`);
-
-      try {
-        // for (const checkRun of checkRuns.check_runs) {
-        //   if (checkRun.started_at) {
-        //     if (checkRun.completed_at && checkRun.conclusion) {
-        //       // Create a single duration-based CI event
-        //       timeline.push({
-        //         type: 'ci_run',
-        //         date: checkRun.started_at,
-        //         end_date: checkRun.completed_at,
-        //         workflow_name: checkRun.name,
-        //         ci_conclusion: checkRun.conclusion,
-        //         ci_status: 'completed',
-        //         build_url: checkRun.details_url || undefined,
-        //       });
-        //     } else {
-        //       // Create a point-in-time event for started (still running)
-        //       timeline.push({
-        //         type: 'ci_started',
-        //         date: checkRun.started_at,
-        //         workflow_name: checkRun.name,
-        //         ci_status: 'started',
-        //         build_url: checkRun.details_url || undefined,
-        //       });
-        //     }
-        //   }
-        // }
-        // Also fetch legacy commit statuses
-        // for (const status of statuses) {
-        //   if (status.created_at) {
-        //     timeline.push({
-        //       type:
-        //         status.state === 'success' || status.state === 'failure'
-        //           ? 'ci_completed'
-        //           : 'ci_started',
-        //       date: status.created_at,
-        //       workflow_name: status.context || 'CI Check',
-        //       ci_conclusion: status.state,
-        //       ci_status: status.state === 'pending' ? 'started' : 'completed',
-        //       build_url: status.target_url || undefined,
-        //     });
-        //   }
-        // }
-      } catch (error) {
-        logger.warn('Could not fetch PR-level check runs', {
-          error: error instanceof Error ? error.message : String(error),
         });
       }
 
@@ -339,17 +288,6 @@ export class GitHubCollector {
         console.log('Error fetching timeline events:', error);
       }
 
-      // Add awaiting review events
-      const awaitingReviewEvents = this.createAwaitingReviewEvents(
-        prData,
-        timeline
-      );
-      timeline.push(...awaitingReviewEvents);
-
-      logger.info(
-        `Built timeline with ${timeline.length} events (including ${awaitingReviewEvents.length} awaiting review events)`
-      );
-
       return timeline;
     } catch (error) {
       logger.error('Error building timeline for PR', {
@@ -366,9 +304,6 @@ export class GitHubCollector {
     prNumber: number,
     prCreatedAt: string,
     authorTeams: string[],
-    prCommits: any[],
-    prComments: any[],
-    prAuthor: string,
     requestedTeams: string[] = [],
     timelineEvents: TimelineEvent[] = []
   ): Promise<ReviewTiming[]> {
@@ -575,12 +510,12 @@ export class GitHubCollector {
       return userTeamsInRequested;
     }
 
-    // Fallback: if we can't determine team membership, assume they belong to the first requested team
-    // This handles cases where team membership is private or we don't have the right permissions
+    // Do not guess membership. If we cannot verify team membership, return empty
+    // so the UI places the review under 'additional reviewers'.
     console.log(
-      `⚠️ Could not determine team membership for ${username}, assigning to first requested team: ${requestedTeams[0]}`
+      `⚠️ Could not verify team membership for ${username}. Returning no reviewer teams.`
     );
-    return [requestedTeams[0]];
+    return [];
   }
 
   async parseCodeowners(
@@ -1313,206 +1248,5 @@ export class GitHubCollector {
       default:
         return 'neutral';
     }
-  }
-
-  /**
-   * Create awaiting review timeline events
-   */
-  createAwaitingReviewEvents(
-    pr: PullRequestStats,
-    timeline: TimelineEvent[]
-  ): TimelineEvent[] {
-    const awaitingEvents: TimelineEvent[] = [];
-
-    // Sort timeline events by date
-    const sortedEvents = [...timeline].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-
-    let reviewPeriodStart: Date | null = null;
-    let reviewPeriodCount = 0;
-
-    // Determine when PR becomes ready for review
-    const readyForReviewDate = this.findReadyForReviewDate(pr, sortedEvents);
-    if (readyForReviewDate) {
-      reviewPeriodStart = readyForReviewDate;
-    }
-
-    // Process events to find review periods
-    for (const event of sortedEvents) {
-      const eventDate = new Date(event.date);
-
-      // If we're in a review period and get a review from a code owner team member
-      if (reviewPeriodStart && this.isCodeOwnerReview(event)) {
-        // End the current review period
-        const durationHours = Math.round(
-          (eventDate.getTime() - reviewPeriodStart.getTime()) / (1000 * 60 * 60)
-        );
-
-        // Assign to the first team of the reviewer
-        const targetTeam = event.reviewer_teams?.[0] || 'unknown';
-
-        // End the awaiting period 1 second before the review to ensure proper ordering
-        const awaitingEndTime = new Date(eventDate.getTime() - 1000);
-
-        awaitingEvents.push({
-          type: 'awaiting_review',
-          date: reviewPeriodStart.toISOString(),
-          end_date: awaitingEndTime.toISOString(),
-          workflow_name: `Awaiting Review - ${targetTeam}`,
-          reviewer: event.reviewer,
-          reviewer_teams: [targetTeam],
-          duration_ms: awaitingEndTime.getTime() - reviewPeriodStart.getTime(),
-          duration_minutes: Math.round(
-            (awaitingEndTime.getTime() - reviewPeriodStart.getTime()) /
-              (1000 * 60)
-          ),
-          duration_hours: durationHours,
-        });
-
-        reviewPeriodStart = null;
-        reviewPeriodCount++;
-      }
-
-      // Start a new review period after commits are pushed (if not already in one)
-      if (
-        !reviewPeriodStart &&
-        (event.type === 'commits_pushed' || event.type === 'commits_added')
-      ) {
-        reviewPeriodStart = eventDate;
-      }
-
-      // Start review period when PR becomes ready for review
-      if (!reviewPeriodStart && event.type === 'ready_for_review') {
-        reviewPeriodStart = eventDate;
-      }
-    }
-
-    // If there's an ongoing review period at the end, close it with PR closure/merge
-    if (reviewPeriodStart) {
-      const prEndDate = pr.closed_at || pr.merged_at;
-      if (prEndDate) {
-        const endDate = new Date(prEndDate);
-        const durationHours = Math.round(
-          (endDate.getTime() - reviewPeriodStart.getTime()) / (1000 * 60 * 60)
-        );
-
-        // Try to find the specific team that was requested for review during this period
-        const reviewPeriodStartTime = reviewPeriodStart.getTime();
-        const prEndTime = endDate.getTime();
-
-        // Look for team review requests during this review period
-        const teamRequestsInPeriod = timeline
-          .filter(event => event.type === 'team_review_requested')
-          .filter(event => {
-            const eventTime = new Date(event.date).getTime();
-            return eventTime >= reviewPeriodStartTime && eventTime <= prEndTime;
-          })
-          .sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-          ); // Most recent first
-
-        // Use the most recent team request in this period, or fall back to code owner teams
-        const codeOwnerTeams = this.extractCodeOwners(pr);
-        let targetTeam: string;
-
-        if (
-          teamRequestsInPeriod.length > 0 &&
-          teamRequestsInPeriod[0].requested_team
-        ) {
-          targetTeam = teamRequestsInPeriod[0].requested_team;
-        } else if (codeOwnerTeams.length > 0) {
-          targetTeam = codeOwnerTeams[0];
-        } else {
-          targetTeam = 'discussion';
-        }
-
-        const durationMs = endDate.getTime() - reviewPeriodStart.getTime();
-
-        awaitingEvents.push({
-          type: 'awaiting_review',
-          date: reviewPeriodStart.toISOString(),
-          end_date: prEndDate,
-          workflow_name: `Awaiting Re-review - ${targetTeam}`,
-          reviewer_teams:
-            targetTeam !== 'discussion' ? [targetTeam] : undefined,
-          duration_ms: durationMs,
-          duration_minutes: Math.round(durationMs / (1000 * 60)),
-          duration_hours: durationHours,
-        });
-      }
-    }
-
-    logger.debug(`Created ${awaitingEvents.length} awaiting review events`);
-    return awaitingEvents;
-  }
-
-  /**
-   * Finds when the PR became ready for review
-   */
-  private findReadyForReviewDate(
-    pr: PullRequestStats,
-    sortedEvents: TimelineEvent[]
-  ): Date | null {
-    // Look for explicit ready_for_review event
-    const readyEvent = sortedEvents.find(
-      event => event.type === 'ready_for_review'
-    );
-    if (readyEvent) {
-      return new Date(readyEvent.date);
-    }
-
-    // If no explicit ready event, assume ready when created (if not draft)
-    // or when first commits are pushed
-    const firstCommitEvent = sortedEvents.find(
-      event => event.type === 'commits_pushed' || event.type === 'commits_added'
-    );
-
-    if (firstCommitEvent) {
-      return new Date(firstCommitEvent.date);
-    }
-
-    // Fallback to PR creation date
-    return new Date(pr.created_at);
-  }
-
-  /**
-   * Checks if an event is a review from a code owner team member
-   */
-  private isCodeOwnerReview(event: TimelineEvent): boolean {
-    if (event.type !== 'review') {
-      return false;
-    }
-
-    // Only reviewers who are part of code owner teams can end awaiting review periods
-    if (event.reviewer_teams && event.reviewer_teams.length > 0) {
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * Extracts all code owner teams from the PR timeline
-   */
-  private extractCodeOwners(pr: PullRequestStats): string[] {
-    const codeOwnerTeams = new Set<string>();
-
-    // Extract teams from review events
-    pr.timeline.forEach(event => {
-      if (event.type === 'review') {
-        if (event.reviewer_teams && event.reviewer_teams.length > 0) {
-          // Add all teams for this reviewer
-          event.reviewer_teams.forEach(team => {
-            codeOwnerTeams.add(team);
-          });
-        }
-      }
-    });
-
-    const result = Array.from(codeOwnerTeams).sort();
-
-    // Only return actual teams - no fallback to individual reviewers
-    return result;
   }
 }

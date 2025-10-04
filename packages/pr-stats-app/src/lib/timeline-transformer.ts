@@ -7,12 +7,14 @@ import {
 } from './types';
 
 // Event type to group mapping for cleaner organization
+// Note: Order matters! More specific patterns should come before general ones
 const EVENT_GROUPS = {
-  admin: ['opened', 'closed', 'merged', 'ready_for_review', 'draft', 'issue_'],
-  dev: ['commit', 'commits_pushed', 'head_ref_force_pushed'],
-  review: ['review', 'review_requested', 'review_dismissed', 'awaiting_review'],
-  discussion: ['comment', 'issue_comment'],
+  admin: ['closed', 'merged', 'ready_for_review', 'draft', 'issue_'],
+  dev: ['opened', 'commit', 'commits_pushed', 'head_ref_force_pushed'],
+  discussion: ['comment_added', 'review_comment_added', 'issue_comment'], // Check before review to catch review_comment_added
+  review: ['review_requested', 'review_dismissed', 'awaiting_review', 'review'], // 'review' last to avoid false matches
   ci: ['ci_', 'workflow', 'check_run', 'status'],
+  ci_jobs: [], // CI jobs will be identified by workflow_name pattern
 } as const;
 
 // Event type to content mapping for better display
@@ -20,18 +22,20 @@ const EVENT_CONTENT: Record<string, { emoji: string; text: string }> = {
   opened: { emoji: '🚀', text: 'PR Created' },
   closed: { emoji: '❌', text: 'Closed' },
   merged: { emoji: '✅', text: 'Merged' },
-  ready_for_review: { emoji: '👀', text: 'Ready for Review' },
+  ready_for_review: { emoji: '📋', text: 'Ready for Review' },
   draft: { emoji: '📝', text: 'Draft' },
   commit: { emoji: '📝', text: 'Commit' },
   commits_pushed: { emoji: '📝', text: 'Commits' },
-  commits_added: { emoji: '📝', text: 'Commits Added' },
-  review: { emoji: '👀', text: 'Review' },
-  comment: { emoji: '💬', text: 'Comment' },
+  commits_added: { emoji: '➕', text: 'Commits Added' },
+  review: { emoji: '🧑‍⚖️', text: 'Review' },
+  comment_added: { emoji: '💬', text: 'Comment' },
+  review_comment_added: { emoji: '💬', text: 'Review Comment' },
   issue_comment: { emoji: '💬', text: 'Comment' },
   awaiting_review: { emoji: '⏳', text: 'Awaiting Review' },
+  team_review_requested: { emoji: '🙋', text: 'Team Review Requested' },
   issue_created: { emoji: '🎫', text: 'Issue Created' },
-  issue_assigned: { emoji: '👤', text: 'Issue Assigned' },
-  issue_unassigned: { emoji: '👤', text: 'Issue Unassigned' },
+  issue_assigned: { emoji: '👷', text: 'Issue Assigned' },
+  issue_unassigned: { emoji: '🫥', text: 'Issue Unassigned' },
   issue_closed: { emoji: '✅', text: 'Issue Closed' },
   issue_in_progress: { emoji: '🔄', text: 'Issue In Progress' },
 };
@@ -39,7 +43,19 @@ const EVENT_CONTENT: Record<string, { emoji: string; text: string }> = {
 /**
  * Determines which group an event belongs to based on its type
  */
-function getEventGroup(eventType: string): string {
+function getEventGroup(eventType: string, event?: TimelineEvent): string {
+  // Check if this is a CI job (has workflow_name with a hyphen separator after the pipeline name)
+  if (
+    event &&
+    (eventType.includes('ci_') || eventType === 'ci_run') &&
+    event.workflow_name
+  ) {
+    // CI jobs have format "pipeline - job name" (e.g., "kibana / pull request - Pre-Build")
+    if (event.workflow_name.includes(' - ')) {
+      return 'ci_jobs';
+    }
+  }
+
   for (const [group, patterns] of Object.entries(EVENT_GROUPS)) {
     if (patterns.some(pattern => eventType.includes(pattern))) {
       return group;
@@ -156,6 +172,12 @@ function createEventClassName(event: TimelineEvent): string {
   const classes = [group];
 
   // Add specific styling classes
+  // Generic type tags to help downstream renderers (e.g., D3) with coloring
+  if (event.type.includes('review')) classes.push('review');
+  if (event.type.includes('commit')) classes.push('commit');
+  if (event.type.includes('comment')) classes.push('comment');
+  if (event.type.startsWith('issue_')) classes.push('discussion');
+  if (event.type.includes('ci_') || event.type === 'ci_run') classes.push('ci');
   if (event.type === 'merged') classes.push('merged');
   if (event.type === 'closed') classes.push('closed');
   if (event.state) classes.push(`review-${event.state.toLowerCase()}`);
@@ -280,8 +302,13 @@ function getEventGroupForCodeOwners(
     }
   }
 
+  // Handle team review requested events - assign to the specific team
+  if (eventType === 'team_review_requested' && event.requested_team) {
+    return `reviewer_${event.requested_team}`;
+  }
+
   // Use the original group logic for non-review events
-  return getEventGroup(eventType);
+  return getEventGroup(eventType, event);
 }
 
 /**
@@ -316,12 +343,11 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
   const groups: TimelineGroup[] = [
     { id: 'admin', content: '📋 Administrative', order: 1 },
     { id: 'dev', content: '👨‍💻 Development', order: 2 },
-    { id: 'ci', content: '🔧 CI/CD', order: 3 },
     // Add code owner team rows
     ...codeOwners.map((teamName, index) => ({
       id: `reviewer_${teamName}`,
       content: `👥 ${teamName}`,
-      order: 4 + index,
+      order: 3 + index,
     })),
     // Add additional reviewers row if there are any
     ...(hasAdditionalReviewersFlag
@@ -329,15 +355,17 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
           {
             id: 'additional_reviewers',
             content: '👤 Additional reviewers',
-            order: 4 + codeOwners.length,
+            order: 3 + codeOwners.length,
           },
         ]
       : []),
     {
       id: 'discussion',
       content: '💬 Discussion',
-      order: 4 + codeOwners.length + (hasAdditionalReviewersFlag ? 1 : 0),
+      order: 3 + codeOwners.length + (hasAdditionalReviewersFlag ? 1 : 0),
     },
+    { id: 'ci', content: '🔧 CI/CD', order: 4 },
+    { id: 'ci_jobs', content: '⚙️ CI Jobs', order: 5, collapsed: true },
   ];
 
   // Transform timeline events to timeline items
@@ -350,6 +378,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         start: event.date,
         end: event.end_date,
         content: createEventContent(event),
+        emoji: EVENT_CONTENT[event.type]?.emoji,
         title: createEventTitle(event),
         className: createEventClassName(event),
         githubUrl: event.comment_url || event.build_url,
@@ -362,8 +391,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         item.start !== null &&
         item.start !== undefined &&
         !isNaN(new Date(item.start).getTime())
-    )
-    .filter(item => !item.content.includes('PR Created')); // Remove PR Created events
+    );
 
   // Awaiting review periods are now created in the backend (GitHubCollector)
 
@@ -396,9 +424,10 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
 
     items.push({
       id: 'pr_lifecycle',
-      group: 'admin',
+      group: 'dev',
       start: pr.created_at,
       end: prEnd,
+      emoji: '📋',
       content: `📋 PR #${pr.id}: ${pr.title}`,
       title: `PR Lifecycle\n${pr.title}\nDuration: ${durationHours}h`,
       className: pr.merged_at ? 'merged' : 'closed',

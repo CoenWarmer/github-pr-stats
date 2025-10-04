@@ -29,9 +29,12 @@ export default function D3Timeline({
   const containerRef = useRef<HTMLDivElement>(null);
   const { colorMode } = useEuiTheme();
   const [containerWidth, setContainerWidth] = React.useState(width);
+  const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(
+    new Set(data.groups.filter(g => g.collapsed).map(g => g.id))
+  );
 
   // Measure container width for responsive behavior
-  React.useEffect(() => {
+  useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
@@ -55,7 +58,12 @@ export default function D3Timeline({
 
   // Process timeline data
   const processedData = useMemo(() => {
-    const items: ProcessedTimelineItem[] = data.items.map(item => {
+    // Filter out items from collapsed groups
+    const visibleItems = data.items.filter(
+      item => !collapsedGroups.has(item.group)
+    );
+
+    const items: ProcessedTimelineItem[] = visibleItems.map(item => {
       const startTime = new Date(item.start).getTime();
       const endTime = item.end
         ? new Date(item.end).getTime()
@@ -81,34 +89,80 @@ export default function D3Timeline({
     items.sort((a, b) => a.startTime - b.startTime);
 
     // Calculate levels to avoid overlaps within each group
-    const groupLevels: Map<string, Array<{ endTime: number }>> = new Map();
+    // Strategy: Duration items (rectangles) on top levels, point-in-time items (circles) on bottom levels
+    const groupDurationLevels: Map<
+      string,
+      Array<{ endTime: number }>
+    > = new Map();
+    const groupPointLevels: Map<string, Array<{ endTime: number }>> = new Map();
 
-    items.forEach(item => {
-      if (!groupLevels.has(item.group)) {
-        groupLevels.set(item.group, []);
-      }
+    // First pass: assign levels to duration items (rectangles)
+    items
+      .filter(item => !item.isPointInTime)
+      .forEach(item => {
+        if (!groupDurationLevels.has(item.group)) {
+          groupDurationLevels.set(item.group, []);
+        }
 
-      const levels = groupLevels.get(item.group)!;
-      let level = 0;
+        const levels = groupDurationLevels.get(item.group)!;
+        let level = 0;
 
-      // Find the first level where this item doesn't overlap
-      while (level < levels.length && levels[level].endTime > item.startTime) {
-        level++;
-      }
+        // Find the first level where this item doesn't overlap
+        while (
+          level < levels.length &&
+          levels[level].endTime > item.startTime
+        ) {
+          level++;
+        }
 
-      // Assign this level to the item
-      item.level = level;
+        // Assign this level to the item
+        item.level = level;
 
-      // Update or create the level
-      if (level >= levels.length) {
-        levels.push({ endTime: item.endTime });
-      } else {
-        levels[level].endTime = item.endTime;
-      }
-    });
+        // Update or create the level
+        if (level >= levels.length) {
+          levels.push({ endTime: item.endTime });
+        } else {
+          levels[level].endTime = item.endTime;
+        }
+      });
+
+    // Second pass: assign levels to point-in-time items (circles), starting after duration items
+    items
+      .filter(item => item.isPointInTime)
+      .forEach(item => {
+        if (!groupPointLevels.has(item.group)) {
+          groupPointLevels.set(item.group, []);
+        }
+
+        const pointLevels = groupPointLevels.get(item.group)!;
+        const durationLevelCount =
+          groupDurationLevels.get(item.group)?.length || 0;
+        let level = 0;
+
+        // Find the first level where this item doesn't overlap
+        while (
+          level < pointLevels.length &&
+          pointLevels[level].endTime > item.startTime
+        ) {
+          level++;
+        }
+
+        // Assign this level to the item, offset by the number of duration levels
+        // Add a 10px gap between duration and point-in-time items for visual separation
+        // (10px / 25px levelHeight = 0.4 levels)
+        const gap = durationLevelCount > 0 ? 0.4 : 0;
+        item.level = durationLevelCount + gap + level;
+
+        // Update or create the level
+        if (level >= pointLevels.length) {
+          pointLevels.push({ endTime: item.endTime });
+        } else {
+          pointLevels[level].endTime = item.endTime;
+        }
+      });
 
     return items;
-  }, [data]);
+  }, [data, collapsedGroups]);
 
   console.log('Processed data:', processedData);
   console.log('Available groups:', data.groups);
@@ -201,9 +255,13 @@ export default function D3Timeline({
 
     const baseRowHeight = 17;
     const levelHeight = 25;
-    const rowHeights = data.groups.map(
-      group => baseRowHeight + (groupMaxLevels.get(group.id) || 1) * levelHeight
-    );
+    const collapsedRowHeight = 30; // Height for collapsed rows (just the label)
+    const rowHeights = data.groups.map(group => {
+      if (collapsedGroups.has(group.id)) {
+        return collapsedRowHeight;
+      }
+      return baseRowHeight + (groupMaxLevels.get(group.id) || 1) * levelHeight;
+    });
     const totalRowHeight = rowHeights.reduce((sum, height) => sum + height, 0);
 
     // Update SVG dimensions
@@ -219,15 +277,85 @@ export default function D3Timeline({
       .domain(timeDomain as [Date, Date])
       .range([0, innerWidth]);
 
+    // Point-in-time marker sizing and spacing
+    const POINT_RADIUS = 12; // px (was 6)
+    // Ensure a minimal pixel gap between close items (point-in-time vs others)
+    const MIN_PIXEL_GAP = POINT_RADIUS * 2; // keep at least one diameter apart
+    const computeNudges = (scale: any) => {
+      const nudgeById = new Map<string, number>();
+      const lastXByRow = new Map<string, number>();
+
+      // Sort by x position to process left to right
+      const itemsByX = [...processedData].sort(
+        (a, b) => scale(a.startTime) - scale(b.startTime)
+      );
+
+      for (const item of itemsByX) {
+        const key = `${item.groupIndex}-${item.level}`;
+        const x = scale(item.startTime);
+        const lastX = lastXByRow.get(key) ?? -Infinity;
+
+        // Only nudge point-in-time items; rectangles stay anchored at time
+        if (x - lastX < MIN_PIXEL_GAP) {
+          const delta = MIN_PIXEL_GAP - (x - lastX);
+          if (item.isPointInTime) {
+            nudgeById.set(item.id, (nudgeById.get(item.id) || 0) + delta);
+            lastXByRow.set(key, x + delta);
+          } else {
+            // Non point-in-time: do not move; update lastX so following dots can nudge
+            lastXByRow.set(key, x);
+          }
+        } else {
+          lastXByRow.set(key, item.isPointInTime ? x : x);
+        }
+      }
+
+      return nudgeById;
+    };
+
     // Create main group
     const g = svg
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
+    // Calculate initial zoom to fit all events (before creating zoom behavior)
+    const eventTimes = processedData.flatMap(item => [
+      item.startTime,
+      item.endTime,
+    ]);
+    const minEventTime = Math.min(...eventTimes);
+    const maxEventTime = Math.max(...eventTimes);
+
+    // Add small padding (5% on each side)
+    const timeRange = maxEventTime - minEventTime;
+    const padding = timeRange * 0.05;
+    const paddedMin = minEventTime - padding;
+    const paddedMax = maxEventTime + padding;
+
+    // Calculate the scale factor needed to fit the events
+    // Account for the actual available width (total width minus left margin for row labels)
+    const availableWidth = actualWidth - margin.left - margin.right;
+    const eventWidth = xScale(paddedMax) - xScale(paddedMin);
+    const initialScale = availableWidth / eventWidth;
+
+    // Calculate the translation to center the events
+    const initialTranslateX = -xScale(paddedMin) * initialScale;
+
+    // Create initial zoom transform
+    const initialTransform = d3.zoomIdentity
+      .translate(initialTranslateX, 0)
+      .scale(initialScale);
+
+    // Create the initially transformed scale for rendering
+    const transformedXScale = initialTransform.rescaleX(xScale);
+
+    // Now compute nudges with the transformed scale
+    let nudgeById = computeNudges(transformedXScale);
+
     // Create zoom behavior with bounds
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.1, 10])
+      .scaleExtent([0.1, 100])
       .translateExtent([
         [xScale(timeDomain[0]) - innerWidth, -Infinity],
         [xScale(timeDomain[1]) + innerWidth, Infinity],
@@ -238,13 +366,18 @@ export default function D3Timeline({
         // Update x scale with zoom transform
         const newXScale = transform.rescaleX(xScale);
 
-        // Update timeline items - handle both rectangles and circles
+        // Update timeline items - handle rectangles and point groups
         g.selectAll<SVGElement, ProcessedTimelineItem>('.timeline-item').each(
           function (d) {
             const element = d3.select(this);
             if (d.isPointInTime) {
-              // Update circles
-              element.attr('cx', newXScale(d.startTime));
+              // Recompute nudges at current zoom
+              nudgeById = computeNudges(newXScale);
+              // Move grouped point marker via transform (circle + emoji)
+              element.attr(
+                'transform',
+                `translate(${newXScale(d.startTime) + (nudgeById.get(d.id) || 0)}, ${getItemY(d) + 10})`
+              );
             } else {
               // Update grouped rectangles
               element
@@ -331,7 +464,14 @@ export default function D3Timeline({
           .attr('font-size', '10px');
       });
 
+    // Apply zoom behavior to SVG
+    // Note: We've already rendered with transformedXScale, so we need to tell zoom
+    // that we're starting from the initialTransform position
     svg.call(zoom);
+
+    // Set the internal zoom state without triggering the zoom event
+    // This ensures the first drag doesn't cause a jump
+    svg.property('__zoom', initialTransform);
 
     // Add background for better contrast
     g.append('rect')
@@ -341,14 +481,14 @@ export default function D3Timeline({
       .attr('opacity', 0.1);
 
     // Add subtle hour grid lines
-    const hourTicks = xScale.ticks(d3.timeHour.every(6)); // Every 6 hours
+    const hourTicks = transformedXScale.ticks(d3.timeHour.every(6)); // Every 6 hours
     g.selectAll('.hour-grid-line')
       .data(hourTicks)
       .enter()
       .append('line')
       .attr('class', 'hour-grid-line')
-      .attr('x1', d => xScale(d))
-      .attr('x2', d => xScale(d))
+      .attr('x1', d => transformedXScale(d))
+      .attr('x2', d => transformedXScale(d))
       .attr('y1', 0)
       .attr('y2', totalRowHeight)
       .attr('stroke', colorMode === 'DARK' ? '#222' : '#eee')
@@ -374,6 +514,16 @@ export default function D3Timeline({
 
     // Add timeline items - use circles for point-in-time events, rectangles for duration events
     const getEventColor = (d: ProcessedTimelineItem) => {
+      // For CI items, use success/failure colors if available
+      if (d.className?.includes('ci')) {
+        if (d.color === 'success') {
+          return '#00BFB3'; // EUI success green
+        } else if (d.color === 'danger') {
+          return '#BD271E'; // EUI danger red
+        }
+        // Fall through to default CI color for other cases
+      }
+
       const eventType = d.className?.includes('commit')
         ? 'commit'
         : d.className?.includes('review')
@@ -396,8 +546,8 @@ export default function D3Timeline({
       .enter()
       .append('line')
       .attr('class', 'day-separator')
-      .attr('x1', d => xScale(d))
-      .attr('x2', d => xScale(d))
+      .attr('x1', d => transformedXScale(d))
+      .attr('x2', d => transformedXScale(d))
       .attr('y1', -20)
       .attr('y2', totalRowHeight)
       .attr('stroke', colorMode === 'DARK' ? '#444' : '#ddd')
@@ -417,10 +567,15 @@ export default function D3Timeline({
     rectGroups
       .append('rect')
       .attr('class', 'timeline-rect')
-      .attr('x', d => xScale(d.startTime))
+      .attr('x', d => transformedXScale(d.startTime))
       .attr('y', d => getItemY(d))
-      .attr('width', d => Math.max(2, xScale(d.endTime) - xScale(d.startTime)))
-      .attr('height', 20)
+      .attr('width', d =>
+        Math.max(
+          2,
+          transformedXScale(d.endTime) - transformedXScale(d.startTime)
+        )
+      )
+      .attr('height', 24)
       .attr('rx', 3)
       .attr('ry', 3)
       .attr('fill', getEventColor)
@@ -430,13 +585,16 @@ export default function D3Timeline({
     rectGroups
       .append('text')
       .attr('class', 'timeline-rect-label')
-      .attr('x', d => xScale(d.startTime) + 5) // 5px padding from left edge
+      .attr('x', d => transformedXScale(d.startTime) + 5) // 5px padding from left edge
       .attr('y', d => getItemY(d) + 15) // Center vertically in the rectangle
       .attr('font-size', '13px')
       .attr('fill', '#fff')
       .attr('pointer-events', 'none')
       .text(d => {
-        const width = Math.max(2, xScale(d.endTime) - xScale(d.startTime));
+        const width = Math.max(
+          2,
+          transformedXScale(d.endTime) - transformedXScale(d.startTime)
+        );
         const maxChars = Math.floor((width - 10) / 6); // Approximate chars that fit (6px per char)
 
         // Debug: log all rectangle items to see what we're working with
@@ -472,19 +630,41 @@ export default function D3Timeline({
           : displayText;
       });
 
-    // Create circles for point-in-time events
-    const circles = g
-      .selectAll<SVGCircleElement, ProcessedTimelineItem>('.timeline-circle')
+    // Create grouped point-in-time markers (circle + emoji)
+    const pointGroups = g
+      .selectAll<SVGGElement, ProcessedTimelineItem>('.timeline-point-group')
       .data(processedData.filter(d => d.isPointInTime))
       .enter()
+      .append('g')
+      .attr('class', 'timeline-item timeline-point-group')
+      .style('cursor', 'pointer')
+      .attr(
+        'transform',
+        d =>
+          `translate(${transformedXScale(d.startTime) + (nudgeById.get(d.id) || 0)}, ${getItemY(d) + 10})`
+      );
+
+    pointGroups
       .append('circle')
-      .attr('class', 'timeline-item timeline-circle')
-      .attr('cx', d => xScale(d.startTime))
-      .attr('cy', d => getItemY(d) + 10) // Center vertically in the row
-      .attr('r', 6) // Radius of 6 pixels
+      .attr('class', 'timeline-circle')
+      .attr('r', POINT_RADIUS)
       .attr('fill', getEventColor)
-      .attr('opacity', 0.8)
-      .style('cursor', 'pointer');
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.8);
+
+    const getEmojiForItem = (d: ProcessedTimelineItem) => {
+      return d.emoji;
+    };
+
+    pointGroups
+      .append('text')
+      .attr('class', 'timeline-circle-emoji')
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'central')
+      .attr('font-size', `${Math.max(10, POINT_RADIUS * 1.2)}px`)
+      .attr('pointer-events', 'none')
+      .text(d => getEmojiForItem(d));
 
     // Add event handlers to both selections separately
 
@@ -498,8 +678,9 @@ export default function D3Timeline({
       .style('background', colorMode === 'DARK' ? '#333' : '#fff')
       .style('border', `1px solid ${colorMode === 'DARK' ? '#555' : '#ddd'}`)
       .style('border-radius', '4px')
+      .style('line-height', '20px')
       .style('padding', '8px')
-      .style('font-size', '12px')
+      .style('font-size', '14px')
       .style('color', colorMode === 'DARK' ? '#fff' : '#000')
       .style('box-shadow', '0 2px 4px rgba(0,0,0,0.1)')
       .style('pointer-events', 'none')
@@ -541,12 +722,12 @@ export default function D3Timeline({
     };
 
     addEventHandlers(rectGroups);
-    addEventHandlers(circles);
+    addEventHandlers(pointGroups);
 
     // Add dual-level time axis
 
     const dayAxis = d3
-      .axisTop(xScale)
+      .axisTop(transformedXScale)
       .tickValues(dayTicks)
       .tickFormat(d3.timeFormat('%a %m/%d'))
       .tickSize(5);
@@ -574,7 +755,7 @@ export default function D3Timeline({
 
     // Top axis - Hours/Time (underneath day axis)
     const hourAxis = d3
-      .axisTop(xScale)
+      .axisTop(transformedXScale)
       .ticks(d3.timeHour.every(4)) // Every 4 hours
       .tickFormat(d3.timeFormat('%H:%M'))
       .tickSize(5);
@@ -615,7 +796,8 @@ export default function D3Timeline({
       }
 
       // Add background rectangle behind the text - full row height
-      g.append('rect')
+      const bgRect = g
+        .append('rect')
         .attr('x', -margin.left)
         .attr('y', currentY)
         .attr('width', margin.left)
@@ -626,14 +808,48 @@ export default function D3Timeline({
         .attr('opacity', 1);
 
       // Group label text (rendered after background)
-      g.append('text')
-        .attr('x', -10)
+      const labelText = g
+        .append('text')
+        .attr('x', -15)
         .attr('y', currentY + rowHeight / 2)
         .attr('dy', '0.35em')
         .attr('text-anchor', 'end')
         .attr('font-size', '14px')
         .attr('fill', colorMode === 'DARK' ? '#fff' : '#000')
         .text(group.content);
+
+      // Add collapse/expand indicator for collapsible groups
+      if (group.collapsed !== undefined) {
+        const isCollapsed = collapsedGroups.has(group.id);
+        g.append('text')
+          .attr('x', -margin.left + 5)
+          .attr('y', currentY + rowHeight / 2)
+          .attr('dy', '0.35em')
+          .attr('text-anchor', 'start')
+          .attr('font-size', '12px')
+          .attr('fill', colorMode === 'DARK' ? '#999' : '#666')
+          .style('cursor', 'pointer')
+          .text(isCollapsed ? '▶' : '▼');
+
+        // Make the background and label clickable for collapsible groups
+        bgRect.style('cursor', 'pointer');
+        labelText.style('cursor', 'pointer');
+
+        const toggleCollapse = () => {
+          setCollapsedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(group.id)) {
+              next.delete(group.id);
+            } else {
+              next.add(group.id);
+            }
+            return next;
+          });
+        };
+
+        bgRect.on('click', toggleCollapse);
+        labelText.on('click', toggleCollapse);
+      }
 
       currentY += rowHeight;
     });
@@ -652,6 +868,7 @@ export default function D3Timeline({
     height,
     colorMode,
     eventTypeColors,
+    collapsedGroups,
   ]);
 
   return (

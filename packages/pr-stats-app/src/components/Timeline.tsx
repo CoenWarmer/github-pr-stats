@@ -9,14 +9,7 @@ interface TimelineProps {
   pr: PullRequestStats;
 }
 
-export default function Timeline({ data, pr }: TimelineProps) {
-  // Calculate PR duration for display
-  const prStart = new Date(pr.created_at);
-  const prEnd = new Date(pr.closed_at || pr.merged_at || new Date());
-  const durationHours = Math.round(
-    (prEnd.getTime() - prStart.getTime()) / (1000 * 60 * 60)
-  );
-
+export default function Timeline({ data }: TimelineProps) {
   // Count different event types
   const eventCounts = data.items.reduce(
     (counts, item) => {

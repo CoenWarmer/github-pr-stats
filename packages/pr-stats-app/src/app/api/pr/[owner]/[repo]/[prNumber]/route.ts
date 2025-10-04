@@ -280,21 +280,28 @@ export async function GET(
     const requestedTeams = pr.requested_teams?.map(team => team.slug) || [];
 
     // Prepare PR data for timeline building
-    const prData = {
+    const prDataForTimeline: PullRequestStats = {
       id: pr.number,
-      number: pr.number,
-      title: pr.title,
       url: pr.html_url,
       state: pr.state,
-      createdAt: pr.created_at,
-      updatedAt: pr.updated_at,
-      closedAt: pr.closed_at,
-      mergedAt: pr.merged_at,
-      author: { login: pr.user?.login || 'unknown' },
-      headRefName: pr.head.ref,
+      additions: pr.additions || 0,
+      author: pr.user?.login || 'unknown',
+      changed_files: pr.changed_files || 0,
+      created_at: pr.created_at,
+      closed_at: pr.closed_at,
+      merged_at: pr.merged_at,
+      updated_at: pr.updated_at,
+      turnaround_time_hours: 0,
+      back_and_forth_count: 0,
+      comments: 0,
+      commits: 0,
+      deletions: pr.deletions || 0,
+      review_comments: 0,
+      review_timings: [],
+      title: pr.title,
+      timeline: [],
       headSha: pr.head.sha,
-      baseRefName: pr.base.ref,
-      draft: pr.draft,
+      requested_teams: pr.requested_teams?.map(team => team.slug) || [],
     };
 
     // First, build a basic timeline to get team request events
@@ -302,7 +309,7 @@ export async function GET(
       owner,
       repo,
       prNum,
-      prData,
+      prDataForTimeline,
       [], // Empty review timings for now
       linkedIssues
     );
@@ -314,9 +321,6 @@ export async function GET(
       prNum,
       pr.created_at,
       userTeams,
-      prCommits.data,
-      issueComments.data,
-      pr.user?.login || '',
       requestedTeams,
       basicTimeline
     );
@@ -326,7 +330,7 @@ export async function GET(
       owner,
       repo,
       prNum,
-      prData,
+      prDataForTimeline,
       reviewTimings,
       linkedIssues
     );
@@ -351,6 +355,13 @@ export async function GET(
     }
 
     // Build PR stats object
+    // Remove hidden_from_timeline from timeline events to reduce cache size
+    const cleanedTimeline = timeline.map(event => {
+      const { hidden_from_timeline: _hidden, ...rest } = event;
+      void _hidden;
+      return rest;
+    });
+
     const prStats: PullRequestStats = {
       id: pr.number,
       url: pr.html_url,
@@ -362,6 +373,7 @@ export async function GET(
       closed_at: pr.closed_at,
       merged_at: pr.merged_at,
       updated_at: pr.updated_at,
+      headSha: pr.head.sha,
       turnaround_time_hours: pr.closed_at
         ? Math.round(
             ((new Date(pr.closed_at).getTime() -
@@ -377,8 +389,8 @@ export async function GET(
       review_comments: reviewComments.data.length,
       review_timings: reviewTimings,
       title: pr.title,
-      timeline: timeline,
-      codeowners: codeowners,
+      timeline: cleanedTimeline,
+      codeowners: { teams: codeowners.teams, individuals: [] },
       linked_issues: linkedIssues,
       requested_teams: requestedTeams,
     };
@@ -491,7 +503,7 @@ export async function OPTIONS(request: NextRequest) {
                 entry.data.title?.substring(0, 50) +
                 (entry.data.title?.length > 50 ? '...' : ''),
             };
-          } catch (error) {
+          } catch {
             return {
               filename: file,
               error: 'Could not read file details',

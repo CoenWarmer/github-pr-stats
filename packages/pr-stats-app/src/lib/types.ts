@@ -111,29 +111,30 @@ export interface LinkedIssue {
 }
 
 export interface PullRequestStats {
-  id: string | number;
-  url: string;
-  state: string;
   additions: number;
   author: string;
-  changed_files: number;
-  created_at: string;
-  headSha: string;
-  closed_at: string | null;
-  merged_at: string | null;
-  updated_at: string;
-  turnaround_time_hours: number;
   back_and_forth_count: number;
+  changed_files: number;
+  closed_at: string | null;
+  codeowners?: { teams: string[]; individuals: string[] };
   comments: number;
   commits: number;
+  created_at: string;
   deletions: number;
+  draft?: boolean;
+  headSha: string;
+  id: string | number;
+  linked_issues?: LinkedIssue[];
+  merged_at: string | null;
+  requested_teams?: string[];
   review_comments: number;
   review_timings: ReviewTiming[];
-  title: string;
+  state: string;
   timeline: TimelineEvent[];
-  codeowners?: { teams: string[]; individuals: string[] };
-  linked_issues?: LinkedIssue[];
-  requested_teams?: string[];
+  title: string;
+  turnaround_time_hours: number;
+  updated_at: string;
+  url: string;
 }
 
 export interface ReviewTiming {
@@ -155,6 +156,7 @@ export interface TimelineGroup {
   id: string;
   content: string;
   order?: number;
+  collapsed?: boolean;
 }
 
 export interface TimelineItem {
@@ -163,6 +165,7 @@ export interface TimelineItem {
   start: string;
   end?: string;
   content: string;
+  emoji: string;
   title?: string;
   className?: string;
   githubUrl?: string;
