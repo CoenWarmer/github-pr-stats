@@ -10,6 +10,7 @@ interface D3TimelineProps {
   data: TimelineData;
   width?: number;
   height?: number;
+  zoomRange?: [Date, Date] | null;
 }
 
 interface ProcessedTimelineItem extends TimelineItem {
@@ -24,6 +25,7 @@ export default function D3Timeline({
   data,
   width = 1000,
   height = 600,
+  zoomRange = null,
 }: D3TimelineProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -203,6 +205,7 @@ export default function D3Timeline({
       ci: palette[3], // Red
       discussion: palette[4], // Purple
       release: palette[5], // Brown
+      iteration: palette[7], // Teal
       other: palette[6], // Pink
     };
   }, []);
@@ -218,6 +221,7 @@ export default function D3Timeline({
           if (item.className?.includes('ci')) return 'ci';
           if (item.className?.includes('discussion')) return 'discussion';
           if (item.className?.includes('release')) return 'release';
+          if (item.className?.includes('iteration')) return 'iteration';
           return 'other';
         })
       )
@@ -318,13 +322,23 @@ export default function D3Timeline({
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    // Calculate initial zoom to fit all events (before creating zoom behavior)
-    const eventTimes = processedData.flatMap(item => [
-      item.startTime,
-      item.endTime,
-    ]);
-    const minEventTime = Math.min(...eventTimes);
-    const maxEventTime = Math.max(...eventTimes);
+    // Calculate initial zoom to fit all events (or zoom range if provided)
+    let minEventTime: number;
+    let maxEventTime: number;
+
+    if (zoomRange) {
+      // Use provided zoom range
+      minEventTime = zoomRange[0].getTime();
+      maxEventTime = zoomRange[1].getTime();
+    } else {
+      // Calculate from all events
+      const eventTimes = processedData.flatMap(item => [
+        item.startTime,
+        item.endTime,
+      ]);
+      minEventTime = Math.min(...eventTimes);
+      maxEventTime = Math.max(...eventTimes);
+    }
 
     // Add small padding (5% on each side)
     const timeRange = maxEventTime - minEventTime;
@@ -538,7 +552,9 @@ export default function D3Timeline({
                 ? 'discussion'
                 : d.className?.includes('release')
                   ? 'release'
-                  : 'other';
+                  : d.className?.includes('iteration')
+                    ? 'iteration'
+                    : 'other';
       return eventTypeColors[eventType as keyof typeof eventTypeColors];
     };
 
@@ -880,6 +896,7 @@ export default function D3Timeline({
     colorMode,
     eventTypeColors,
     collapsedGroups,
+    zoomRange,
   ]);
 
   return (

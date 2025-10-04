@@ -9,12 +9,14 @@ import {
 // Event type to group mapping for cleaner organization
 // Note: Order matters! More specific patterns should come before general ones
 const EVENT_GROUPS = {
+  iteration: ['issue_iteration'], // Check iteration first before issue_
   admin: ['closed', 'merged', 'ready_for_review', 'draft', 'issue_'],
   dev: ['opened', 'commit', 'commits_pushed', 'head_ref_force_pushed'],
   discussion: ['comment_added', 'review_comment_added', 'issue_comment'], // Check before review to catch review_comment_added
   review: ['review_requested', 'review_dismissed', 'awaiting_review', 'review'], // 'review' last to avoid false matches
   ci: ['ci_', 'workflow', 'check_run', 'status'],
   ci_jobs: [], // CI jobs will be identified by workflow_name pattern
+  released: ['released'],
 } as const;
 
 // Event type to content mapping for better display
@@ -38,6 +40,8 @@ const EVENT_CONTENT: Record<string, { emoji: string; text: string }> = {
   issue_unassigned: { emoji: '🫥', text: 'Issue Unassigned' },
   issue_closed: { emoji: '✅', text: 'Issue Closed' },
   issue_in_progress: { emoji: '🔄', text: 'Issue In Progress' },
+  issue_iteration: { emoji: '📅', text: 'Iteration' },
+  released: { emoji: '🚀', text: 'Released' },
 };
 
 /**
@@ -111,6 +115,17 @@ function createEventContent(event: TimelineEvent): string {
     }
   }
 
+  // Handle release events with tag name
+  if (event.type === 'released' && event.release_tag) {
+    return `🚀 ${event.release_tag}`;
+  }
+
+  // Handle iteration events with iteration title
+  if (event.type === 'issue_iteration' && event.workflow_name) {
+    // workflow_name contains the iteration title
+    return `📅 ${event.workflow_name}`;
+  }
+
   if (baseContent) {
     // Handle specific event types with custom formatting
     if (event.type === 'commits_pushed' && event.commit_count) {
@@ -169,6 +184,17 @@ function createEventTitle(event: TimelineEvent): string {
       `Content: ${preview}${event.comment_content.length > 100 ? '...' : ''}`
     );
   }
+  if (event.release_tag) {
+    lines.push(`Release: ${event.release_tag}`);
+  }
+  if (event.release_url) {
+    lines.push(`URL: ${event.release_url}`);
+  }
+  if (event.type === 'issue_iteration') {
+    if (event.workflow_name) lines.push(`Iteration: ${event.workflow_name}`);
+    if (event.comment_content) lines.push(`Project: ${event.comment_content}`);
+    if (event.issue_number) lines.push(`Issue: #${event.issue_number}`);
+  }
 
   return lines.join('\n');
 }
@@ -193,6 +219,9 @@ function createEventClassName(event: TimelineEvent): string {
   if (event.ci_conclusion) classes.push(`ci-${event.ci_conclusion}`);
   if (event.ci_status) classes.push(`ci-${event.ci_status}`);
   if (event.comment_url) classes.push('clickable');
+  if (event.type === 'released') classes.push('released');
+  if (event.release_url) classes.push('clickable');
+  if (event.type === 'issue_iteration') classes.push('iteration');
 
   return classes.join(' ');
 }
@@ -237,6 +266,12 @@ function createEventColor(event: TimelineEvent): string {
   // Handle admin events
   if (event.type === 'merged') return 'success';
   if (event.type === 'closed') return 'danger';
+
+  // Handle release events
+  if (event.type === 'released') return 'accent';
+
+  // Handle iteration events
+  if (event.type === 'issue_iteration') return 'primary';
 
   // Default color
   return 'primary';
@@ -352,13 +387,14 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
 
   // Create timeline groups (rows) - with dynamic code owner team rows
   const groups: TimelineGroup[] = [
-    { id: 'admin', content: '📋 Administrative', order: 1 },
-    { id: 'dev', content: '👨‍💻 Development', order: 2 },
+    { id: 'iteration', content: '📅 Iteration', order: 1 },
+    { id: 'admin', content: '📋 Administrative', order: 2 },
+    { id: 'dev', content: '👨‍💻 Development', order: 3 },
     // Add code owner team rows
     ...codeOwners.map((teamName, index) => ({
       id: `reviewer_${teamName}`,
       content: `👥 ${teamName}`,
-      order: 3 + index,
+      order: 4 + index,
     })),
     // Add additional reviewers row if there are any
     ...(hasAdditionalReviewersFlag
@@ -366,17 +402,18 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
           {
             id: 'additional_reviewers',
             content: '👤 Additional reviewers',
-            order: 3 + codeOwners.length,
+            order: 4 + codeOwners.length,
           },
         ]
       : []),
     {
       id: 'discussion',
       content: '💬 Discussion',
-      order: 3 + codeOwners.length + (hasAdditionalReviewersFlag ? 1 : 0),
+      order: 5 + codeOwners.length + (hasAdditionalReviewersFlag ? 1 : 0),
     },
-    { id: 'ci', content: '🔧 CI/CD', order: 4 },
-    { id: 'ci_jobs', content: '⚙️ CI Jobs', order: 5, collapsed: true },
+    { id: 'ci', content: '🔧 CI/CD', order: 6 },
+    { id: 'ci_jobs', content: '⚙️ CI Jobs', order: 7, collapsed: true },
+    { id: 'released', content: '🚀 Released', order: 8 },
   ];
 
   // Transform timeline events to timeline items
@@ -392,7 +429,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         emoji: EVENT_CONTENT[event.type]?.emoji,
         title: createEventTitle(event),
         className: createEventClassName(event),
-        githubUrl: event.comment_url || event.build_url,
+        githubUrl: event.comment_url || event.build_url || event.release_url,
         color: createEventColor(event),
         isPointInTime: !event.end_date, // Track if this was originally a point-in-time event
         commentContent: event.comment_content, // Pass through for tooltips

@@ -19,6 +19,9 @@ import {
   EuiBadge,
   EuiSelect,
   EuiFormRow,
+  EuiProgress,
+  EuiSpacer,
+  EuiButtonGroup,
 } from '@elastic/eui';
 import PRStats from '@/components/PRStats';
 
@@ -38,6 +41,10 @@ export default function ClientOnlyPrPage() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<string>(
     'kibana / pull request'
   );
+  const [progressStep, setProgressStep] = useState<string>('');
+  const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [zoomOption, setZoomOption] = useState<string>('full');
+  const [zoomRange, setZoomRange] = useState<[Date, Date] | null>(null);
 
   const fetchPrData = useCallback(
     async (forceRefresh = false) => {
@@ -49,30 +56,80 @@ export default function ClientOnlyPrPage() {
 
       setLoading(true);
       setError(null);
+      setProgressPercent(0);
+      setProgressStep('Checking cache...');
 
       try {
-        const url = `/api/pr/${params.owner}/${params.repo}/${params.prNumber}${
-          forceRefresh ? '?force=true' : ''
-        }`;
+        // First try to get cached data quickly
+        if (!forceRefresh) {
+          const url = `/api/pr/${params.owner}/${params.repo}/${params.prNumber}`;
+          const response = await fetch(url);
 
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch PR data: ${response.statusText}`);
+          if (response.ok) {
+            const result: ApiResponse<PullRequestStats> = await response.json();
+            if (result.cached && result.data) {
+              // We have cached data, use it immediately
+              setPrStats(result.data);
+              setLoading(false);
+              setProgressPercent(100);
+              setProgressStep('Loaded from cache');
+              return;
+            }
+          }
         }
 
-        const result: ApiResponse<PullRequestStats> = await response.json();
+        // No cache or force refresh - use SSE for progress updates
+        setProgressStep('Starting data collection...');
+        const eventSource = new EventSource(
+          `/api/pr-progress/${params.owner}/${params.repo}/${params.prNumber}`
+        );
 
-        if (!result.data) {
-          throw new Error('No data received from API');
-        }
+        eventSource.onmessage = event => {
+          try {
+            const data = JSON.parse(event.data);
 
-        // Store the raw PR stats
-        setPrStats(result.data);
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            if (data.complete) {
+              // Progress complete, now fetch the final data
+              eventSource.close();
+              fetch(`/api/pr/${params.owner}/${params.repo}/${params.prNumber}`)
+                .then(res => res.json())
+                .then((result: ApiResponse<PullRequestStats>) => {
+                  if (result.data) {
+                    setPrStats(result.data);
+                  }
+                  setLoading(false);
+                  setProgressPercent(100);
+                  setProgressStep('Complete');
+                })
+                .catch(err => {
+                  console.error('Error fetching final data:', err);
+                  setError(
+                    err instanceof Error ? err.message : 'Unknown error'
+                  );
+                  setLoading(false);
+                });
+            } else if (data.step) {
+              setProgressStep(data.step);
+              setProgressPercent(data.current);
+            }
+          } catch (parseError) {
+            console.error('Error parsing SSE data:', parseError);
+          }
+        };
+
+        eventSource.onerror = error => {
+          console.error('SSE error:', error);
+          eventSource.close();
+          setError('Connection lost. Please refresh the page.');
+          setLoading(false);
+        };
       } catch (err) {
         console.error('Error fetching PR data:', err);
         setError(err instanceof Error ? err.message : 'Unknown error occurred');
-      } finally {
         setLoading(false);
       }
     },
@@ -154,6 +211,86 @@ export default function ClientOnlyPrPage() {
     return isAuthorInCodeOwners ? 'same-team' : 'cross-team';
   }, [prStats]);
 
+  // Calculate zoom ranges for different views
+  const zoomRanges = useMemo(() => {
+    if (!prStats) return null;
+
+    const ranges: Record<string, [Date, Date] | null> = {
+      full: null, // null means show everything
+      delivery: null,
+      development: null,
+      reviews: null,
+    };
+
+    // Feature Delivery: Issue created to Issue closed (or PR created/merged as fallback)
+    if (prStats.linked_issues && prStats.linked_issues.length > 0) {
+      const earliestIssue = prStats.linked_issues
+        .map(issue => new Date(issue.created_at))
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+
+      const latestIssueClosed = prStats.linked_issues
+        .filter(issue => issue.closed_at)
+        .map(issue => new Date(issue.closed_at!))
+        .sort((a, b) => b.getTime() - a.getTime())[0];
+
+      if (earliestIssue && latestIssueClosed) {
+        ranges.delivery = [earliestIssue, latestIssueClosed];
+      }
+    }
+
+    // Fallback to PR dates if no issues
+    if (!ranges.delivery) {
+      const prStart = new Date(prStats.created_at);
+      const prEnd = prStats.merged_at
+        ? new Date(prStats.merged_at)
+        : prStats.closed_at
+          ? new Date(prStats.closed_at)
+          : new Date();
+      ranges.delivery = [prStart, prEnd];
+    }
+
+    // Feature Development: PR opened to PR closed/merged
+    const devStart = new Date(prStats.created_at);
+    const devEnd = prStats.closed_at
+      ? new Date(prStats.closed_at)
+      : prStats.merged_at
+        ? new Date(prStats.merged_at)
+        : new Date();
+    ranges.development = [devStart, devEnd];
+
+    // Code Reviews: First review request to last code owner approval
+    const reviewRequestEvents = prStats.timeline.filter(
+      event => event.type === 'team_review_requested' || event.type === 'review'
+    );
+
+    if (reviewRequestEvents.length > 0) {
+      const firstReview = reviewRequestEvents
+        .map(e => new Date(e.date))
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+
+      // Find last approval from a code owner team member
+      const codeOwnerApprovals = prStats.review_timings
+        .filter(review => review.state === 'approved')
+        .map(review => new Date(review.submitted_at))
+        .sort((a, b) => b.getTime() - a.getTime());
+
+      const lastApproval = codeOwnerApprovals[0] || firstReview;
+
+      ranges.reviews = [firstReview, lastApproval];
+    }
+
+    return ranges;
+  }, [prStats]);
+
+  // Update zoom range when zoom option changes
+  useEffect(() => {
+    if (zoomRanges && zoomOption !== 'full') {
+      setZoomRange(zoomRanges[zoomOption] || null);
+    } else {
+      setZoomRange(null);
+    }
+  }, [zoomOption, zoomRanges]);
+
   const handleBackToHome = () => {
     router.push('/');
   };
@@ -167,7 +304,7 @@ export default function ClientOnlyPrPage() {
       <EuiPageTemplate>
         <EuiPageTemplate.Header
           pageTitle="Loading PR..."
-          description="Loading data from GitHub..."
+          description={`Fetching data for PR #${params.prNumber}`}
         />
         <EuiPageTemplate.Section>
           <EuiPanel hasBorder hasShadow={false}>
@@ -175,15 +312,30 @@ export default function ClientOnlyPrPage() {
               direction="column"
               alignItems="center"
               justifyContent="center"
-              style={{ minHeight: '200px' }}
+              style={{
+                minHeight: '300px',
+                maxWidth: '600px',
+                margin: '0 auto',
+              }}
             >
-              <EuiFlexItem grow={false}>
-                <EuiLoadingSpinner size="xl" />
+              <EuiFlexItem grow={false} style={{ width: '100%' }}>
+                <EuiText textAlign="center" size="s" color="subdued">
+                  <p>{progressStep || 'Initializing...'}</p>
+                </EuiText>
+                <EuiSpacer size="m" />
+                <EuiProgress
+                  value={progressPercent}
+                  max={100}
+                  size="l"
+                  color="primary"
+                />
+                <EuiSpacer size="s" />
+                <EuiText textAlign="center" size="xs" color="subdued">
+                  <p>{progressPercent}%</p>
+                </EuiText>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
-                <EuiText>
-                  <p>Fetching PR timeline data...</p>
-                </EuiText>
+                <EuiLoadingSpinner size="xl" />
               </EuiFlexItem>
             </EuiFlexGroup>
           </EuiPanel>
@@ -400,6 +552,36 @@ export default function ClientOnlyPrPage() {
               />
             </EuiFormRow>
           </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiFormRow label="Zoom to Phase" display="rowCompressed">
+              <EuiButtonGroup
+                legend="Timeline zoom options"
+                options={[
+                  {
+                    id: 'full',
+                    label: 'Full Timeline',
+                  },
+                  {
+                    id: 'delivery',
+                    label: 'Feature Delivery',
+                  },
+                  {
+                    id: 'development',
+                    label: 'Development',
+                  },
+                  {
+                    id: 'reviews',
+                    label: 'Code Reviews',
+                    isDisabled: !zoomRanges?.reviews,
+                  },
+                ]}
+                idSelected={zoomOption}
+                onChange={(id: string) => setZoomOption(id)}
+                buttonSize="compressed"
+                color="primary"
+              />
+            </EuiFormRow>
+          </EuiFlexItem>
         </EuiFlexGroup>
       </EuiPageTemplate.Section>
 
@@ -407,7 +589,7 @@ export default function ClientOnlyPrPage() {
         style={{ height: '100%', paddingInline: '0px' }}
         restrictWidth="100%"
       >
-        <Chart data={data} />
+        <Chart data={data} zoomRange={zoomRange} />
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );

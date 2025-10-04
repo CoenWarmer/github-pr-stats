@@ -35,6 +35,8 @@ export interface TimelineEvent {
   issue_title?: string;
   assignee?: string;
   requested_team?: string;
+  release_tag?: string;
+  release_url?: string;
 }
 
 // Buildkite API Types
@@ -108,6 +110,12 @@ export interface LinkedIssue {
   created_at: string;
   closed_at: string | null;
   lifecycle_events: IssueLifecycleEvent[];
+  project_iteration?: {
+    projectTitle: string;
+    iterationTitle: string;
+    iterationStartDate: string;
+    iterationEndDate: string;
+  };
 }
 
 export interface PullRequestStats {
@@ -123,6 +131,7 @@ export interface PullRequestStats {
   deletions: number;
   draft?: boolean;
   headSha: string;
+  mergeCommitSha?: string | null;
   id: string | number;
   linked_issues?: LinkedIssue[];
   merged_at: string | null;
@@ -192,4 +201,6 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   loading?: boolean;
+  cached?: boolean;
+  timestamp?: number;
 }

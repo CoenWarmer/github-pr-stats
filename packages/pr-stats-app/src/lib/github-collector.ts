@@ -10,15 +10,23 @@ import {
 } from './types';
 import { logger } from './logger';
 
+export type ProgressCallback = (
+  step: string,
+  current: number,
+  total: number
+) => void;
+
 export class GitHubCollector {
   public octokit: Octokit;
   private buildkiteToken?: string;
   private buildkiteOrgSlug?: string;
+  private progressCallback?: ProgressCallback;
 
   constructor(
     token?: string,
     buildkiteToken?: string,
-    buildkiteOrgSlug?: string
+    buildkiteOrgSlug?: string,
+    progressCallback?: ProgressCallback
   ) {
     const authToken = token || process.env.GITHUB_TOKEN;
 
@@ -37,9 +45,16 @@ export class GitHubCollector {
 
     this.buildkiteToken = buildkiteToken || process.env.BUILDKITE_TOKEN;
     this.buildkiteOrgSlug = buildkiteOrgSlug || process.env.BUILDKITE_ORG_SLUG;
+    this.progressCallback = progressCallback;
 
     if (this.buildkiteToken && this.buildkiteOrgSlug) {
       logger.info('Buildkite integration enabled');
+    }
+  }
+
+  private reportProgress(step: string, current: number = 1, total: number = 1) {
+    if (this.progressCallback) {
+      this.progressCallback(step, current, total);
     }
   }
 
@@ -70,11 +85,15 @@ export class GitHubCollector {
     const timeline: TimelineEvent[] = [];
 
     try {
+      this.reportProgress('Initializing timeline', 1, 10);
+
       // Check if PR was opened as draft
       timeline.push({
         type: prData.draft ? 'opened_draft' : 'opened',
         date: prData.created_at,
       });
+
+      this.reportProgress('Fetching PR events', 2, 10);
 
       // Fetch PR timeline events for draft/ready transitions
       const { data: prTimelineEvents } =
@@ -94,6 +113,8 @@ export class GitHubCollector {
           });
         }
       }
+
+      this.reportProgress('Fetching commits', 3, 10);
 
       // Fetch commits
       const { data: commits } = await this.octokit.rest.pulls.listCommits({
@@ -187,6 +208,8 @@ export class GitHubCollector {
         }
       }
 
+      this.reportProgress('Fetching comments', 5, 10);
+
       // Add comments
       const { data: comments } = await this.octokit.rest.issues.listComments({
         owner,
@@ -205,6 +228,8 @@ export class GitHubCollector {
           comment_id: comment.id,
         });
       }
+
+      this.reportProgress('Fetching review comments', 6, 10);
 
       // Add review comments
       const { data: reviewComments } =
@@ -226,6 +251,8 @@ export class GitHubCollector {
         });
       }
 
+      this.reportProgress('Processing linked issues', 7, 10);
+
       // Add linked issue lifecycle events to the timeline
       if (linkedIssues && linkedIssues.length > 0) {
         for (const issue of linkedIssues) {
@@ -238,8 +265,23 @@ export class GitHubCollector {
               assignee: event.assignee,
             });
           }
+
+          // Add iteration event as a duration event if available
+          if (issue.project_iteration) {
+            timeline.push({
+              type: 'issue_iteration',
+              date: issue.project_iteration.iterationStartDate,
+              end_date: issue.project_iteration.iterationEndDate,
+              issue_number: issue.number,
+              issue_title: issue.title,
+              workflow_name: issue.project_iteration.iterationTitle, // Reuse workflow_name for iteration title
+              comment_content: issue.project_iteration.projectTitle, // Reuse comment_content for project title
+            });
+          }
         }
       }
+
+      this.reportProgress('Processing reviews', 8, 10);
 
       // Add review timeline events from reviewTimings
       for (const reviewTiming of reviewTimings) {
@@ -287,6 +329,54 @@ export class GitHubCollector {
       } catch (error) {
         console.log('Error fetching timeline events:', error);
       }
+
+      this.reportProgress('Checking releases', 9, 10);
+
+      // Check for releases that include this PR's merge commit
+      // Add timeout to prevent hanging on large repos
+      if (prData.merged_at) {
+        // Prefer merge_commit_sha if available, fallback to headSha
+        const commitToCheck = prData.mergeCommitSha || prData.headSha;
+
+        if (commitToCheck) {
+          try {
+            logger.debug(
+              `Checking releases for ${commitToCheck.substring(0, 8)} (${prData.mergeCommitSha ? 'merge commit' : 'head commit'})`
+            );
+
+            const release = await Promise.race([
+              this.getFirstReleaseForCommit(
+                owner,
+                repo,
+                commitToCheck,
+                prData.merged_at
+              ),
+              new Promise<null>(resolve =>
+                setTimeout(() => resolve(null), 10000)
+              ), // 10 second timeout
+            ]);
+
+            if (release) {
+              timeline.push({
+                type: 'released',
+                date: release.published_at,
+                release_tag: release.tag_name,
+                release_url: release.html_url,
+              });
+            }
+          } catch (releaseError) {
+            logger.warn('Error fetching release information', {
+              error:
+                releaseError instanceof Error
+                  ? releaseError.message
+                  : String(releaseError),
+            });
+            // Continue without release information
+          }
+        }
+      }
+
+      this.reportProgress('Timeline complete', 10, 10);
 
       return timeline;
     } catch (error) {
@@ -571,6 +661,97 @@ export class GitHubCollector {
   }
 
   /**
+   * Fetch GitHub Projects v2 iteration information for an issue
+   */
+  async getIssueProjectIteration(
+    owner: string,
+    repo: string,
+    issueNumber: number
+  ): Promise<{
+    projectTitle: string;
+    iterationTitle: string;
+    iterationStartDate: string;
+    iterationEndDate: string;
+  } | null> {
+    try {
+      // Use GraphQL to fetch project iteration data
+      const query = `
+        query($owner: String!, $repo: String!, $issueNumber: Int!) {
+          repository(owner: $owner, name: $repo) {
+            issue(number: $issueNumber) {
+              projectItems(first: 10) {
+                nodes {
+                  project {
+                    title
+                  }
+                  fieldValues(first: 20) {
+                    nodes {
+                      ... on ProjectV2ItemFieldIterationValue {
+                        title
+                        startDate
+                        duration
+                        iterationId
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const response: any = await this.octokit.graphql(query, {
+        owner,
+        repo,
+        issueNumber,
+      });
+
+      const projectItems =
+        response?.repository?.issue?.projectItems?.nodes || [];
+
+      // Find the first project item with an iteration
+      for (const item of projectItems) {
+        if (!item.project?.title) continue;
+
+        const iterationField = item.fieldValues?.nodes?.find(
+          (node: any) => node?.title && node?.startDate
+        );
+
+        if (iterationField) {
+          // Calculate end date from start date and duration
+          const startDate = new Date(iterationField.startDate);
+          const durationDays = iterationField.duration || 14; // Default to 2 weeks
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + durationDays);
+
+          logger.debug(
+            `Found iteration for issue #${issueNumber}: ${iterationField.title} in project ${item.project.title}`
+          );
+
+          return {
+            projectTitle: item.project.title,
+            iterationTitle: iterationField.title,
+            iterationStartDate: iterationField.startDate,
+            iterationEndDate: endDate.toISOString(),
+          };
+        }
+      }
+
+      logger.debug(`No iteration found for issue #${issueNumber}`);
+      return null;
+    } catch (error) {
+      logger.warn(
+        `Could not fetch project iteration for issue #${issueNumber}`,
+        {
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
+      return null;
+    }
+  }
+
+  /**
    * Extract issue numbers from PR body/description and fetch issue details
    * Also checks PR timeline events for connected issues
    */
@@ -752,6 +933,13 @@ export class GitHubCollector {
             issue.created_at
           );
 
+          // Fetch project iteration information
+          const projectIteration = await this.getIssueProjectIteration(
+            owner,
+            repo,
+            issueNumber
+          );
+
           issues.push({
             number: issue.number,
             title: issue.title,
@@ -767,10 +955,11 @@ export class GitHubCollector {
             created_at: issue.created_at,
             closed_at: issue.closed_at,
             lifecycle_events: lifecycleEvents,
+            project_iteration: projectIteration || undefined,
           });
 
           logger.debug(
-            `Fetched issue #${issueNumber}: ${issue.title} with ${lifecycleEvents.length} lifecycle events`
+            `Fetched issue #${issueNumber}: ${issue.title} with ${lifecycleEvents.length} lifecycle events${projectIteration ? ` and iteration ${projectIteration.iterationTitle}` : ''}`
           );
 
           // Add small delay to avoid rate limiting
@@ -809,6 +998,13 @@ export class GitHubCollector {
             issue.created_at
           );
 
+          // Fetch project iteration information
+          const projectIteration = await this.getIssueProjectIteration(
+            crossRepoIssue.owner,
+            crossRepoIssue.repo,
+            crossRepoIssue.number
+          );
+
           issues.push({
             number: issue.number,
             title: issue.title,
@@ -824,10 +1020,11 @@ export class GitHubCollector {
             created_at: issue.created_at,
             closed_at: issue.closed_at,
             lifecycle_events: lifecycleEvents,
+            project_iteration: projectIteration || undefined,
           });
 
           logger.debug(
-            `Fetched cross-repo issue ${crossRepoIssue.owner}/${crossRepoIssue.repo}#${crossRepoIssue.number}: ${issue.title} with ${lifecycleEvents.length} lifecycle events`
+            `Fetched cross-repo issue ${crossRepoIssue.owner}/${crossRepoIssue.repo}#${crossRepoIssue.number}: ${issue.title} with ${lifecycleEvents.length} lifecycle events${projectIteration ? ` and iteration ${projectIteration.iterationTitle}` : ''}`
           );
 
           // Add small delay to avoid rate limiting
@@ -970,6 +1167,161 @@ export class GitHubCollector {
           date: issueCreatedAt,
         },
       ];
+    }
+  }
+
+  /**
+   * Fetch the first release that includes a specific commit SHA
+   */
+  async getFirstReleaseForCommit(
+    owner: string,
+    repo: string,
+    commitSha: string,
+    prMergedAt: string
+  ): Promise<{
+    tag_name: string;
+    published_at: string;
+    html_url: string;
+  } | null> {
+    try {
+      const mergedDate = new Date(prMergedAt);
+
+      // Fetch releases published after the PR merge date (with some buffer)
+      // Add a 1-day buffer before merge date in case of timezone issues
+      const searchFromDate = new Date(
+        mergedDate.getTime() - 24 * 60 * 60 * 1000
+      );
+
+      logger.debug(
+        `Searching for releases after ${searchFromDate.toISOString()} for commit ${commitSha.substring(0, 8)}`
+      );
+
+      // Fetch releases (GitHub returns them in descending order by created_at)
+      const { data: releases } = await this.octokit.rest.repos.listReleases({
+        owner,
+        repo,
+        per_page: 50, // Reduced from 100 to speed up
+      });
+
+      // Filter and sort releases by published date (oldest first)
+      // Only consider releases published after (or close to) the PR merge
+      const relevantReleases = releases
+        .filter(release => {
+          if (!release.published_at) return false;
+          const releaseDate = new Date(release.published_at);
+          return releaseDate >= searchFromDate;
+        })
+        .sort((a, b) => {
+          const dateA = new Date(a.published_at!).getTime();
+          const dateB = new Date(b.published_at!).getTime();
+          return dateA - dateB;
+        });
+
+      if (relevantReleases.length === 0) {
+        logger.debug(
+          `No releases found after ${searchFromDate.toISOString()} for commit ${commitSha.substring(0, 8)}`
+        );
+        return null;
+      }
+
+      logger.debug(
+        `Found ${relevantReleases.length} releases to check for commit ${commitSha.substring(0, 8)}`
+      );
+
+      // Parse version numbers to identify the main (non-backport) version line
+      // Main version line is typically the highest major version
+      const versionsWithReleases = relevantReleases
+        .map(release => {
+          const versionMatch = release.tag_name.match(/v?(\d+)\.(\d+)\.(\d+)/);
+          if (versionMatch) {
+            return {
+              release,
+              major: parseInt(versionMatch[1]),
+              minor: parseInt(versionMatch[2]),
+              patch: parseInt(versionMatch[3]),
+            };
+          }
+          return null;
+        })
+        .filter(v => v !== null);
+
+      // Find the highest major version (main line)
+      const maxMajorVersion = Math.max(
+        ...versionsWithReleases.map(v => v!.major)
+      );
+
+      logger.debug(
+        `Identified main version line: v${maxMajorVersion}.x from ${versionsWithReleases.length} releases`
+      );
+
+      // Separate main line releases from backports
+      const mainLineReleases = versionsWithReleases
+        .filter(v => v!.major === maxMajorVersion)
+        .map(v => v!.release);
+
+      const backportReleases = versionsWithReleases
+        .filter(v => v!.major < maxMajorVersion)
+        .map(v => v!.release);
+
+      // Check main line releases first, then backports
+      const releasesToCheck = [
+        ...mainLineReleases.slice(0, 5), // Check first 5 main line releases
+        ...backportReleases.slice(0, 5), // Then first 5 backports
+      ];
+
+      for (const release of releasesToCheck) {
+        try {
+          // Compare the commit with the release tag
+          const { data: comparison } =
+            await this.octokit.rest.repos.compareCommitsWithBasehead({
+              owner,
+              repo,
+              basehead: `${commitSha}...${release.tag_name}`,
+            });
+
+          logger.debug(
+            `Comparison result for ${commitSha.substring(0, 8)}...${release.tag_name}: ${comparison.status} (ahead: ${comparison.ahead_by}, behind: ${comparison.behind_by})`
+          );
+
+          // If the commit is behind or identical with the release tag, it's included
+          // For "diverged" status, if behind_by > 0, it means the release tag has commits
+          // that came after our commit, so the commit is likely included
+          if (
+            comparison.status === 'behind' ||
+            comparison.status === 'identical' ||
+            (comparison.status === 'diverged' && comparison.behind_by > 0)
+          ) {
+            logger.info(
+              `Found first release for commit ${commitSha.substring(0, 8)}: ${release.tag_name}`
+            );
+            return {
+              tag_name: release.tag_name,
+              published_at: release.published_at!,
+              html_url: release.html_url,
+            };
+          }
+        } catch (compareError) {
+          logger.debug(
+            `Could not compare commit with release ${release.tag_name}`,
+            {
+              error:
+                compareError instanceof Error
+                  ? compareError.message
+                  : String(compareError),
+            }
+          );
+          continue;
+        }
+      }
+
+      logger.debug(`No release found for commit ${commitSha.substring(0, 8)}`);
+      return null;
+    } catch (error) {
+      logger.warn('Error fetching releases for commit', {
+        error: error instanceof Error ? error.message : String(error),
+        commitSha: commitSha.substring(0, 8),
+      });
+      return null;
     }
   }
 

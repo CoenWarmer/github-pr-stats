@@ -301,6 +301,7 @@ export async function GET(
       title: pr.title,
       timeline: [],
       headSha: pr.head.sha,
+      mergeCommitSha: pr.merge_commit_sha,
       requested_teams: pr.requested_teams?.map(team => team.slug) || [],
     };
 
@@ -374,6 +375,7 @@ export async function GET(
       merged_at: pr.merged_at,
       updated_at: pr.updated_at,
       headSha: pr.head.sha,
+      mergeCommitSha: pr.merge_commit_sha,
       turnaround_time_hours: pr.closed_at
         ? Math.round(
             ((new Date(pr.closed_at).getTime() -

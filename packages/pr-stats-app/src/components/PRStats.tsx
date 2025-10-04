@@ -59,27 +59,68 @@ export default function PRStats({
   );
   const frictionFormatted = formatDeliveryFriction(deliveryFriction);
 
+  // Calculate actual run time based on linked issues
+  const calculateRunTime = () => {
+    // Determine start time
+    let startTime: Date;
+    if (pr.linked_issues && pr.linked_issues.length > 0) {
+      // If there are linked issues, use the earliest issue creation date
+      const earliestIssueDate = pr.linked_issues
+        .map(issue => new Date(issue.created_at))
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+      startTime = earliestIssueDate;
+    } else {
+      // No linked issues, use PR creation date
+      startTime = new Date(pr.created_at);
+    }
+
+    // Determine end time
+    let endTime: Date;
+    if (pr.linked_issues && pr.linked_issues.length > 0) {
+      // Get the latest of: issue closed dates and PR merged date
+      const latestIssueClosed = pr.linked_issues
+        .filter(issue => issue.closed_at)
+        .map(issue => new Date(issue.closed_at!))
+        .sort((a, b) => b.getTime() - a.getTime())[0];
+
+      const prEndDate = pr.merged_at || pr.closed_at;
+      const prEndTime = prEndDate ? new Date(prEndDate) : null;
+
+      // Take the latest of issue closed or PR merged/closed
+      if (latestIssueClosed && prEndTime) {
+        endTime = latestIssueClosed > prEndTime ? latestIssueClosed : prEndTime;
+      } else if (latestIssueClosed) {
+        endTime = latestIssueClosed;
+      } else if (prEndTime) {
+        endTime = prEndTime;
+      } else {
+        // Not closed yet
+        endTime = new Date();
+      }
+    } else {
+      // No linked issues, use PR closed/merged date or now
+      const prEndDate = pr.closed_at || pr.merged_at;
+      endTime = prEndDate ? new Date(prEndDate) : new Date();
+    }
+
+    return { startTime, endTime };
+  };
+
+  const { startTime, endTime } = calculateRunTime();
+  const isComplete = pr.closed_at || pr.merged_at;
+
   return (
     <div>
       {/* Statistics */}
       <EuiPanel hasBorder hasShadow={false}>
         <EuiFlexGroup direction="row">
           <EuiFlexItem>
-            {pr.closed_at ? (
-              <EuiStat
-                title={formatDuration(pr.turnaround_time_hours, 'hours')}
-                description="Run time"
-                titleSize="s"
-                reverse
-              />
-            ) : (
-              <EuiStat
-                title={formatDurationBetweenDates(pr.created_at, new Date())}
-                description="Run time (so far)"
-                titleSize="s"
-                reverse
-              />
-            )}
+            <EuiStat
+              title={formatDurationBetweenDates(startTime, endTime)}
+              description={isComplete ? 'Run time' : 'Run time (so far)'}
+              titleSize="s"
+              reverse
+            />
           </EuiFlexItem>
           <EuiFlexItem>
             <EuiStat
