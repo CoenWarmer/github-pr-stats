@@ -9,13 +9,44 @@ import { EuiFlexGroup, EuiFlexItem, EuiPanel, EuiStat } from '@elastic/eui';
 
 interface PRStatsProps {
   pr: PullRequestStats;
+  selectedWorkflow?: string;
 }
 
-export default function PRStats({ pr }: PRStatsProps) {
+export default function PRStats({
+  pr,
+  selectedWorkflow = 'all',
+}: PRStatsProps) {
+  // Get all CI build events, filtered by selected workflow
+  const ciBuilds = pr.timeline.filter(event => {
+    if (event.type !== 'ci_run' || event.hidden_from_timeline) {
+      return false;
+    }
+    // If "all" is selected, include all workflows
+    if (selectedWorkflow === 'all') {
+      return true;
+    }
+    // Otherwise, only include builds matching the selected workflow
+    return event.workflow_name === selectedWorkflow;
+  });
+
+  // Calculate build statistics
+  const totalBuilds = ciBuilds.length;
+  const completedBuilds = ciBuilds.filter(
+    event => event.ci_status === 'completed'
+  ).length;
+  const failedBuilds = ciBuilds.filter(
+    event =>
+      event.ci_conclusion === 'failure' || event.ci_conclusion === 'error'
+  ).length;
+  const successfulBuilds = ciBuilds.filter(
+    event => event.ci_conclusion === 'success'
+  ).length;
+
   // Calculate build minutes (simplified calculation)
-  const totalBuildMinutes = pr.timeline
-    .filter(event => event.type === 'ci_run' && !event.hidden_from_timeline)
-    .reduce((acc, event) => acc + (event.duration_ms || 0), 0);
+  const totalBuildMinutes = ciBuilds.reduce(
+    (acc, event) => acc + (event.duration_ms || 0),
+    0
+  );
 
   // Calculate waiting minutes
   const totalWaitingMinutes =
@@ -121,6 +152,40 @@ export default function PRStats({ pr }: PRStatsProps) {
               description="Total build time"
               titleSize="s"
               reverse
+            />
+          </EuiFlexItem>
+          <EuiFlexItem>
+            <EuiStat
+              title={totalBuilds.toString()}
+              description="Total Builds"
+              titleSize="s"
+              reverse
+            />
+          </EuiFlexItem>
+          <EuiFlexItem>
+            <EuiStat
+              title={completedBuilds.toString()}
+              description="Builds Completed"
+              titleSize="s"
+              reverse
+            />
+          </EuiFlexItem>
+          <EuiFlexItem>
+            <EuiStat
+              title={successfulBuilds.toString()}
+              description="Builds Successful"
+              titleSize="s"
+              reverse
+              titleColor="success"
+            />
+          </EuiFlexItem>
+          <EuiFlexItem>
+            <EuiStat
+              title={failedBuilds.toString()}
+              description="Builds Failed"
+              titleSize="s"
+              reverse
+              titleColor="danger"
             />
           </EuiFlexItem>
           <EuiFlexItem>

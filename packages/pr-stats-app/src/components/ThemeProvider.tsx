@@ -8,5 +8,5 @@ interface ThemeProviderProps {
 }
 
 export default function ThemeProvider({ children }: ThemeProviderProps) {
-  return <EuiProvider>{children}</EuiProvider>;
+  return <EuiProvider colorMode="dark">{children}</EuiProvider>;
 }

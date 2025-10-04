@@ -75,7 +75,16 @@ function createEventContent(event: TimelineEvent): string {
     (event.type.includes('ci_') || event.type === 'ci_run') &&
     event.workflow_name
   ) {
-    return `${event.workflow_name}`;
+    // Add emoji based on CI conclusion
+    let emoji = '';
+    if (event.ci_conclusion === 'success') {
+      emoji = '✅ ';
+    } else if (event.ci_conclusion === 'failure') {
+      emoji = '❌ ';
+    } else if (event.ci_conclusion === 'cancelled') {
+      emoji = '🟡 ';
+    }
+    return `${emoji}${event.workflow_name}`;
   }
 
   // Handle awaiting review events with team information
@@ -201,8 +210,9 @@ function createEventColor(event: TimelineEvent): string {
       if (conclusion === 'success') color = 'success';
       else if (conclusion === 'failure' || conclusion === 'error')
         color = 'danger';
-      else if (conclusion === 'skipped' || conclusion === 'cancelled')
-        color = 'default';
+      else if (conclusion === 'cancelled')
+        color = 'warning'; // Yellow for cancelled
+      else if (conclusion === 'skipped') color = 'default';
       else if (conclusion === 'neutral') color = 'warning';
       else color = 'primary'; // Default for completed
     } else if (event.type === 'ci_started') {
@@ -211,6 +221,7 @@ function createEventColor(event: TimelineEvent): string {
       // Handle other CI states
       if (conclusion === 'failure' || conclusion === 'error') color = 'danger';
       else if (conclusion === 'success') color = 'success';
+      else if (conclusion === 'cancelled') color = 'warning'; // Yellow for cancelled
     }
 
     return color;
@@ -384,6 +395,8 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         githubUrl: event.comment_url || event.build_url,
         color: createEventColor(event),
         isPointInTime: !event.end_date, // Track if this was originally a point-in-time event
+        commentContent: event.comment_content, // Pass through for tooltips
+        commentAuthor: event.comment_author, // Pass through for tooltips
       };
     })
     .filter(
@@ -432,6 +445,46 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
       title: `PR Lifecycle\n${pr.title}\nDuration: ${durationHours}h`,
       className: pr.merged_at ? 'merged' : 'closed',
     });
+  }
+
+  // Add PR merged point-in-time event if PR was merged
+  if (pr.merged_at) {
+    items.push({
+      id: 'pr_merged',
+      group: 'dev',
+      start: pr.merged_at,
+      emoji: '✅',
+      content: `✅ PR Merged`,
+      title: `PR #${pr.id} Merged\n${new Date(pr.merged_at).toLocaleString()}`,
+      className: 'merged',
+      isPointInTime: true,
+    });
+  }
+
+  // Add issue lifecycle items for linked issues (from creation to closure)
+  if (pr.linked_issues && pr.linked_issues.length > 0) {
+    for (const issue of pr.linked_issues) {
+      // Only add lifecycle if the issue has been closed
+      if (issue.closed_at && issue.created_at) {
+        const issueStart = new Date(issue.created_at);
+        const issueEnd = new Date(issue.closed_at);
+        const durationHours = Math.round(
+          (issueEnd.getTime() - issueStart.getTime()) / (1000 * 60 * 60)
+        );
+        const durationDays = Math.round(durationHours / 24);
+
+        items.push({
+          id: `issue_lifecycle_${issue.number}`,
+          group: 'admin',
+          start: issue.created_at,
+          end: issue.closed_at,
+          emoji: '🎫',
+          content: `🎫 Issue #${issue.number}: ${issue.title}`,
+          title: `Issue Lifecycle\n#${issue.number}: ${issue.title}\nDuration: ${durationDays}d (${durationHours}h)`,
+          className: 'closed',
+        });
+      }
+    }
   }
 
   return { groups, items };

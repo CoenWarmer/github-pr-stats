@@ -172,6 +172,8 @@ export interface TimelineItem {
   slackUrl?: string;
   color?: string;
   isPointInTime?: boolean;
+  commentContent?: string;
+  commentAuthor?: string;
 }
 
 export interface TimelineData {

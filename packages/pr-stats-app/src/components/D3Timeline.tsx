@@ -520,6 +520,8 @@ export default function D3Timeline({
           return '#00BFB3'; // EUI success green
         } else if (d.color === 'danger') {
           return '#BD271E'; // EUI danger red
+        } else if (d.color === 'warning') {
+          return '#F5A700'; // EUI warning yellow/orange
         }
         // Fall through to default CI color for other cases
       }
@@ -649,9 +651,7 @@ export default function D3Timeline({
       .attr('class', 'timeline-circle')
       .attr('r', POINT_RADIUS)
       .attr('fill', getEventColor)
-      .attr('stroke', '#ffffff')
-      .attr('stroke-width', 2)
-      .attr('opacity', 0.8);
+      .attr('opacity', 0.9);
 
     const getEmojiForItem = (d: ProcessedTimelineItem) => {
       return d.emoji;
@@ -694,16 +694,27 @@ export default function D3Timeline({
 
           tooltip.transition().duration(200).style('opacity', 1);
 
-          const tooltipContent = `
+          // Build tooltip content
+          let tooltipHtml = `
           <strong>${d.content}</strong><br/>
           <strong>Start:</strong> ${new Date(d.startTime).toLocaleString()}<br/>
           ${d.end ? `<strong>End:</strong> ${new Date(d.endTime).toLocaleString()}<br/>` : ''}
           ${d.duration > 0 ? `<strong>Duration:</strong> ${formatDuration(d.duration)}<br/>` : ''}
-          <strong>Group:</strong> ${data.groups.find(g => g.id === d.group)?.content}
-        `;
+          <strong>Group:</strong> ${data.groups.find(g => g.id === d.group)?.content}`;
+
+          // Add comment content for discussion items
+          if (d.group === 'discussion' && d.commentContent) {
+            // Truncate long comments
+            const maxLength = 300;
+            const truncated =
+              d.commentContent.length > maxLength
+                ? d.commentContent.substring(0, maxLength) + '...'
+                : d.commentContent;
+            tooltipHtml += `<br/><br/><strong>Comment:</strong><br/><em>${truncated}</em>`;
+          }
 
           tooltip
-            .html(tooltipContent)
+            .html(tooltipHtml)
             .style('left', event.pageX + 10 + 'px')
             .style('top', event.pageY - 10 + 'px');
         })

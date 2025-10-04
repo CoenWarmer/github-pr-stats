@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { TimelineData, ApiResponse, PullRequestStats } from '@/lib/types';
 import { transformToTimelineData } from '@/lib/timeline-transformer';
 import { Chart } from '@/components/Chart';
@@ -17,6 +17,8 @@ import {
   EuiButtonIcon,
   EuiIcon,
   EuiBadge,
+  EuiSelect,
+  EuiFormRow,
 } from '@elastic/eui';
 import PRStats from '@/components/PRStats';
 
@@ -33,6 +35,9 @@ export default function ClientOnlyPrPage() {
   const [prStats, setPrStats] = useState<PullRequestStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<string>(
+    'kibana / pull request'
+  );
 
   const fetchPrData = useCallback(
     async (forceRefresh = false) => {
@@ -62,9 +67,7 @@ export default function ClientOnlyPrPage() {
           throw new Error('No data received from API');
         }
 
-        // Transform the data for the timeline
-        const timelineData = transformToTimelineData(result.data);
-        setData(timelineData);
+        // Store the raw PR stats
         setPrStats(result.data);
       } catch (err) {
         console.error('Error fetching PR data:', err);
@@ -76,9 +79,80 @@ export default function ClientOnlyPrPage() {
     [params.owner, params.repo, params.prNumber]
   );
 
+  // Extract unique workflow names from PR data
+  const availableWorkflows = useMemo(() => {
+    if (!prStats) return [];
+
+    const workflows = new Set<string>();
+    prStats.timeline.forEach(event => {
+      if (
+        event.workflow_name &&
+        (event.type === 'ci_run' || event.type.includes('ci_'))
+      ) {
+        workflows.add(event.workflow_name);
+      }
+    });
+
+    return Array.from(workflows).sort();
+  }, [prStats]);
+
+  // Filter and transform timeline data based on selected workflow
+  const filteredData = useMemo(() => {
+    if (!prStats) return null;
+
+    // Filter timeline to only include selected workflow or non-CI events
+    const filteredPrStats: PullRequestStats = {
+      ...prStats,
+      timeline: prStats.timeline.filter(event => {
+        // Keep non-CI events
+        if (!event.type.includes('ci_') && event.type !== 'ci_run') {
+          return true;
+        }
+        // Keep CI events that match the selected workflow (or if "All Workflows" is selected)
+        if (selectedWorkflow === 'all') {
+          return true;
+        }
+        return event.workflow_name === selectedWorkflow;
+      }),
+    };
+
+    return transformToTimelineData(filteredPrStats);
+  }, [prStats, selectedWorkflow]);
+
+  // Update data when filtered data changes
+  useEffect(() => {
+    setData(filteredData);
+  }, [filteredData]);
+
   useEffect(() => {
     fetchPrData();
   }, [fetchPrData]);
+
+  // Calculate author-codeowner relationship
+  const authorCodeownerRelationship = useMemo(() => {
+    if (!prStats) return null;
+
+    // Check if the author is in any of the code owner teams
+    const codeOwnerTeams = prStats.codeowners?.teams || [];
+    const requestedTeams = prStats.requested_teams || [];
+    const allCodeOwnerTeams = [
+      ...new Set([...codeOwnerTeams, ...requestedTeams]),
+    ];
+
+    // Check review events to see if any reviewer from code owner teams
+    // has the same relationship info
+    const reviewWithRelationship = prStats.timeline.find(
+      event => event.type === 'review' && event.author_reviewer_relationship
+    );
+
+    if (reviewWithRelationship?.author_reviewer_relationship) {
+      return reviewWithRelationship.author_reviewer_relationship;
+    }
+
+    // Fallback: check if author is in code owner teams
+    const isAuthorInCodeOwners = allCodeOwnerTeams.length > 0;
+    return isAuthorInCodeOwners ? 'same-team' : 'cross-team';
+  }, [prStats]);
 
   const handleBackToHome = () => {
     router.push('/');
@@ -208,6 +282,26 @@ export default function ClientOnlyPrPage() {
             </a>
           </>
         }
+        description={
+          authorCodeownerRelationship && (
+            <EuiFlexGroup gutterSize="s" alignItems="center">
+              <EuiFlexItem grow={false}>
+                <EuiText size="s">
+                  <strong>Author:</strong> {prStats?.author}
+                </EuiText>
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiBadge color="hollow">
+                  {authorCodeownerRelationship === 'same-team'
+                    ? 'Same Team as Code Owners'
+                    : authorCodeownerRelationship === 'cross-team'
+                      ? 'Cross Team'
+                      : authorCodeownerRelationship}
+                </EuiBadge>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+          )
+        }
         rightSideItems={[
           <EuiButtonIcon
             key="refresh"
@@ -225,30 +319,87 @@ export default function ClientOnlyPrPage() {
         ]}
       />
       <EuiPageTemplate.Header>
-        {prStats && <PRStats pr={prStats} />}
+        {prStats && (
+          <PRStats pr={prStats} selectedWorkflow={selectedWorkflow} />
+        )}
       </EuiPageTemplate.Header>
 
       <EuiPageTemplate.Section>
-        <EuiFlexGroup direction="row" gutterSize="s">
+        <EuiFlexGroup direction="row" gutterSize="s" alignItems="center">
           {prStats?.linked_issues?.map(issue => (
             <EuiFlexItem key={issue.number} grow={false}>
-              <EuiText size="s">
-                <a href={issue.url} target="_blank" rel="noopener noreferrer">
-                  #{issue.number}
-                </a>
-                <span> • </span>
-                <span>{issue.title}</span>
-              </EuiText>
-              <EuiBadge>{issue.state.toUpperCase()}</EuiBadge>
-              {issue.labels.length > 0 && (
-                <span>
-                  {issue.labels.map(label => (
-                    <EuiBadge key={label}>{label}</EuiBadge>
-                  ))}
-                </span>
-              )}
+              <a
+                href={issue.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'none' }}
+              >
+                <EuiPanel
+                  hasBorder
+                  paddingSize="s"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <EuiFlexGroup direction="column" gutterSize="xs">
+                    <EuiFlexItem>
+                      <EuiFlexGroup gutterSize="s" alignItems="center">
+                        <EuiFlexItem grow={false}>
+                          <EuiText size="s">
+                            <strong>#{issue.number}</strong>
+                          </EuiText>
+                        </EuiFlexItem>
+                        <EuiFlexItem grow={false}>
+                          <EuiBadge
+                            color={
+                              issue.state === 'open' ? 'success' : 'default'
+                            }
+                          >
+                            {issue.state.toUpperCase()}
+                          </EuiBadge>
+                        </EuiFlexItem>
+                        {issue.assignees && issue.assignees.length > 0 && (
+                          <EuiFlexItem grow={false}>
+                            <EuiBadge color="hollow">
+                              Assignee: {issue.assignees[0]}
+                            </EuiBadge>
+                          </EuiFlexItem>
+                        )}
+                      </EuiFlexGroup>
+                    </EuiFlexItem>
+                    <EuiFlexItem>
+                      <EuiText size="s">{issue.title}</EuiText>
+                    </EuiFlexItem>
+                    {issue.labels.length > 0 && (
+                      <EuiFlexItem>
+                        <EuiFlexGroup gutterSize="xs" wrap>
+                          {issue.labels.map(label => (
+                            <EuiFlexItem key={label} grow={false}>
+                              <EuiBadge color="hollow">{label}</EuiBadge>
+                            </EuiFlexItem>
+                          ))}
+                        </EuiFlexGroup>
+                      </EuiFlexItem>
+                    )}
+                  </EuiFlexGroup>
+                </EuiPanel>
+              </a>
             </EuiFlexItem>
           ))}
+          <EuiFlexItem grow={false}>
+            <EuiFormRow label="Filter CI/CD Workflows" display="rowCompressed">
+              <EuiSelect
+                options={[
+                  { value: 'all', text: 'All Workflows' },
+                  ...availableWorkflows.map(workflow => ({
+                    value: workflow,
+                    text: workflow,
+                  })),
+                ]}
+                value={selectedWorkflow}
+                onChange={e => setSelectedWorkflow(e.target.value)}
+                compressed
+              />
+            </EuiFormRow>
+          </EuiFlexItem>
         </EuiFlexGroup>
       </EuiPageTemplate.Section>
 
