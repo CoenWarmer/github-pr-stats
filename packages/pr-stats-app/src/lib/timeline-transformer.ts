@@ -493,8 +493,8 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         group: `reviewer_${teamName}`,
         start: requestEvent.date,
         end: firstApproval.date,
-        content: `⏱️ Review time: ${durationHours.toFixed(1)}h`,
-        emoji: '⏱️',
+        content: `${durationHours.toFixed(1)}h`,
+        emoji: '',
         title: `Team Review Duration\nTeam: ${teamName}\nRequested: ${new Date(requestEvent.date).toLocaleString()}\nApproved: ${new Date(firstApproval.date).toLocaleString()}\nDuration: ${durationHours.toFixed(1)}h`,
         className: 'team-review-duration',
         color: 'hollow', // Use a subtle color

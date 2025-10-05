@@ -32,14 +32,15 @@ export default function PRStats({
   // Calculate build statistics
   const totalBuilds = ciBuilds.length;
   const completedBuilds = ciBuilds.filter(
-    event => event.ci_status === 'completed'
+    event => event.type === 'ci_run' && event.ci_status === 'completed'
   ).length;
   const failedBuilds = ciBuilds.filter(
     event =>
-      event.ci_conclusion === 'failure' || event.ci_conclusion === 'error'
+      event.type === 'ci_run' &&
+      (event.ci_conclusion === 'failure' || event.ci_conclusion === 'error')
   ).length;
   const successfulBuilds = ciBuilds.filter(
-    event => event.ci_conclusion === 'success'
+    event => event.type === 'ci_run' && event.ci_conclusion === 'success'
   ).length;
 
   // Calculate build minutes (simplified calculation)
@@ -51,6 +52,40 @@ export default function PRStats({
   // Calculate waiting minutes
   const totalWaitingMinutes =
     pr.timeline.filter(event => event.type === 'awaiting_review').length * 60; // Rough estimate
+
+  // Calculate total team review time (from team review requested to first approval)
+  const calculateTeamReviewTime = () => {
+    const teamReviewRequests = pr.timeline.filter(
+      event => event.type === 'team_review_requested'
+    );
+
+    let totalReviewTimeMs = 0;
+
+    for (const requestEvent of teamReviewRequests) {
+      const teamName = requestEvent.requested_team;
+      if (!teamName) continue;
+
+      // Find the first approval from this team
+      const firstApproval = pr.timeline.find(
+        event =>
+          event.type === 'review' &&
+          event.state?.toLowerCase() === 'approved' &&
+          event.reviewer_teams?.includes(teamName) &&
+          new Date(event.date).getTime() > new Date(requestEvent.date).getTime()
+      );
+
+      if (firstApproval) {
+        const durationMs =
+          new Date(firstApproval.date).getTime() -
+          new Date(requestEvent.date).getTime();
+        totalReviewTimeMs += durationMs;
+      }
+    }
+
+    return totalReviewTimeMs;
+  };
+
+  const totalTeamReviewTimeMs = calculateTeamReviewTime();
 
   const deliveryFriction = calculateDeliveryFriction(
     pr,
@@ -231,10 +266,11 @@ export default function PRStats({
           </EuiFlexItem>
           <EuiFlexItem>
             <EuiStat
-              title={formatDuration(totalWaitingMinutes, 'minutes')}
-              description="Time awaiting code reviews"
+              title={formatDuration(totalTeamReviewTimeMs, 'ms')}
+              description="Total team review time"
               titleSize="s"
               reverse
+              titleColor="primary"
             />
           </EuiFlexItem>
         </EuiFlexGroup>

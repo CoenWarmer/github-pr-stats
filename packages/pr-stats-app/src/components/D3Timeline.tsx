@@ -93,78 +93,10 @@ export default function D3Timeline({
     // Sort items by start time for collision detection
     items.sort((a, b) => a.startTime - b.startTime);
 
-    // Calculate levels to avoid overlaps within each group
-    // Strategy: Duration items (rectangles) on top levels, point-in-time items (circles) on bottom levels
-    const groupDurationLevels: Map<
-      string,
-      Array<{ endTime: number }>
-    > = new Map();
-    const groupPointLevels: Map<string, Array<{ endTime: number }>> = new Map();
-
-    // First pass: assign levels to duration items (rectangles)
-    items
-      .filter(item => !item.isPointInTime)
-      .forEach(item => {
-        if (!groupDurationLevels.has(item.group)) {
-          groupDurationLevels.set(item.group, []);
-        }
-
-        const levels = groupDurationLevels.get(item.group)!;
-        let level = 0;
-
-        // Find the first level where this item doesn't overlap
-        while (
-          level < levels.length &&
-          levels[level].endTime > item.startTime
-        ) {
-          level++;
-        }
-
-        // Assign this level to the item
-        item.level = level;
-
-        // Update or create the level
-        if (level >= levels.length) {
-          levels.push({ endTime: item.endTime });
-        } else {
-          levels[level].endTime = item.endTime;
-        }
-      });
-
-    // Second pass: assign levels to point-in-time items (circles), starting after duration items
-    items
-      .filter(item => item.isPointInTime)
-      .forEach(item => {
-        if (!groupPointLevels.has(item.group)) {
-          groupPointLevels.set(item.group, []);
-        }
-
-        const pointLevels = groupPointLevels.get(item.group)!;
-        const durationLevelCount =
-          groupDurationLevels.get(item.group)?.length || 0;
-        let level = 0;
-
-        // Find the first level where this item doesn't overlap
-        while (
-          level < pointLevels.length &&
-          pointLevels[level].endTime > item.startTime
-        ) {
-          level++;
-        }
-
-        // Assign this level to the item, offset by the number of duration levels
-        // Add a 10px gap between duration and point-in-time items for visual separation
-        // (10px / 25px levelHeight = 0.4 levels)
-        const gap = durationLevelCount > 0 ? 0.4 : 0;
-        item.level = durationLevelCount + gap + level;
-
-        // Update or create the level
-        if (level >= pointLevels.length) {
-          pointLevels.push({ endTime: item.endTime });
-        } else {
-          pointLevels[level].endTime = item.endTime;
-        }
-      });
+    // All items in the same row/group will be at level 0 (no vertical stacking)
+    items.forEach(item => {
+      item.level = 0;
+    });
 
     return items;
   }, [data, collapsedGroups]);
@@ -408,9 +340,10 @@ export default function D3Timeline({
               // Recompute nudges at current zoom
               nudgeById = computeNudges(newXScale);
               // Move grouped point marker via transform (circle + emoji)
+              const circleHeight = POINT_RADIUS * 2;
               element.attr(
                 'transform',
-                `translate(${newXScale(d.startTime) + (nudgeById.get(d.id) || 0)}, ${getItemY(d) + 10})`
+                `translate(${newXScale(d.startTime) + (nudgeById.get(d.id) || 0)}, ${getItemY(d, circleHeight) + POINT_RADIUS})`
               );
             } else {
               // Update grouped rectangles
@@ -420,32 +353,8 @@ export default function D3Timeline({
                 .attr('width', d =>
                   Math.max(2, newXScale(d.endTime) - newXScale(d.startTime))
                 );
-              // Update text labels in groups
-              const newWidth = Math.max(
-                2,
-                newXScale(d.endTime) - newXScale(d.startTime)
-              );
-              const newMaxChars = Math.floor((newWidth - 10) / 6); // Approximate chars that fit
-
-              // Recalculate display text based on new width
-              let displayText = d.content;
-              if (!displayText && d.title) {
-                displayText = d.title.split('\n')[0].trim();
-              }
-
-              if (!displayText) {
-                displayText = 'Event';
-              }
-
-              const finalText =
-                displayText.length > newMaxChars
-                  ? displayText.substring(0, newMaxChars - 3) + '...'
-                  : displayText;
-
-              element
-                .select('text')
-                .attr('x', newXScale(d.startTime) + 5)
-                .text(finalText);
+              // Update text labels in groups (positioned to the right of rectangle)
+              element.select('text').attr('x', newXScale(d.endTime) + 20); // 10px padding from right edge
             }
           }
         );
@@ -490,12 +399,11 @@ export default function D3Timeline({
 
         // Generate day ticks from the full data range (not just visible domain)
         // This ensures consistent tick positions when panning
-        const allNewDayTicks = showDaySeparators
-          ? d3.timeDay.range(
-              d3.timeDay.floor(new Date(timeDomain[0])),
-              d3.timeDay.ceil(new Date(timeDomain[1]))
-            )
-          : [];
+        // Always generate ticks for the axis labels, even if we don't show separators
+        const allNewDayTicks = d3.timeDay.range(
+          d3.timeDay.floor(new Date(timeDomain[0])),
+          d3.timeDay.ceil(new Date(timeDomain[1]))
+        );
 
         // Filter based on zoom level first
         let filteredDayTicks = allNewDayTicks;
@@ -515,7 +423,10 @@ export default function D3Timeline({
         );
 
         // Update existing day separators (in background group)
-        const daySeps = bgGroup.selectAll('.day-separator').data(newDayTicks);
+        // Only show separators if showDaySeparators is true
+        const daySeps = bgGroup
+          .selectAll('.day-separator')
+          .data(showDaySeparators ? newDayTicks : []);
 
         // Remove extra separators
         daySeps.exit().remove();
@@ -640,13 +551,17 @@ export default function D3Timeline({
       dayTicks = allDayTicks.filter((d, i) => i % 2 === 0);
     }
 
-    // Calculate y positions for items
-    const getItemY = (item: ProcessedTimelineItem) => {
+    // Calculate y positions for items (centered vertically within the row)
+    const getItemY = (item: ProcessedTimelineItem, itemHeight: number = 24) => {
       let y = 0;
       for (let i = 0; i < item.groupIndex; i++) {
         y += rowHeights[i];
       }
-      return y + 10 + item.level * levelHeight;
+      // Get the current row height
+      const currentRowHeight = rowHeights[item.groupIndex] || 0;
+      // Center the item vertically within the row
+      const centeredY = y + (currentRowHeight - itemHeight) / 2;
+      return centeredY + item.level * levelHeight;
     };
 
     // Add timeline items - use circles for point-in-time events, rectangles for duration events
@@ -716,38 +631,34 @@ export default function D3Timeline({
       .attr('opacity', d => (isItemHighlighted(d) ? 0.9 : 0.2));
 
     // Add rectangles to the groups
+    const rectHeight = 1; // Height of duration rectangles
     rectGroups
       .append('rect')
       .attr('class', 'timeline-rect')
       .attr('x', d => transformedXScale(d.startTime))
-      .attr('y', d => getItemY(d))
+      .attr('y', d => getItemY(d, rectHeight))
       .attr('width', d =>
         Math.max(
           2,
           transformedXScale(d.endTime) - transformedXScale(d.startTime)
         )
       )
-      .attr('height', 24)
+      .attr('height', rectHeight)
       .attr('rx', 3)
       .attr('ry', 3)
       .attr('fill', getEventColor);
 
-    // Add text labels to the groups
+    // Add text labels to the groups (positioned to the right of the rectangle)
     rectGroups
       .append('text')
       .attr('class', 'timeline-rect-label')
-      .attr('x', d => transformedXScale(d.startTime) + 5) // 5px padding from left edge
-      .attr('y', d => getItemY(d) + 15) // Center vertically in the rectangle
+      .attr('x', d => transformedXScale(d.endTime) + 20) // 10px padding from right edge of rectangle
+      .attr('y', d => getItemY(d, rectHeight) + rectHeight / 2) // Center vertically in the rectangle
+      .attr('dy', '0.35em') // Vertical alignment adjustment
       .attr('font-size', '13px')
-      .attr('fill', '#fff')
+      .attr('fill', colorMode === 'DARK' ? '#DFE5EF' : '#343741') // Use theme text color
       .attr('pointer-events', 'none')
       .text(d => {
-        const width = Math.max(
-          2,
-          transformedXScale(d.endTime) - transformedXScale(d.startTime)
-        );
-        const maxChars = Math.floor((width - 10) / 6); // Approximate chars that fit (6px per char)
-
         // Use content first (clean text), then title as fallback
         let displayText = d.content;
         if (!displayText && d.title) {
@@ -768,12 +679,11 @@ export default function D3Timeline({
           displayText = 'Event';
         }
 
-        return displayText.length > maxChars
-          ? displayText.substring(0, maxChars - 3) + '...'
-          : displayText;
+        return displayText; // No truncation
       });
 
     // Create grouped point-in-time markers (circle + emoji) (in foreground group)
+    const circleHeight = POINT_RADIUS * 2; // Diameter of the circle
     const pointGroups = fgGroup
       .selectAll<SVGGElement, ProcessedTimelineItem>('.timeline-point-group')
       .data(processedData.filter(d => d.isPointInTime))
@@ -785,7 +695,7 @@ export default function D3Timeline({
       .attr(
         'transform',
         d =>
-          `translate(${transformedXScale(d.startTime) + (nudgeById.get(d.id) || 0)}, ${getItemY(d) + 10})`
+          `translate(${transformedXScale(d.startTime) + (nudgeById.get(d.id) || 0)}, ${getItemY(d, circleHeight) + POINT_RADIUS})`
       );
 
     pointGroups
