@@ -367,14 +367,23 @@ export default function D3Timeline({
     // Now compute nudges with the transformed scale
     let nudgeById = computeNudges(transformedXScale);
 
+    // Calculate minimum scale to prevent zooming out beyond the full data range
+    // The minimum scale should show the entire timeDomain within the viewport
+    const fullDataWidth = xScale(timeDomain[1]) - xScale(timeDomain[0]);
+    const minScale = innerWidth / fullDataWidth;
+
     // Create zoom behavior with bounds
-    // Use a much more generous translateExtent to allow panning to any part of the timeline
+    // Set extent to match the SVG viewport and restrict panning to data range
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.1, 100])
+      .scaleExtent([minScale * 0.9, 100]) // Allow zooming out to 90% of full view for some padding
+      .extent([
+        [0, 0],
+        [innerWidth, totalRowHeight],
+      ])
       .translateExtent([
-        [xScale(timeDomain[0]) - innerWidth * 10, -Infinity],
-        [xScale(timeDomain[1]) + innerWidth * 10, Infinity],
+        [xScale(timeDomain[0]), 0],
+        [xScale(timeDomain[1]), totalRowHeight],
       ])
       .on('start', event => {
         // Reset opacity when user starts interacting
@@ -479,13 +488,31 @@ export default function D3Timeline({
         // At high zoom (less than 2 days visible), hide them to reduce clutter
         const showDaySeparators = visibleTimeRange > oneDayMs * 2;
 
-        // Update day separator lines with new day ticks
-        const newDayTicks = showDaySeparators
+        // Generate day ticks from the full data range (not just visible domain)
+        // This ensures consistent tick positions when panning
+        const allNewDayTicks = showDaySeparators
           ? d3.timeDay.range(
-              d3.timeDay.floor(new Date(domain[0])),
-              d3.timeDay.ceil(new Date(domain[1]))
+              d3.timeDay.floor(new Date(timeDomain[0])),
+              d3.timeDay.ceil(new Date(timeDomain[1]))
             )
           : [];
+
+        // Filter based on zoom level first
+        let filteredDayTicks = allNewDayTicks;
+        if (visibleDays > 60) {
+          filteredDayTicks = allNewDayTicks.filter((d, i) => i % 7 === 0);
+        } else if (visibleDays > 30) {
+          filteredDayTicks = allNewDayTicks.filter((d, i) => i % 3 === 0);
+        } else if (visibleDays > 14) {
+          filteredDayTicks = allNewDayTicks.filter((d, i) => i % 2 === 0);
+        }
+
+        // Then filter to only show ticks within the visible domain
+        const newDayTicks = filteredDayTicks.filter(
+          d =>
+            d.getTime() >= domain[0].getTime() &&
+            d.getTime() <= domain[1].getTime()
+        );
 
         // Update existing day separators (in background group)
         const daySeps = bgGroup.selectAll('.day-separator').data(newDayTicks);
@@ -508,20 +535,8 @@ export default function D3Timeline({
           .attr('x2', d => newXScale(d));
 
         // Update day axis with adaptive tick spacing based on zoom level
-        // (visibleDays already calculated above)
-
-        // Filter day ticks to reduce crowding when zoomed out
-        let displayDayTicks = newDayTicks;
-        if (visibleDays > 60) {
-          // Show every 7th day (weekly) when viewing > 60 days
-          displayDayTicks = newDayTicks.filter((d, i) => i % 7 === 0);
-        } else if (visibleDays > 30) {
-          // Show every 3rd day when viewing > 30 days
-          displayDayTicks = newDayTicks.filter((d, i) => i % 3 === 0);
-        } else if (visibleDays > 14) {
-          // Show every other day when viewing > 14 days
-          displayDayTicks = newDayTicks.filter((d, i) => i % 2 === 0);
-        }
+        // Use the same filtered day ticks as for separators
+        const displayDayTicks = newDayTicks;
 
         const newDayAxis = d3
           .axisTop(newXScale)
@@ -577,13 +592,6 @@ export default function D3Timeline({
       svg.property('__zoom', initialTransform);
     }
 
-    // Add background for better contrast
-    g.append('rect')
-      .attr('width', innerWidth)
-      .attr('height', totalRowHeight)
-      .attr('fill', colorMode === 'DARK' ? '#1a1a1a' : '#ffffff')
-      .attr('opacity', 0.1);
-
     // Calculate initial visible time range for adaptive display
     const initialDomain = transformedXScale.domain();
     const initialVisibleTimeRange =
@@ -612,25 +620,24 @@ export default function D3Timeline({
         .attr('opacity', 0.6);
     }
 
-    // Calculate day ticks for day separator lines
-    const localStart = new Date(timeDomain[0]);
-    const localEnd = new Date(timeDomain[1]);
+    // Calculate day ticks for day separator lines using the visible domain
     const showInitialDaySeparators = initialVisibleTimeRange > oneDayMs * 2;
 
-    let dayTicks = showInitialDaySeparators
+    const allDayTicks = showInitialDaySeparators
       ? d3.timeDay.range(
-          d3.timeDay.floor(localStart),
-          d3.timeDay.ceil(localEnd)
+          d3.timeDay.floor(new Date(initialDomain[0])),
+          d3.timeDay.ceil(new Date(initialDomain[1]))
         )
       : [];
 
     // Filter day separators based on zoom level
+    let dayTicks = allDayTicks;
     if (initialVisibleDays > 60) {
-      dayTicks = dayTicks.filter((d, i) => i % 7 === 0);
+      dayTicks = allDayTicks.filter((d, i) => i % 7 === 0);
     } else if (initialVisibleDays > 30) {
-      dayTicks = dayTicks.filter((d, i) => i % 3 === 0);
+      dayTicks = allDayTicks.filter((d, i) => i % 3 === 0);
     } else if (initialVisibleDays > 14) {
-      dayTicks = dayTicks.filter((d, i) => i % 2 === 0);
+      dayTicks = allDayTicks.filter((d, i) => i % 2 === 0);
     }
 
     // Calculate y positions for items
@@ -889,15 +896,8 @@ export default function D3Timeline({
 
     // Add dual-level time axis with adaptive display
 
-    // Filter day ticks for axis labels based on zoom level
-    let displayDayTicks = dayTicks;
-    if (initialVisibleDays > 60) {
-      displayDayTicks = dayTicks.filter((d, i) => i % 7 === 0);
-    } else if (initialVisibleDays > 30) {
-      displayDayTicks = dayTicks.filter((d, i) => i % 3 === 0);
-    } else if (initialVisibleDays > 14) {
-      displayDayTicks = dayTicks.filter((d, i) => i % 2 === 0);
-    }
+    // Use the same filtered day ticks for axis labels as for separators
+    const displayDayTicks = dayTicks;
 
     const dayAxis = d3
       .axisTop(transformedXScale)
@@ -1067,7 +1067,7 @@ export default function D3Timeline({
         height={height}
         style={{
           display: 'block',
-          background: colorMode === 'DARK' ? '#0f1419' : '#fafafa',
+          background: colorMode === 'DARK' ? '#07101F' : '#fafafa',
         }}
       />
     </div>
