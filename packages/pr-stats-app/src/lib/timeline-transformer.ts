@@ -276,8 +276,6 @@ function createEventColor(event: AnyTimelineEvent): string {
   return 'primary';
 }
 
-// Awaiting review functionality has been moved to GitHubCollector.createAwaitingReviewEvents()
-
 /**
  * Extracts all code owner teams from the PR timeline
  */
@@ -462,6 +460,51 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
     );
 
   // Awaiting review periods are now created in the backend (GitHubCollector)
+
+  // Create team review duration items (from team review requested to first approval)
+  const teamReviewDurations: TimelineItem[] = [];
+
+  // Find all team review requested events
+  const teamReviewRequests = pr.timeline.filter(
+    event => event.type === 'team_review_requested'
+  );
+
+  for (const requestEvent of teamReviewRequests) {
+    const teamName = requestEvent.requested_team;
+    if (!teamName) continue;
+
+    // Find the first approval from this team
+    const firstApproval = pr.timeline.find(
+      event =>
+        event.type === 'review' &&
+        event.state?.toLowerCase() === 'approved' &&
+        event.reviewer_teams?.includes(teamName) &&
+        new Date(event.date).getTime() > new Date(requestEvent.date).getTime()
+    );
+
+    if (firstApproval) {
+      const durationMs =
+        new Date(firstApproval.date).getTime() -
+        new Date(requestEvent.date).getTime();
+      const durationHours = durationMs / (1000 * 60 * 60);
+
+      teamReviewDurations.push({
+        id: `team_review_duration_${teamName}_${requestEvent.date}`,
+        group: `reviewer_${teamName}`,
+        start: requestEvent.date,
+        end: firstApproval.date,
+        content: `⏱️ Review time: ${durationHours.toFixed(1)}h`,
+        emoji: '⏱️',
+        title: `Team Review Duration\nTeam: ${teamName}\nRequested: ${new Date(requestEvent.date).toLocaleString()}\nApproved: ${new Date(firstApproval.date).toLocaleString()}\nDuration: ${durationHours.toFixed(1)}h`,
+        className: 'team-review-duration',
+        color: 'hollow', // Use a subtle color
+        isPointInTime: false,
+      });
+    }
+  }
+
+  // Add team review durations to items
+  items.push(...teamReviewDurations);
 
   // Sort all items chronologically by start time
   // For items with the same start time, prioritize awaiting review items first
