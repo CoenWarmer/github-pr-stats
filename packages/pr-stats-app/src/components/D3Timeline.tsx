@@ -11,6 +11,7 @@ interface D3TimelineProps {
   width?: number;
   height?: number;
   zoomRange?: [Date, Date] | null;
+  activeGroups?: string[] | null;
 }
 
 interface ProcessedTimelineItem extends TimelineItem {
@@ -26,6 +27,7 @@ export default function D3Timeline({
   width = 1000,
   height = 600,
   zoomRange = null,
+  activeGroups = null,
 }: D3TimelineProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,6 +36,7 @@ export default function D3Timeline({
   const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(
     new Set(data.groups.filter(g => g.collapsed).map(g => g.id))
   );
+  const isDimmedRef = useRef<boolean>(false);
 
   // Measure container width for responsive behavior
   useEffect(() => {
@@ -166,15 +169,6 @@ export default function D3Timeline({
     return items;
   }, [data, collapsedGroups]);
 
-  console.log('Processed data:', processedData);
-  console.log('Available groups:', data.groups);
-  console.log(
-    'Items with undefined group:',
-    processedData.filter(
-      item => data.groups.findIndex(g => g.id === item.group) === -1
-    )
-  );
-
   // Calculate time domain
   const timeDomain = useMemo(() => {
     const times = processedData.flatMap(item => [item.startTime, item.endTime]);
@@ -182,17 +176,8 @@ export default function D3Timeline({
     const maxTime = Math.max(...times);
     const oneDayInMs = 24 * 60 * 60 * 1000; // 1 day in milliseconds
 
-    console.log('Time domain calculation:', {
-      minTime: new Date(minTime).toISOString(),
-      maxTime: new Date(maxTime).toISOString(),
-      paddedMin: new Date(minTime - oneDayInMs).toISOString(),
-      paddedMax: new Date(maxTime + oneDayInMs).toISOString(),
-    });
-
     return [minTime - oneDayInMs, maxTime + oneDayInMs];
   }, [processedData]);
-
-  console.log('Time domain:', timeDomain);
 
   // Color mapping for different event types using EUI palette
   const eventTypeColors = useMemo(() => {
@@ -340,9 +325,19 @@ export default function D3Timeline({
       maxEventTime = Math.max(...eventTimes);
     }
 
-    // Add small padding (5% on each side)
+    // Ensure minimum time range to prevent zoom issues
     const timeRange = maxEventTime - minEventTime;
-    const padding = timeRange * 0.05;
+    const minTimeRange = 60 * 60 * 1000; // 1 hour minimum
+
+    if (timeRange < minTimeRange) {
+      const midpoint = (minEventTime + maxEventTime) / 2;
+      minEventTime = midpoint - minTimeRange / 2;
+      maxEventTime = midpoint + minTimeRange / 2;
+    }
+
+    // Add small padding (5% on each side)
+    const adjustedTimeRange = maxEventTime - minEventTime;
+    const padding = adjustedTimeRange * 0.05;
     const paddedMin = minEventTime - padding;
     const paddedMax = maxEventTime + padding;
 
@@ -367,13 +362,23 @@ export default function D3Timeline({
     let nudgeById = computeNudges(transformedXScale);
 
     // Create zoom behavior with bounds
+    // Use a much more generous translateExtent to allow panning to any part of the timeline
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 100])
       .translateExtent([
-        [xScale(timeDomain[0]) - innerWidth, -Infinity],
-        [xScale(timeDomain[1]) + innerWidth, Infinity],
+        [xScale(timeDomain[0]) - innerWidth * 10, -Infinity],
+        [xScale(timeDomain[1]) + innerWidth * 10, Infinity],
       ])
+      .on('start', event => {
+        // Reset opacity when user starts interacting
+        if (isDimmedRef.current && event.sourceEvent) {
+          isDimmedRef.current = false;
+          // Reset all items to full opacity
+          g.selectAll('.timeline-rect').attr('opacity', 0.9);
+          g.selectAll('.timeline-circle').attr('opacity', 0.9);
+        }
+      })
       .on('zoom', event => {
         const { transform } = event;
 
@@ -454,10 +459,10 @@ export default function D3Timeline({
         const newDayAxis = d3
           .axisTop(newXScale)
           .tickValues(newDayTicks)
-          .tickFormat(d3.timeFormat('%a %m/%d'))
+          .tickFormat(d3.timeFormat('%a %m/%d') as any)
           .tickSize(5);
 
-        g.select('.day-axis').call(newDayAxis);
+        g.select('.day-axis').call(newDayAxis as any);
         g.select('.day-axis')
           .selectAll('text')
           .attr('fill', colorMode === 'DARK' ? '#fff' : '#000')
@@ -468,10 +473,10 @@ export default function D3Timeline({
         const newHourAxis = d3
           .axisTop(newXScale)
           .ticks(d3.timeHour.every(4))
-          .tickFormat(d3.timeFormat('%H:%M'))
+          .tickFormat(d3.timeFormat('%H:%M') as any)
           .tickSize(5);
 
-        g.select('.hour-axis').call(newHourAxis);
+        g.select('.hour-axis').call(newHourAxis as any);
         g.select('.hour-axis')
           .selectAll('text')
           .attr('fill', colorMode === 'DARK' ? '#ccc' : '#666')
@@ -479,13 +484,22 @@ export default function D3Timeline({
       });
 
     // Apply zoom behavior to SVG
-    // Note: We've already rendered with transformedXScale, so we need to tell zoom
-    // that we're starting from the initialTransform position
     svg.call(zoom);
 
-    // Set the internal zoom state without triggering the zoom event
-    // This ensures the first drag doesn't cause a jump
-    svg.property('__zoom', initialTransform);
+    // Set the initial zoom state
+    if (zoomRange) {
+      // Animate to the zoom range with a transition
+      svg
+        .transition()
+        .duration(750)
+        .ease(d3.easeCubicInOut)
+        .call(zoom.transform as any, initialTransform);
+    } else {
+      // Set the internal zoom state without triggering the zoom event
+      // This ensures the first drag doesn't cause a jump
+      // We use property instead of call(zoom.transform) to avoid triggering zoom events
+      svg.property('__zoom', initialTransform);
+    }
 
     // Add background for better contrast
     g.append('rect')
@@ -558,6 +572,15 @@ export default function D3Timeline({
       return eventTypeColors[eventType as keyof typeof eventTypeColors];
     };
 
+    // Helper function to determine if an item should be highlighted
+    const isItemHighlighted = (d: ProcessedTimelineItem): boolean => {
+      // If no active groups filter is set (null), highlight everything
+      if (activeGroups === null) return true;
+
+      // If activeGroups is an array (even empty), only highlight items in those groups
+      return activeGroups.includes(d.group);
+    };
+
     // Add day separator lines (extend through timeline) - after dayTicks is defined, before timeline items
     g.selectAll('.day-separator')
       .data(dayTicks)
@@ -579,7 +602,8 @@ export default function D3Timeline({
       .enter()
       .append('g')
       .attr('class', 'timeline-item timeline-rect-group')
-      .style('cursor', 'pointer');
+      .style('cursor', 'pointer')
+      .attr('opacity', d => (isItemHighlighted(d) ? 0.9 : 0.2));
 
     // Add rectangles to the groups
     rectGroups
@@ -596,8 +620,7 @@ export default function D3Timeline({
       .attr('height', 24)
       .attr('rx', 3)
       .attr('ry', 3)
-      .attr('fill', getEventColor)
-      .attr('opacity', 0.8);
+      .attr('fill', getEventColor);
 
     // Add text labels to the groups
     rectGroups
@@ -614,14 +637,6 @@ export default function D3Timeline({
           transformedXScale(d.endTime) - transformedXScale(d.startTime)
         );
         const maxChars = Math.floor((width - 10) / 6); // Approximate chars that fit (6px per char)
-
-        // Debug: log all rectangle items to see what we're working with
-        console.log('Debug rectangle item:', {
-          title: d.title,
-          content: d.content,
-          className: d.className,
-          isPointInTime: d.isPointInTime,
-        });
 
         // Use content first (clean text), then title as fallback
         let displayText = d.content;
@@ -656,6 +671,7 @@ export default function D3Timeline({
       .append('g')
       .attr('class', 'timeline-item timeline-point-group')
       .style('cursor', 'pointer')
+      .attr('opacity', d => (isItemHighlighted(d) ? 0.9 : 0.2))
       .attr(
         'transform',
         d =>
@@ -666,8 +682,12 @@ export default function D3Timeline({
       .append('circle')
       .attr('class', 'timeline-circle')
       .attr('r', POINT_RADIUS)
-      .attr('fill', getEventColor)
-      .attr('opacity', 0.9);
+      .attr('fill', getEventColor);
+
+    // Track if we're in dimmed mode (when activeGroups is not null)
+    if (activeGroups !== null) {
+      isDimmedRef.current = true;
+    }
 
     const getEmojiForItem = (d: ProcessedTimelineItem) => {
       return d.emoji;
@@ -706,7 +726,9 @@ export default function D3Timeline({
     const addEventHandlers = (selection: any) => {
       selection
         .on('mouseover', function (event, d) {
-          d3.select(this).attr('opacity', 1);
+          // Set opacity on child elements, not the group
+          d3.select(this).select('.timeline-rect').attr('opacity', 1);
+          d3.select(this).select('.timeline-circle').attr('opacity', 1);
 
           tooltip.transition().duration(200).style('opacity', 1);
 
@@ -734,8 +756,19 @@ export default function D3Timeline({
             .style('left', event.pageX + 10 + 'px')
             .style('top', event.pageY - 10 + 'px');
         })
-        .on('mouseout', function () {
-          d3.select(this).attr('opacity', 0.8).attr('stroke', 'none');
+        .on('mouseout', function (event, d) {
+          // Reset opacity based on whether item is highlighted
+          const targetOpacity = isItemHighlighted(d) ? 0.9 : 0.2;
+          d3.select(this)
+            .select('.timeline-rect')
+            .attr('opacity', targetOpacity);
+
+          const circleOpacity = isItemHighlighted(d) ? 0.9 : 0.2;
+          d3.select(this)
+            .select('.timeline-circle')
+            .attr('opacity', circleOpacity);
+
+          d3.select(this).attr('stroke', 'none');
 
           tooltip.transition().duration(500).style('opacity', 0);
         })
@@ -756,14 +789,14 @@ export default function D3Timeline({
     const dayAxis = d3
       .axisTop(transformedXScale)
       .tickValues(dayTicks)
-      .tickFormat(d3.timeFormat('%a %m/%d'))
+      .tickFormat(d3.timeFormat('%a %m/%d') as any)
       .tickSize(5);
 
     const dayAxisGroup = g
       .append('g')
       .attr('class', 'day-axis')
       .attr('transform', `translate(0, -20)`)
-      .call(dayAxis);
+      .call(dayAxis as any);
 
     dayAxisGroup
       .selectAll('text')
@@ -784,14 +817,14 @@ export default function D3Timeline({
     const hourAxis = d3
       .axisTop(transformedXScale)
       .ticks(d3.timeHour.every(4)) // Every 4 hours
-      .tickFormat(d3.timeFormat('%H:%M'))
+      .tickFormat(d3.timeFormat('%H:%M') as any)
       .tickSize(5);
 
     const hourAxisGroup = g
       .append('g')
       .attr('class', 'hour-axis')
       .attr('transform', `translate(0, -5)`)
-      .call(hourAxis);
+      .call(hourAxis as any);
 
     hourAxisGroup
       .selectAll('text')
@@ -897,6 +930,7 @@ export default function D3Timeline({
     eventTypeColors,
     collapsedGroups,
     zoomRange,
+    activeGroups,
   ]);
 
   return (

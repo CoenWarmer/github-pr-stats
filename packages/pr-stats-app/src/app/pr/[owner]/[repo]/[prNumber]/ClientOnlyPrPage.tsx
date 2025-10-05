@@ -46,6 +46,29 @@ export default function ClientOnlyPrPage() {
   const [zoomOption, setZoomOption] = useState<string>('full');
   const [zoomRange, setZoomRange] = useState<[Date, Date] | null>(null);
 
+  // Map zoom options to their relevant groups
+  const activeGroups = useMemo(() => {
+    if (zoomOption === 'full') return null; // Show all groups
+
+    const groupMap: Record<string, string[]> = {
+      delivery: ['admin'], // Administrative (issues)
+      development: ['dev'], // Development (PR lifecycle, commits)
+      reviews: ['additional_reviewers'], // Review groups (dynamically generated)
+    };
+
+    // For reviews, include all code owner team groups (they start with "reviewer_")
+    if (zoomOption === 'reviews' && data?.groups) {
+      const reviewGroups = data.groups
+        .filter(
+          g => g.id.startsWith('reviewer_') || g.id === 'additional_reviewers'
+        )
+        .map(g => g.id);
+      return reviewGroups;
+    }
+
+    return groupMap[zoomOption] || null;
+  }, [zoomOption, data?.groups]);
+
   const fetchPrData = useCallback(
     async (forceRefresh = false) => {
       if (!params.owner || !params.repo || !params.prNumber) {
@@ -258,25 +281,49 @@ export default function ClientOnlyPrPage() {
         : new Date();
     ranges.development = [devStart, devEnd];
 
-    // Code Reviews: First review request to last code owner approval
+    // Code Reviews: First review request to last approval
     const reviewRequestEvents = prStats.timeline.filter(
-      event => event.type === 'team_review_requested' || event.type === 'review'
+      event =>
+        event.type === 'team_review_requested' ||
+        event.type === 'review_requested'
     );
 
-    if (reviewRequestEvents.length > 0) {
-      const firstReview = reviewRequestEvents
+    // Find all approval events in the timeline
+    const approvalEvents = prStats.timeline.filter(
+      event =>
+        event.type === 'review' && event.state?.toUpperCase() === 'APPROVED'
+    );
+
+    if (reviewRequestEvents.length > 0 || approvalEvents.length > 0) {
+      // Get the first review request or approval (whichever came first)
+      const allReviewEvents = [...reviewRequestEvents, ...approvalEvents];
+      const firstReview = allReviewEvents
         .map(e => new Date(e.date))
         .sort((a, b) => a.getTime() - b.getTime())[0];
 
-      // Find last approval from a code owner team member
-      const codeOwnerApprovals = prStats.review_timings
-        .filter(review => review.state === 'approved')
-        .map(review => new Date(review.submitted_at))
-        .sort((a, b) => b.getTime() - a.getTime());
+      // Find the last approval event
+      const lastApproval =
+        approvalEvents.length > 0
+          ? approvalEvents
+              .map(e => new Date(e.date))
+              .sort((a, b) => b.getTime() - a.getTime())[0]
+          : firstReview;
 
-      const lastApproval = codeOwnerApprovals[0] || firstReview;
+      // Ensure there's a minimum time range (at least 1 hour)
+      const minRangeMs = 60 * 60 * 1000; // 1 hour
+      const rangeMs = lastApproval.getTime() - firstReview.getTime();
 
-      ranges.reviews = [firstReview, lastApproval];
+      if (rangeMs < minRangeMs) {
+        // Expand the range symmetrically around the midpoint
+        const midpoint = (firstReview.getTime() + lastApproval.getTime()) / 2;
+        const halfRange = minRangeMs / 2;
+        ranges.reviews = [
+          new Date(midpoint - halfRange),
+          new Date(midpoint + halfRange),
+        ];
+      } else {
+        ranges.reviews = [firstReview, lastApproval];
+      }
     }
 
     return ranges;
@@ -285,7 +332,8 @@ export default function ClientOnlyPrPage() {
   // Update zoom range when zoom option changes
   useEffect(() => {
     if (zoomRanges && zoomOption !== 'full') {
-      setZoomRange(zoomRanges[zoomOption] || null);
+      const selectedRange = zoomRanges[zoomOption];
+      setZoomRange(selectedRange || null);
     } else {
       setZoomRange(null);
     }
@@ -589,7 +637,7 @@ export default function ClientOnlyPrPage() {
         style={{ height: '100%', paddingInline: '0px' }}
         restrictWidth="100%"
       >
-        <Chart data={data} zoomRange={zoomRange} />
+        <Chart data={data} zoomRange={zoomRange} activeGroups={activeGroups} />
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );

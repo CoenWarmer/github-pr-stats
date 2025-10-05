@@ -566,46 +566,25 @@ export class GitHubCollector {
     org: string,
     requestedTeams: string[]
   ): Promise<string[]> {
-    // Simple heuristic: If teams were requested for review and someone reviewed,
-    // we assume they're from one of the requested teams (reasonable for code owner reviews)
+    if (requestedTeams.length === 0) return [];
 
-    if (requestedTeams.length === 0) {
-      // No teams were requested, so this reviewer is not part of code owner teams
-      return [];
-    }
-
-    const userTeamsInRequested: string[] = [];
-
-    // Check each requested team to see if the user is a member
-    for (const teamSlug of requestedTeams) {
+    const checks = requestedTeams.map(async teamSlug => {
       try {
-        // Use the GitHub API to check team membership
         await this.octokit.rest.teams.getMembershipForUserInOrg({
           org,
           team_slug: teamSlug,
           username,
         });
-
-        // If no error, user is a member of this team
-        userTeamsInRequested.push(teamSlug);
-      } catch (error: any) {
-        // User is not a member of this team, or we don't have permission to see it
-        console.log(
-          `❌ ${username} is not a member of team ${teamSlug} (or no permission)`
-        );
+        return teamSlug; // member
+      } catch {
+        return null; // not a member or no permission
       }
-    }
+    });
 
-    if (userTeamsInRequested.length > 0) {
-      return userTeamsInRequested;
-    }
-
-    // Do not guess membership. If we cannot verify team membership, return empty
-    // so the UI places the review under 'additional reviewers'.
-    console.log(
-      `⚠️ Could not verify team membership for ${username}. Returning no reviewer teams.`
-    );
-    return [];
+    const results = await Promise.allSettled(checks);
+    return results
+      .filter(r => r.status === 'fulfilled' && r.value)
+      .map((r: any) => r.value as string);
   }
 
   async parseCodeowners(
