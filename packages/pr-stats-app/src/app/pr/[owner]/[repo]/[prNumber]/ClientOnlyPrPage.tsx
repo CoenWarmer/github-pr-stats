@@ -504,6 +504,7 @@ export default function ClientOnlyPrPage() {
         }
         rightSideItems={[
           <EuiButtonIcon
+            aria-label="Refresh"
             key="refresh"
             color="success"
             onClick={handleForceRefresh}
@@ -511,11 +512,12 @@ export default function ClientOnlyPrPage() {
             isLoading={loading}
           />,
           <EuiButtonIcon
+            aria-label="Back to Home"
             key="back"
             color="primary"
             onClick={handleBackToHome}
             iconType="arrowLeft"
-          ></EuiButtonIcon>,
+          />,
         ]}
       />
       <EuiPageTemplate.Header>

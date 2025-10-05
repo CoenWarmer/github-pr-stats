@@ -847,8 +847,7 @@ export default function D3Timeline({
           <strong>${d.content}</strong><br/>
           <strong>Start:</strong> ${new Date(d.startTime).toLocaleString()}<br/>
           ${d.end ? `<strong>End:</strong> ${new Date(d.endTime).toLocaleString()}<br/>` : ''}
-          ${d.duration > 0 ? `<strong>Duration:</strong> ${formatDuration(d.duration)}<br/>` : ''}
-          <strong>Group:</strong> ${data.groups.find(g => g.id === d.group)?.content}`;
+          ${d.duration > 0 ? `<strong>Duration:</strong> ${formatDuration(d.duration)}<br/>` : ''}`;
 
           // Add comment content for discussion items
           if (d.group === 'discussion' && d.commentContent) {
@@ -859,6 +858,17 @@ export default function D3Timeline({
                 ? d.commentContent.substring(0, maxLength) + '...'
                 : d.commentContent;
             tooltipHtml += `<br/><br/><strong>Comment:</strong><br/><em>${truncated}</em>`;
+          }
+
+          // Add review body for code owner review items
+          if (d.group.startsWith('reviewer_') && d.reviewBody) {
+            // Truncate long review bodies
+            const maxLength = 300;
+            const truncated =
+              d.reviewBody.length > maxLength
+                ? d.reviewBody.substring(0, maxLength) + '...'
+                : d.reviewBody;
+            tooltipHtml += `<br/><br/><strong>Review:</strong><br/><em>${truncated}</em>`;
           }
 
           tooltip
@@ -883,10 +893,9 @@ export default function D3Timeline({
           tooltip.transition().duration(500).style('opacity', 0);
         })
         .on('click', function (event, d) {
-          if (d.githubUrl) {
-            window.open(d.githubUrl, '_blank');
-          } else if (d.slackUrl) {
-            window.open(d.slackUrl, '_blank');
+          console.log('clicked', d);
+          if (d.url) {
+            window.open(d.url, '_blank');
           }
         });
     };

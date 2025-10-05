@@ -3,7 +3,7 @@ import {
   TimelineData,
   TimelineGroup,
   TimelineItem,
-  TimelineEvent,
+  AnyTimelineEvent,
 } from './types';
 
 // Event type to group mapping for cleaner organization
@@ -47,7 +47,7 @@ const EVENT_CONTENT: Record<string, { emoji: string; text: string }> = {
 /**
  * Determines which group an event belongs to based on its type
  */
-function getEventGroup(eventType: string, event?: TimelineEvent): string {
+function getEventGroup(eventType: string, event?: AnyTimelineEvent): string {
   // Check if this is a CI job (has workflow_name with a hyphen separator after the pipeline name)
   if (
     event &&
@@ -71,7 +71,7 @@ function getEventGroup(eventType: string, event?: TimelineEvent): string {
 /**
  * Creates display content for a timeline event
  */
-function createEventContent(event: TimelineEvent): string {
+function createEventContent(event: AnyTimelineEvent): string {
   const baseContent = EVENT_CONTENT[event.type];
 
   // Handle CI events first (before checking baseContent)
@@ -161,7 +161,7 @@ function createEventContent(event: TimelineEvent): string {
 /**
  * Creates a detailed title/tooltip for a timeline event
  */
-function createEventTitle(event: TimelineEvent): string {
+function createEventTitle(event: AnyTimelineEvent): string {
   const lines = [event.type, new Date(event.date).toLocaleString()];
 
   if (event.reviewer) lines.push(`Reviewer: ${event.reviewer}`);
@@ -172,8 +172,8 @@ function createEventTitle(event: TimelineEvent): string {
   if (event.ci_conclusion || event.ci_status) {
     lines.push(`Status: ${event.ci_conclusion || event.ci_status}`);
   }
-  if (event.build_url) {
-    lines.push(`Build: ${event.build_url}`);
+  if (event.url && (event.type.includes('ci_') || event.type === 'ci_run')) {
+    lines.push(`Build: ${event.url}`);
   }
   if (event.time_to_review_hours) {
     lines.push(`Review time: ${event.time_to_review_hours.toFixed(1)}h`);
@@ -187,8 +187,8 @@ function createEventTitle(event: TimelineEvent): string {
   if (event.release_tag) {
     lines.push(`Release: ${event.release_tag}`);
   }
-  if (event.release_url) {
-    lines.push(`URL: ${event.release_url}`);
+  if (event.url && event.type === 'released') {
+    lines.push(`URL: ${event.url}`);
   }
   if (event.type === 'issue_iteration') {
     if (event.workflow_name) lines.push(`Iteration: ${event.workflow_name}`);
@@ -202,7 +202,7 @@ function createEventTitle(event: TimelineEvent): string {
 /**
  * Creates CSS class names for styling timeline events
  */
-function createEventClassName(event: TimelineEvent): string {
+function createEventClassName(event: AnyTimelineEvent): string {
   const group = getEventGroup(event.type);
   const classes = [group];
 
@@ -218,9 +218,8 @@ function createEventClassName(event: TimelineEvent): string {
   if (event.state) classes.push(`review-${event.state.toLowerCase()}`);
   if (event.ci_conclusion) classes.push(`ci-${event.ci_conclusion}`);
   if (event.ci_status) classes.push(`ci-${event.ci_status}`);
-  if (event.comment_url) classes.push('clickable');
+  if (event.url) classes.push('clickable');
   if (event.type === 'released') classes.push('released');
-  if (event.release_url) classes.push('clickable');
   if (event.type === 'issue_iteration') classes.push('iteration');
 
   return classes.join(' ');
@@ -229,7 +228,7 @@ function createEventClassName(event: TimelineEvent): string {
 /**
  * Determines the color for timeline events based on type and status
  */
-function createEventColor(event: TimelineEvent): string {
+function createEventColor(event: AnyTimelineEvent): string {
   // Handle CI events with specific colors
   if (event.type.includes('ci_') || event.type === 'ci_run') {
     const conclusion = event.ci_conclusion;
@@ -321,7 +320,7 @@ function hasAdditionalReviewers(pr: PullRequestStats): boolean {
  */
 function getEventGroupForCodeOwners(
   eventType: string,
-  event: TimelineEvent
+  event: AnyTimelineEvent
 ): string {
   // Handle review events
   if (eventType === 'review' && event.reviewer) {
@@ -420,7 +419,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
   const items: TimelineItem[] = pr.timeline
     .filter(event => !event.hidden_from_timeline) // Filter out hidden events
     .map((event, index) => {
-      return {
+      const base = {
         id: `event_${index}`,
         group: getEventGroupForCodeOwners(event.type, event),
         start: event.date,
@@ -429,12 +428,31 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         emoji: EVENT_CONTENT[event.type]?.emoji,
         title: createEventTitle(event),
         className: createEventClassName(event),
-        githubUrl: event.comment_url || event.build_url || event.release_url,
+        url: event.url,
         color: createEventColor(event),
         isPointInTime: !event.end_date, // Track if this was originally a point-in-time event
-        commentContent: event.comment_content, // Pass through for tooltips
-        commentAuthor: event.comment_author, // Pass through for tooltips
       };
+
+      if (
+        event.type === 'comment_added' ||
+        event.type === 'review_comment_added' ||
+        event.type === 'issue_comment'
+      ) {
+        return {
+          ...base,
+          commentContent: event.comment_content,
+          commentAuthor: event.comment_author,
+        };
+      }
+
+      if (event.type === 'review') {
+        return {
+          ...base,
+          reviewBody: event.review_body,
+        };
+      }
+
+      return base;
     })
     .filter(
       item =>
@@ -481,6 +499,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
       content: `📋 PR #${pr.id}: ${pr.title}`,
       title: `PR Lifecycle\n${pr.title}\nDuration: ${durationHours}h`,
       className: pr.merged_at ? 'merged' : 'closed',
+      url: pr.timeline.find(event => event.type === 'opened')?.url,
     });
   }
 
@@ -495,6 +514,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
       title: `PR #${pr.id} Merged\n${new Date(pr.merged_at).toLocaleString()}`,
       className: 'merged',
       isPointInTime: true,
+      url: pr.timeline.find(event => event.type === 'merged')?.url,
     });
   }
 
@@ -519,6 +539,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
           content: `🎫 Issue #${issue.number}: ${issue.title}`,
           title: `Issue Lifecycle\n#${issue.number}: ${issue.title}\nDuration: ${durationDays}d (${durationHours}h)`,
           className: 'closed',
+          url: issue.url,
         });
       }
     }

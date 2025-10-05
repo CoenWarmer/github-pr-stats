@@ -224,7 +224,7 @@ export class GitHubCollector {
           date: comment.created_at,
           comment_author: comment.user?.login || 'unknown',
           comment_content: comment.body || '',
-          comment_url: comment.html_url,
+          url: comment.html_url,
           comment_id: comment.id,
         });
       }
@@ -246,7 +246,7 @@ export class GitHubCollector {
           date: comment.created_at,
           comment_author: comment.user?.login || 'unknown',
           comment_content: comment.body || '',
-          comment_url: comment.html_url,
+          url: comment.html_url,
           comment_id: comment.id,
         });
       }
@@ -294,8 +294,9 @@ export class GitHubCollector {
           reviewer_teams: reviewTiming.reviewer_teams,
           author_reviewer_relationship:
             reviewTiming.author_reviewer_relationship,
-          comment_url: reviewTiming.review_url,
+          url: reviewTiming.url,
           submitted_at: reviewTiming.submitted_at,
+          review_body: reviewTiming.body,
         });
       }
 
@@ -361,7 +362,7 @@ export class GitHubCollector {
                 type: 'released',
                 date: release.published_at,
                 release_tag: release.tag_name,
-                release_url: release.html_url,
+                url: release.html_url,
               });
             }
           } catch (releaseError) {
@@ -530,8 +531,9 @@ export class GitHubCollector {
           author_teams: authorTeams,
           reviewer_teams: reviewerTeams,
           author_reviewer_relationship: 'cross-department',
-          review_url: reviewUrl,
+          url: reviewUrl,
           review_id: review.id,
+          body: review.body || undefined, // Capture review body/comment
         });
 
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -1465,7 +1467,7 @@ export class GitHubCollector {
       workflow_name: build.pipeline.name,
       ci_conclusion: this.mapBuildkiteStateToCIConclusion(build.state),
       ci_status: build.state === 'running' ? 'started' : 'completed',
-      build_url: build.web_url,
+      url: build.web_url,
       buildkite_build_id: build.id,
       buildkite_pipeline_slug: build.pipeline.slug,
       // Add duration information
@@ -1499,7 +1501,7 @@ export class GitHubCollector {
             workflow_name: `${build.pipeline.name} - ${job.name}`,
             ci_conclusion: this.mapBuildkiteJobStateToCIConclusion(job.state),
             ci_status: job.state === 'running' ? 'started' : 'completed',
-            build_url: job.web_url,
+            url: job.web_url,
             buildkite_build_id: build.id,
             buildkite_pipeline_slug: build.pipeline.slug,
             // Add job duration information
