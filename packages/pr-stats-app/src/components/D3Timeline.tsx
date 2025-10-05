@@ -307,6 +307,12 @@ export default function D3Timeline({
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
+    // Create a background group for grid lines (always behind timeline items)
+    const bgGroup = g.append('g').attr('class', 'background-layer');
+
+    // Create a foreground group for timeline items (always in front)
+    const fgGroup = g.append('g').attr('class', 'foreground-layer');
+
     // Calculate initial zoom to fit all events (or zoom range if provided)
     let minEventTime: number;
     let maxEventTime: number;
@@ -435,30 +441,91 @@ export default function D3Timeline({
           }
         );
 
-        // Update existing hour grid lines instead of recreating them
-        const newHourTicks = newXScale.ticks(d3.timeHour.every(6));
-        g.selectAll('.hour-grid-line')
-          .data(newHourTicks)
+        // Calculate the visible time range in milliseconds
+        const domain = newXScale.domain();
+        const visibleTimeRange = domain[1].getTime() - domain[0].getTime();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        const visibleDays = visibleTimeRange / oneDayMs;
+
+        // Only show hour grid lines when zoomed in enough (< 7 days visible)
+        const showHourGridLines = visibleDays < 7;
+
+        // Update hour grid lines with proper data join (in background group)
+        const newHourTicks = showHourGridLines
+          ? newXScale.ticks(d3.timeHour.every(6))
+          : [];
+        const hourGridLines = bgGroup
+          .selectAll('.hour-grid-line')
+          .data(newHourTicks);
+
+        // Remove old lines
+        hourGridLines.exit().remove();
+
+        // Add new lines and update existing ones
+        hourGridLines
+          .enter()
+          .append('line')
+          .attr('class', 'hour-grid-line')
+          .attr('y1', 0)
+          .attr('y2', totalRowHeight)
+          .attr('stroke', colorMode === 'DARK' ? '#222' : '#eee')
+          .attr('stroke-width', 1)
+          .attr('opacity', 0.6)
+          .merge(hourGridLines)
           .attr('x1', d => newXScale(d))
           .attr('x2', d => newXScale(d));
+
+        // Only show day separators if we're showing more than 2 days
+        // At high zoom (less than 2 days visible), hide them to reduce clutter
+        const showDaySeparators = visibleTimeRange > oneDayMs * 2;
 
         // Update day separator lines with new day ticks
-        const newDayTicks = d3.timeDay.range(
-          d3.timeDay.floor(new Date(newXScale.domain()[0])),
-          d3.timeDay.ceil(new Date(newXScale.domain()[1]))
-        );
+        const newDayTicks = showDaySeparators
+          ? d3.timeDay.range(
+              d3.timeDay.floor(new Date(domain[0])),
+              d3.timeDay.ceil(new Date(domain[1]))
+            )
+          : [];
 
-        // Update existing day separators instead of recreating them
-        g.selectAll('.day-separator')
-          .data(newDayTicks)
+        // Update existing day separators (in background group)
+        const daySeps = bgGroup.selectAll('.day-separator').data(newDayTicks);
+
+        // Remove extra separators
+        daySeps.exit().remove();
+
+        // Add new separators
+        daySeps
+          .enter()
+          .append('line')
+          .attr('class', 'day-separator')
+          .attr('y1', -20)
+          .attr('y2', totalRowHeight)
+          .attr('stroke', colorMode === 'DARK' ? '#444' : '#ddd')
+          .attr('stroke-width', 1)
+          .attr('opacity', 0.7)
+          .merge(daySeps)
           .attr('x1', d => newXScale(d))
           .attr('x2', d => newXScale(d));
 
-        // Update day axis
+        // Update day axis with adaptive tick spacing based on zoom level
+        // (visibleDays already calculated above)
+
+        // Filter day ticks to reduce crowding when zoomed out
+        let displayDayTicks = newDayTicks;
+        if (visibleDays > 60) {
+          // Show every 7th day (weekly) when viewing > 60 days
+          displayDayTicks = newDayTicks.filter((d, i) => i % 7 === 0);
+        } else if (visibleDays > 30) {
+          // Show every 3rd day when viewing > 30 days
+          displayDayTicks = newDayTicks.filter((d, i) => i % 3 === 0);
+        } else if (visibleDays > 14) {
+          // Show every other day when viewing > 14 days
+          displayDayTicks = newDayTicks.filter((d, i) => i % 2 === 0);
+        }
 
         const newDayAxis = d3
           .axisTop(newXScale)
-          .tickValues(newDayTicks)
+          .tickValues(displayDayTicks)
           .tickFormat(d3.timeFormat('%a %m/%d') as any)
           .tickSize(5);
 
@@ -469,18 +536,27 @@ export default function D3Timeline({
           .attr('font-size', '12px')
           .attr('font-weight', 'bold');
 
-        // Update hour axis
-        const newHourAxis = d3
-          .axisTop(newXScale)
-          .ticks(d3.timeHour.every(4))
-          .tickFormat(d3.timeFormat('%H:%M') as any)
-          .tickSize(5);
+        // Update hour axis - only show when zoomed in enough (< 7 days visible)
+        const showHourAxis = visibleDays < 7;
 
-        g.select('.hour-axis').call(newHourAxis as any);
-        g.select('.hour-axis')
-          .selectAll('text')
-          .attr('fill', colorMode === 'DARK' ? '#ccc' : '#666')
-          .attr('font-size', '10px');
+        if (showHourAxis) {
+          const newHourAxis = d3
+            .axisTop(newXScale)
+            .ticks(d3.timeHour.every(4))
+            .tickFormat(d3.timeFormat('%H:%M') as any)
+            .tickSize(5);
+
+          g.select('.hour-axis')
+            .style('opacity', 1)
+            .call(newHourAxis as any);
+          g.select('.hour-axis')
+            .selectAll('text')
+            .attr('fill', colorMode === 'DARK' ? '#ccc' : '#666')
+            .attr('font-size', '10px');
+        } else {
+          // Hide hour axis when zoomed out
+          g.select('.hour-axis').style('opacity', 0);
+        }
       });
 
     // Apply zoom behavior to SVG
@@ -508,28 +584,54 @@ export default function D3Timeline({
       .attr('fill', colorMode === 'DARK' ? '#1a1a1a' : '#ffffff')
       .attr('opacity', 0.1);
 
-    // Add subtle hour grid lines
-    const hourTicks = transformedXScale.ticks(d3.timeHour.every(6)); // Every 6 hours
-    g.selectAll('.hour-grid-line')
-      .data(hourTicks)
-      .enter()
-      .append('line')
-      .attr('class', 'hour-grid-line')
-      .attr('x1', d => transformedXScale(d))
-      .attr('x2', d => transformedXScale(d))
-      .attr('y1', 0)
-      .attr('y2', totalRowHeight)
-      .attr('stroke', colorMode === 'DARK' ? '#222' : '#eee')
-      .attr('stroke-width', 1)
-      .attr('opacity', 0.3);
+    // Calculate initial visible time range for adaptive display
+    const initialDomain = transformedXScale.domain();
+    const initialVisibleTimeRange =
+      initialDomain[1].getTime() - initialDomain[0].getTime();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const initialVisibleDays = initialVisibleTimeRange / oneDayMs;
 
-    // Calculate day ticks for day separator lines (needed early for rendering order)
+    // Only show hour grid lines when zoomed in enough (< 7 days visible)
+    const showInitialHourGridLines = initialVisibleDays < 7;
+
+    // Add subtle hour grid lines (in background group) - only if zoomed in enough
+    if (showInitialHourGridLines) {
+      const hourTicks = transformedXScale.ticks(d3.timeHour.every(6)); // Every 6 hours
+      bgGroup
+        .selectAll('.hour-grid-line')
+        .data(hourTicks)
+        .enter()
+        .append('line')
+        .attr('class', 'hour-grid-line')
+        .attr('x1', d => transformedXScale(d))
+        .attr('x2', d => transformedXScale(d))
+        .attr('y1', 0)
+        .attr('y2', totalRowHeight)
+        .attr('stroke', colorMode === 'DARK' ? '#222' : '#eee')
+        .attr('stroke-width', 1)
+        .attr('opacity', 0.6);
+    }
+
+    // Calculate day ticks for day separator lines
     const localStart = new Date(timeDomain[0]);
     const localEnd = new Date(timeDomain[1]);
-    const dayTicks = d3.timeDay.range(
-      d3.timeDay.floor(localStart),
-      d3.timeDay.ceil(localEnd)
-    );
+    const showInitialDaySeparators = initialVisibleTimeRange > oneDayMs * 2;
+
+    let dayTicks = showInitialDaySeparators
+      ? d3.timeDay.range(
+          d3.timeDay.floor(localStart),
+          d3.timeDay.ceil(localEnd)
+        )
+      : [];
+
+    // Filter day separators based on zoom level
+    if (initialVisibleDays > 60) {
+      dayTicks = dayTicks.filter((d, i) => i % 7 === 0);
+    } else if (initialVisibleDays > 30) {
+      dayTicks = dayTicks.filter((d, i) => i % 3 === 0);
+    } else if (initialVisibleDays > 14) {
+      dayTicks = dayTicks.filter((d, i) => i % 2 === 0);
+    }
 
     // Calculate y positions for items
     const getItemY = (item: ProcessedTimelineItem) => {
@@ -581,8 +683,9 @@ export default function D3Timeline({
       return activeGroups.includes(d.group);
     };
 
-    // Add day separator lines (extend through timeline) - after dayTicks is defined, before timeline items
-    g.selectAll('.day-separator')
+    // Add day separator lines (extend through timeline) - in background group
+    bgGroup
+      .selectAll('.day-separator')
       .data(dayTicks)
       .enter()
       .append('line')
@@ -595,8 +698,8 @@ export default function D3Timeline({
       .attr('stroke-width', 1)
       .attr('opacity', 0.7);
 
-    // Create grouped rectangles with text labels for duration events
-    const rectGroups = g
+    // Create grouped rectangles with text labels for duration events (in foreground group)
+    const rectGroups = fgGroup
       .selectAll<SVGGElement, ProcessedTimelineItem>('.timeline-rect-group')
       .data(processedData.filter(d => !d.isPointInTime))
       .enter()
@@ -663,8 +766,8 @@ export default function D3Timeline({
           : displayText;
       });
 
-    // Create grouped point-in-time markers (circle + emoji)
-    const pointGroups = g
+    // Create grouped point-in-time markers (circle + emoji) (in foreground group)
+    const pointGroups = fgGroup
       .selectAll<SVGGElement, ProcessedTimelineItem>('.timeline-point-group')
       .data(processedData.filter(d => d.isPointInTime))
       .enter()
@@ -784,11 +887,21 @@ export default function D3Timeline({
     addEventHandlers(rectGroups);
     addEventHandlers(pointGroups);
 
-    // Add dual-level time axis
+    // Add dual-level time axis with adaptive display
+
+    // Filter day ticks for axis labels based on zoom level
+    let displayDayTicks = dayTicks;
+    if (initialVisibleDays > 60) {
+      displayDayTicks = dayTicks.filter((d, i) => i % 7 === 0);
+    } else if (initialVisibleDays > 30) {
+      displayDayTicks = dayTicks.filter((d, i) => i % 3 === 0);
+    } else if (initialVisibleDays > 14) {
+      displayDayTicks = dayTicks.filter((d, i) => i % 2 === 0);
+    }
 
     const dayAxis = d3
       .axisTop(transformedXScale)
-      .tickValues(dayTicks)
+      .tickValues(displayDayTicks)
       .tickFormat(d3.timeFormat('%a %m/%d') as any)
       .tickSize(5);
 
@@ -813,31 +926,41 @@ export default function D3Timeline({
       .attr('stroke', colorMode === 'DARK' ? '#666' : '#999')
       .attr('opacity', 0);
 
-    // Top axis - Hours/Time (underneath day axis)
-    const hourAxis = d3
-      .axisTop(transformedXScale)
-      .ticks(d3.timeHour.every(4)) // Every 4 hours
-      .tickFormat(d3.timeFormat('%H:%M') as any)
-      .tickSize(5);
+    // Top axis - Hours/Time (underneath day axis) - only show when zoomed in
+    const showInitialHourAxis = initialVisibleDays < 7;
 
-    const hourAxisGroup = g
-      .append('g')
-      .attr('class', 'hour-axis')
-      .attr('transform', `translate(0, -5)`)
-      .call(hourAxis as any);
+    if (showInitialHourAxis) {
+      const hourAxis = d3
+        .axisTop(transformedXScale)
+        .ticks(d3.timeHour.every(4)) // Every 4 hours
+        .tickFormat(d3.timeFormat('%H:%M') as any)
+        .tickSize(5);
 
-    hourAxisGroup
-      .selectAll('text')
-      .attr('fill', colorMode === 'DARK' ? '#ccc' : '#666')
-      .attr('font-size', '10px');
+      const hourAxisGroup = g
+        .append('g')
+        .attr('class', 'hour-axis')
+        .attr('transform', `translate(0, -5)`)
+        .call(hourAxis as any);
 
-    hourAxisGroup
-      .selectAll('line')
-      .attr('stroke', colorMode === 'DARK' ? '#555' : '#aaa');
+      hourAxisGroup
+        .selectAll('text')
+        .attr('fill', colorMode === 'DARK' ? '#ccc' : '#666')
+        .attr('font-size', '10px');
 
-    hourAxisGroup
-      .select('.domain')
-      .attr('stroke', colorMode === 'DARK' ? '#555' : '#aaa');
+      hourAxisGroup
+        .selectAll('line')
+        .attr('stroke', colorMode === 'DARK' ? '#555' : '#aaa');
+
+      hourAxisGroup
+        .select('.domain')
+        .attr('stroke', colorMode === 'DARK' ? '#555' : '#aaa');
+    } else {
+      // Create empty hour axis group for zoom handler to update
+      g.append('g')
+        .attr('class', 'hour-axis')
+        .attr('transform', `translate(0, -5)`)
+        .style('opacity', 0);
+    }
 
     // Add group labels and separators (rendered last to appear on top)
     let currentY = 0;
