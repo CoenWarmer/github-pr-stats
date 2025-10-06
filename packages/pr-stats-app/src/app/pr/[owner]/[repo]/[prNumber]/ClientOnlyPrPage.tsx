@@ -489,7 +489,7 @@ export default function ClientOnlyPrPage() {
                   </EuiFlexItem>
                   <EuiFlexItem grow={false}>
                     <EuiBadge
-                      color={issue.state === 'open' ? 'success' : 'default'}
+                      color={issue.state === 'closed' ? 'success' : 'default'}
                     >
                       {issue.state.toUpperCase()}
                     </EuiBadge>
@@ -499,6 +499,7 @@ export default function ClientOnlyPrPage() {
 
               {issue.labels.length > 0 && (
                 <EuiFlexItem>
+                  <EuiSpacer size="s" />
                   <EuiFlexGroup gutterSize="xs" wrap>
                     {issue.labels.map(label => (
                       <EuiFlexItem key={label} grow={false}>

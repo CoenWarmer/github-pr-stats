@@ -358,11 +358,14 @@ function getEventGroupForCodeOwners(
  * Transforms PR timeline events into dnd-timeline format
  */
 export function transformToTimelineData(pr: PullRequestStats): TimelineData {
-  // Use requested teams as the primary source of code owner teams
-  const requestedTeams = pr.reviews.requested_teams || [];
+  // Use pr.codeowners as the primary source of code owner teams
+  const codeOwnerTeams = pr.codeowners?.teams || [];
 
-  // Also extract teams from actual reviews (in case there are teams not in requested_teams)
+  // Also extract teams from actual reviews (in case there are teams not in codeowners)
   const reviewerTeams = extractCodeOwners(pr);
+
+  // Extract teams from requested_teams
+  const requestedTeams = pr.reviews.requested_teams || [];
 
   // Extract teams from team review request events in timeline
   const timelineRequestedTeams = pr.timeline
@@ -373,8 +376,9 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
   // Combine all sources and deduplicate
   const allCodeOwnerTeams = [
     ...new Set([
-      ...requestedTeams,
+      ...codeOwnerTeams,
       ...reviewerTeams,
+      ...requestedTeams,
       ...timelineRequestedTeams,
     ]),
   ].sort();
