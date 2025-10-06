@@ -115,7 +115,7 @@ export class GitHubCollector {
 
     // Fetch related data in parallel
     const [userTeams, codeowners, linkedIssues] = await Promise.all([
-      this.reviewService.getUserTeams(pr.user?.login || '', owner, repo),
+      this.reviewService.getUserTeams(pr.user?.login || '', owner),
       this.codeownersService.getCodeOwnersForPR(owner, repo, prNumber),
       this.issuesService.getLinkedIssues(
         owner,
@@ -167,33 +167,13 @@ export class GitHubCollector {
 
     sendProgress('Calculating review timings', 50, 100);
 
-    // Extract team review requests from timeline
-    const teamReviewRequests = prTimelineEvents
-      .filter(
-        event =>
-          event.event === 'review_requested' &&
-          'requested_team' in event &&
-          event.requested_team
-      )
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((event: any) => event.requested_team?.slug)
-      .filter((team): team is string => Boolean(team));
-
-    const allRequestedTeams = [
-      ...new Set([
-        ...(pr.requested_teams?.map(team => team.slug) || []),
-        ...teamReviewRequests,
-      ]),
-    ];
-
     const reviewTimings = await this.reviewService.getReviewTimings(
       owner,
       repo,
       prNumber,
       pr.created_at,
       userTeams,
-      allRequestedTeams,
-      []
+      codeowners.teams.map(team => team)
     );
 
     sendProgress('Building timeline', 70, 100);
@@ -216,13 +196,7 @@ export class GitHubCollector {
     sendProgress('Calculating metrics', 85, 100);
 
     // Calculate all metrics from timeline
-    const metrics = this.calculateMetrics(
-      timeline,
-      pr,
-      userTeams,
-      codeowners.teams,
-      linkedIssues
-    );
+    const metrics = calculateMetricsFromTimeline(timeline, pr, linkedIssues);
 
     sendProgress('Finalizing data', 95, 100);
 
@@ -280,25 +254,6 @@ export class GitHubCollector {
     sendProgress('Complete', 100, 100);
 
     return prStats;
-  }
-
-  /**
-   * Calculate all metrics from timeline events
-   */
-  private calculateMetrics(
-    timeline: TimelineEvent[],
-    pr: any,
-    userTeams: string[],
-    codeownerTeams: string[],
-    linkedIssues: LinkedIssue[]
-  ) {
-    return calculateMetricsFromTimeline(
-      timeline,
-      pr,
-      userTeams,
-      codeownerTeams,
-      linkedIssues
-    );
   }
 
   async buildPRTimeline(

@@ -458,7 +458,6 @@ export interface PullRequestStats {
     complexity?: number;
     delivery_friction?: number;
     total_team_review_time_ms?: number;
-    author_codeowner_relationship?: 'same-team' | 'cross-team' | null;
   };
 }
 
@@ -467,9 +466,13 @@ export interface ReviewTiming {
   submitted_at: string;
   time_to_review_hours: number;
   state: string;
-  author_teams: string[];
   reviewer_teams: string[];
-  author_reviewer_relationship: string;
+  author_reviewer_relationship:
+    | 'same-team'
+    | 'intra-team'
+    | 'intra-department'
+    | 'cross-department'
+    | 'additional-reviewer';
   time_to_new_commits_pushed?: number;
   time_to_author_response?: number;
   url?: string;

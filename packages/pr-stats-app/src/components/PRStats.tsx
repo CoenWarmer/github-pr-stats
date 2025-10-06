@@ -107,8 +107,9 @@ export default function PRStats({
   const isComplete = pr.closed_at || pr.merged_at;
 
   // Use pre-calculated author-codeowner relationship from backend
-  const authorCodeownerRelationship =
-    pr.metrics?.author_codeowner_relationship ?? null;
+  const authorCodeownerRelationships = pr.reviews.review_timings.map(
+    timing => timing.author_reviewer_relationship
+  );
 
   return (
     <div>
@@ -216,7 +217,7 @@ export default function PRStats({
 
           <EuiFlexItem>
             <ApprovalDirectionStat
-              authorCodeownerRelationship={authorCodeownerRelationship ?? ''}
+              authorCodeownerRelationships={authorCodeownerRelationships ?? []}
             />
           </EuiFlexItem>
 

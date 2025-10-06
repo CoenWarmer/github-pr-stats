@@ -321,6 +321,7 @@ function getEventGroupForCodeOwners(
 ): string {
   // Handle review events
   if (eventType === 'review' && event.reviewer) {
+    console.log('event', event);
     // If reviewer is part of code owner teams, route to specific team row
     if (event.reviewer_teams && event.reviewer_teams.length > 0) {
       // Use the first team (or we could implement more sophisticated logic)
@@ -360,12 +361,6 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
   // Use pr.codeowners as the primary source of code owner teams
   const codeOwnerTeams = pr.codeowners?.teams || [];
 
-  // Also extract teams from actual reviews (in case there are teams not in codeowners)
-  const reviewerTeams = extractCodeOwners(pr);
-
-  // Extract teams from requested_teams
-  const requestedTeams = pr.reviews.requested_teams || [];
-
   // Extract teams from team review request events in timeline
   const timelineRequestedTeams = pr.timeline
     .filter(event => event.type === 'team_review_requested')
@@ -374,12 +369,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
 
   // Combine all sources and deduplicate
   const allCodeOwnerTeams = [
-    ...new Set([
-      ...codeOwnerTeams,
-      ...reviewerTeams,
-      ...requestedTeams,
-      ...timelineRequestedTeams,
-    ]),
+    ...new Set([...codeOwnerTeams, ...timelineRequestedTeams]),
   ].sort();
 
   const codeOwners = allCodeOwnerTeams;

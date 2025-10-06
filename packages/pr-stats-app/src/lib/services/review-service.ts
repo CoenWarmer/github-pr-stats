@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { ReviewTiming, TimelineEvent } from '../types';
+import { ReviewTiming } from '../types';
 import { logger } from '../logger';
 
 /**
@@ -21,8 +21,7 @@ export class ReviewService {
     prNumber: number,
     prCreatedAt: string,
     authorTeams: string[],
-    requestedTeams: string[] = [],
-    timelineEvents: TimelineEvent[] = []
+    codeOwnerTeams: string[] = []
   ): Promise<ReviewTiming[]> {
     try {
       const { data: reviews } = await this.octokit.rest.pulls.listReviews({
@@ -45,40 +44,53 @@ export class ReviewService {
           (submittedDate.getTime() - prCreatedDate.getTime()) /
           (1000 * 60 * 60);
 
-        // Extract all teams that were ever requested from timeline events
-        const allRequestedTeams = [
-          ...new Set([
-            ...requestedTeams,
-            ...timelineEvents
-              .filter(e => e.type === 'team_review_requested')
-              .map(e => e.requested_team)
-              .filter((team): team is string => Boolean(team)),
-          ]),
-        ];
-
-        // Get reviewer teams
-        const reviewerTeams = await this.getReviewerTeams(
+        const allReviewerTeams = await this.getUserTeams(
           review.user.login,
-          owner,
-          allRequestedTeams
+          owner
+        );
+
+        // Filter to only include teams that are code owners for this PR
+        const reviewerTeams = allReviewerTeams.filter(team =>
+          codeOwnerTeams.includes(team)
         );
 
         const reviewUrl = `https://github.com/${owner}/${repo}/pull/${prNumber}#pullrequestreview-${review.id}`;
 
-        reviewTimings.push({
-          state: review.state,
-          reviewer: review.user.login,
-          submitted_at: review.submitted_at,
-          time_to_review_hours: Math.round(timeToReviewHours * 100) / 100,
-          author_teams: authorTeams,
-          reviewer_teams: reviewerTeams,
-          author_reviewer_relationship: 'cross-department',
-          url: reviewUrl,
-          review_id: review.id,
-          body: review.body || undefined,
-        });
-
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // If reviewer is in multiple code owner teams, create a separate entry for each team
+        if (reviewerTeams.length > 0) {
+          for (const team of reviewerTeams) {
+            reviewTimings.push({
+              state: review.state,
+              reviewer: review.user.login,
+              submitted_at: review.submitted_at,
+              time_to_review_hours: Math.round(timeToReviewHours * 100) / 100,
+              reviewer_teams: [team],
+              author_reviewer_relationship: this.getAuthorReviewerRelationship(
+                authorTeams,
+                team
+              ),
+              url: reviewUrl,
+              review_id: review.id,
+              body: review.body || undefined,
+            });
+          }
+        } else {
+          // If reviewer is not in any teams, create a single entry with empty teams
+          reviewTimings.push({
+            state: review.state,
+            reviewer: review.user.login,
+            submitted_at: review.submitted_at,
+            time_to_review_hours: Math.round(timeToReviewHours * 100) / 100,
+            reviewer_teams: ['additional-reviewers'],
+            author_reviewer_relationship: this.getAuthorReviewerRelationship(
+              authorTeams,
+              'additional-reviewers'
+            ),
+            url: reviewUrl,
+            review_id: review.id,
+            body: review.body || undefined,
+          });
+        }
       }
 
       return reviewTimings;
@@ -90,66 +102,87 @@ export class ReviewService {
     }
   }
 
-  /**
-   * Get teams for a user
-   */
-  async getUserTeams(
-    username: string,
-    org: string,
-    repo: string
-  ): Promise<string[]> {
-    try {
-      const repoTeams = await this.octokit.paginate(
-        'GET /repos/{owner}/{repo}/teams',
-        { owner: org, repo }
-      );
-
-      const userTeams: string[] = [];
-      for (const team of repoTeams) {
-        try {
-          await this.octokit.rest.teams.getMembershipForUserInOrg({
-            org,
-            team_slug: team.slug,
-            username,
-          });
-          userTeams.push(team.slug);
-        } catch {
-          // User not in this team
-        }
-      }
-
-      return userTeams;
-    } catch (error) {
-      logger.warn('Could not fetch user teams', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return [];
+  getAuthorReviewerRelationship(
+    authorTeams: string[],
+    reviewerTeam: string
+  ): string {
+    if (authorTeams.includes(reviewerTeam)) {
+      return 'same-team';
     }
+
+    if (reviewerTeam === 'additional-reviewers') {
+      return 'additional-reviewer';
+    }
+
+    // Check for intra-department: teams share a common prefix (e.g., "obs-", "security-")
+    // Extract department prefix from reviewer team (everything before the second hyphen)
+    const reviewerDeptMatch = reviewerTeam.match(
+      /^([a-z0-9]+(?:-[a-z0-9]+)?)-/
+    );
+    if (reviewerDeptMatch) {
+      const reviewerDept = reviewerDeptMatch[1];
+
+      // Check if any author team starts with the same department prefix
+      const hasCommonDepartment = authorTeams.some(authorTeam => {
+        const authorDeptMatch = authorTeam.match(
+          /^([a-z0-9]+(?:-[a-z0-9]+)?)-/
+        );
+        return authorDeptMatch && authorDeptMatch[1] === reviewerDept;
+      });
+
+      if (hasCommonDepartment) {
+        return 'intra-department';
+      }
+    }
+
+    return 'cross-department';
   }
 
   /**
-   * Get reviewer teams based on requested teams
+   * Get teams for a user
    */
-  async getReviewerTeams(
-    reviewer: string,
-    owner: string,
-    requestedTeams: string[]
-  ): Promise<string[]> {
-    const reviewerTeams: string[] = [];
-
-    for (const teamSlug of requestedTeams) {
-      try {
-        await this.octokit.rest.teams.getMembershipForUserInOrg({
-          org: owner,
-          team_slug: teamSlug,
-          username: reviewer,
-        });
-        reviewerTeams.push(teamSlug);
-      } catch {
-        // User not in this team
+  async getUserTeams(username: string, org: string): Promise<string[]> {
+    const query = `
+    query($org: String!, $username: String!, $cursor: String) {
+      organization(login: $org) {
+        teams(first: 100, after: $cursor, userLogins: [$username]) {
+          nodes {
+            name
+            slug
+            description
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
       }
     }
+  `;
 
-    return reviewerTeams;
+    const allTeams = [];
+    let hasNextPage = true;
+    let cursor = null;
+
+    while (hasNextPage) {
+      const result = (await this.octokit.graphql(query, {
+        org,
+        username,
+        cursor: cursor,
+      })) as {
+        organization: {
+          teams: {
+            nodes: { name: string; slug: string; description: string }[];
+            pageInfo: { hasNextPage: boolean; endCursor: string };
+          };
+        };
+      };
+
+      allTeams.push(...result.organization.teams.nodes);
+      hasNextPage = result.organization.teams.pageInfo.hasNextPage;
+      cursor = result.organization.teams.pageInfo.endCursor;
+    }
+
+    return allTeams.map(team => team.slug);
   }
 }

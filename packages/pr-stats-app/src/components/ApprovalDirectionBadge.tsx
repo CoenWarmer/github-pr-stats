@@ -6,7 +6,7 @@ export function ApprovalDirectionBadge({
   authorCodeownerRelationship: string;
 }) {
   const labelMap = {
-    'same-team': 'Same Team as Code Owners',
+    'same-team': 'Within Team',
     'cross-team': 'Cross Team',
     'cross-department': 'Cross Department',
     'intra-team': 'Intra Team',

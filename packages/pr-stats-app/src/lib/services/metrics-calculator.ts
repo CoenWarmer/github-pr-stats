@@ -16,7 +16,6 @@ export interface PRMetrics {
   };
   runStartTime: string;
   runEndTime: string;
-  authorCodeownerRelationship: 'same-team' | 'cross-team' | null;
   complexity: number;
   deliveryFriction: number;
 }
@@ -27,8 +26,6 @@ export interface PRMetrics {
 export function calculateMetricsFromTimeline(
   timeline: TimelineEvent[],
   pr: PullRequestStats,
-  userTeams: string[],
-  codeownerTeams: string[],
   linkedIssues: LinkedIssue[]
 ): PRMetrics {
   // Calculate back-and-forth interactions
@@ -158,13 +155,6 @@ export function calculateMetricsFromTimeline(
     runEndTime = prEndDate ? prEndDate : new Date().toISOString();
   }
 
-  // Calculate author-codeowner relationship
-  let authorCodeownerRelationship: 'same-team' | 'cross-team' | null = null;
-  if (userTeams.length > 0 && codeownerTeams.length > 0) {
-    const hasCommonTeam = userTeams.some(team => codeownerTeams.includes(team));
-    authorCodeownerRelationship = hasCommonTeam ? 'same-team' : 'cross-team';
-  }
-
   // Build temp PR stats for complexity calculation
   const tempPRStats = {
     additions: pr.additions || 0,
@@ -173,7 +163,7 @@ export function calculateMetricsFromTimeline(
     commits: commitCount,
     reviews: {
       review_comments: reviewCommentsCount,
-      requested_teams: pr.codeowners?.teams?.map((t: any) => t.slug) || [],
+      requested_teams: pr.codeowners?.teams || [],
     },
     metrics: {
       turnaround_time_hours: pr.closed_at
@@ -214,7 +204,6 @@ export function calculateMetricsFromTimeline(
     buildStats,
     runStartTime,
     runEndTime,
-    authorCodeownerRelationship,
     complexity,
     deliveryFriction,
   };
