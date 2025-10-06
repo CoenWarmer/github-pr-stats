@@ -1,0 +1,184 @@
+import * as d3 from 'd3';
+import { ProcessedTimelineItem } from '../types';
+import { ONE_DAY_MS, TIMELINE_CONFIG } from '../constants';
+import { calculateVisibility, filterDayTicks } from './zoomUtils';
+import { computeNudges } from './dataProcessing';
+import { getItemY } from './items';
+
+/**
+ * Create zoom behavior with appropriate constraints
+ */
+export function createZoomBehavior(
+  xScale: d3.ScaleTime<number, number>,
+  timeDomain: [number, number],
+  innerWidth: number,
+  totalRowHeight: number,
+  minScale: number,
+  g: d3.Selection<SVGGElement, unknown, null, undefined>,
+  bgGroup: d3.Selection<SVGGElement, unknown, null, undefined>,
+  processedData: ProcessedTimelineItem[],
+  rowHeights: number[],
+  isDimmedRef: React.MutableRefObject<boolean>,
+  colorMode: 'LIGHT' | 'DARK'
+): d3.ZoomBehavior<SVGSVGElement, unknown> {
+  let nudgeById = new Map<string, number>();
+
+  return d3
+    .zoom<SVGSVGElement, unknown>()
+    .scaleExtent([minScale * 0.9, 100])
+    .extent([
+      [0, 0],
+      [innerWidth, totalRowHeight],
+    ])
+    .translateExtent([
+      [xScale(timeDomain[0]), 0],
+      [xScale(timeDomain[1]), totalRowHeight],
+    ])
+    .on('start', event => {
+      // Reset opacity when user starts interacting
+      if (isDimmedRef.current && event.sourceEvent) {
+        isDimmedRef.current = false;
+        // Reset all items to full opacity
+        g.selectAll('.timeline-rect').attr('opacity', 0.9);
+        g.selectAll('.timeline-circle').attr('opacity', 0.9);
+      }
+    })
+    .on('zoom', event => {
+      const { transform } = event;
+
+      // Update x scale with zoom transform
+      const newXScale = transform.rescaleX(xScale);
+
+      // Update timeline items
+      g.selectAll<SVGElement, ProcessedTimelineItem>('.timeline-item').each(
+        function (d) {
+          const element = d3.select(this);
+          if (d.isPointInTime) {
+            // Recompute nudges at current zoom
+            nudgeById = computeNudges(
+              newXScale,
+              processedData,
+              TIMELINE_CONFIG.minPixelGap
+            );
+            // Move grouped point marker via transform
+            const circleHeight = TIMELINE_CONFIG.pointRadius * 2;
+            element.attr(
+              'transform',
+              `translate(${newXScale(d.startTime) + (nudgeById.get(d.id) || 0)}, ${getItemY(d, rowHeights, TIMELINE_CONFIG.levelHeight, circleHeight) + TIMELINE_CONFIG.pointRadius})`
+            );
+          } else {
+            // Update grouped rectangles
+            element
+              .select('rect')
+              .attr('x', newXScale(d.startTime))
+              .attr('width', d =>
+                Math.max(2, newXScale(d.endTime) - newXScale(d.startTime))
+              );
+            // Update text labels
+            element.select('text').attr('x', newXScale(d.endTime) + 20);
+          }
+        }
+      );
+
+      // Calculate visibility settings
+      const domain = newXScale.domain();
+      const visibleTimeRange = domain[1].getTime() - domain[0].getTime();
+      const visibleDays = visibleTimeRange / ONE_DAY_MS;
+      const visibility = calculateVisibility(visibleDays);
+
+      // Update hour grid lines
+      const newHourTicks = visibility.showHourGridLines
+        ? newXScale.ticks(d3.timeHour.every(6))
+        : [];
+      const hourGridLines = bgGroup
+        .selectAll('.hour-grid-line')
+        .data(newHourTicks);
+
+      hourGridLines.exit().remove();
+
+      hourGridLines
+        .enter()
+        .append('line')
+        .attr('class', 'hour-grid-line')
+        .attr('y1', 0)
+        .attr('y2', totalRowHeight)
+        .attr('stroke', colorMode === 'DARK' ? '#222' : '#eee')
+        .attr('stroke-width', 1)
+        .attr('opacity', 0.6)
+        .merge(hourGridLines)
+        .attr('x1', d => newXScale(d))
+        .attr('x2', d => newXScale(d));
+
+      // Update day separators
+      const allNewDayTicks = d3.timeDay.range(
+        d3.timeDay.floor(new Date(timeDomain[0])),
+        d3.timeDay.ceil(new Date(timeDomain[1]))
+      );
+
+      const filteredDayTicks = filterDayTicks(allNewDayTicks, visibleDays);
+
+      const newDayTicks = filteredDayTicks.filter(
+        d =>
+          d.getTime() >= domain[0].getTime() &&
+          d.getTime() <= domain[1].getTime()
+      );
+
+      const daySeps = bgGroup
+        .selectAll('.day-separator')
+        .data(visibility.showDaySeparators ? newDayTicks : []);
+
+      daySeps.exit().remove();
+
+      daySeps
+        .enter()
+        .append('line')
+        .attr('class', 'day-separator')
+        .attr('y1', -20)
+        .attr('y2', totalRowHeight)
+        .attr('stroke', colorMode === 'DARK' ? '#444' : '#ddd')
+        .attr('stroke-width', 1)
+        .attr('opacity', 0.7)
+        .merge(daySeps)
+        .attr('x1', d => newXScale(d))
+        .attr('x2', d => newXScale(d));
+
+      // Update axes
+      const newDayAxis = d3
+        .axisTop(newXScale)
+        .tickValues(newDayTicks)
+        .tickFormat(
+          d3.timeFormat('%a %m/%d') as (date: Date | d3.NumberValue) => string
+        )
+        .tickSize(5);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      g.select('.day-axis').call(newDayAxis as any);
+      g.select('.day-axis')
+        .selectAll('text')
+        .attr('fill', colorMode === 'DARK' ? '#fff' : '#000')
+        .attr('font-size', '12px')
+        .attr('font-weight', 'bold');
+
+      // Update hour axis
+      if (visibility.showHourAxis) {
+        const newHourAxis = d3
+          .axisTop(newXScale)
+          .ticks(d3.timeHour.every(4))
+          .tickFormat(
+            d3.timeFormat('%H:%M') as (date: Date | d3.NumberValue) => string
+          )
+          .tickSize(5);
+
+        g.select('.hour-axis')
+          .style('opacity', 1)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .call(newHourAxis as any);
+        g.select('.hour-axis')
+          .selectAll('text')
+          .attr('fill', colorMode === 'DARK' ? '#ccc' : '#666')
+          .attr('font-size', '10px');
+      } else {
+        g.select('.hour-axis').style('opacity', 0);
+      }
+    });
+}

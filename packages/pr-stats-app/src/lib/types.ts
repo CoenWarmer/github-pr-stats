@@ -406,31 +406,55 @@ export interface LinkedIssue {
 }
 
 export interface PullRequestStats {
-  additions: number;
-  author: string;
-  back_and_forth_count: number;
-  changed_files: number;
-  closed_at: string | null;
-  codeowners?: { teams: string[]; individuals: string[] };
-  comments: number;
-  commits: number;
+  id: string | number;
+  title: string;
+  url: string;
   created_at: string;
-  deletions: number;
+  updated_at: string;
+  merged_at: string | null;
+  author: string;
+  author_teams: string[];
+  state: string;
   draft?: boolean;
+  linked_issues?: LinkedIssue[];
+  commits: number;
+  additions: number;
+  deletions: number;
+  changed_files: number;
+  codeowners?: { teams: string[]; individuals: string[] };
+  closed_at: string | null;
   headSha: string;
   mergeCommitSha?: string | null;
-  id: string | number;
-  linked_issues?: LinkedIssue[];
-  merged_at: string | null;
-  requested_teams?: string[];
-  review_comments: number;
-  review_timings: ReviewTiming[];
-  state: string;
+
   timeline: TimelineEvent[];
-  title: string;
-  turnaround_time_hours: number;
-  updated_at: string;
-  url: string;
+
+  // Review fields
+  reviews: {
+    comments: number;
+    back_and_forth_count: number;
+    requested_teams?: string[];
+    review_comments: number;
+    review_timings: ReviewTiming[];
+  };
+
+  build_stats: {
+    total_builds?: number;
+    completed_builds?: number;
+    failed_builds?: number;
+    successful_builds?: number;
+    total_build_time_ms?: number;
+  };
+
+  // Calculated metrics
+  metrics: {
+    run_start_time?: string;
+    run_end_time?: string;
+    turnaround_time_hours: number;
+    complexity?: number;
+    delivery_friction?: number;
+    total_team_review_time_ms?: number;
+    author_codeowner_relationship?: 'same-team' | 'cross-team' | null;
+  };
 }
 
 export interface ReviewTiming {
@@ -472,6 +496,7 @@ export interface TimelineItem {
   commentContent?: string;
   commentAuthor?: string;
   reviewBody?: string; // Review comment/body for review events
+  eventType?: TimelineEvent['type']; // Original event type from TimelineEvent
 }
 
 export interface TimelineData {

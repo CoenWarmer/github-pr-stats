@@ -103,8 +103,9 @@ export default function ClientOnlyPrPage() {
 
         // No cache or force refresh - use SSE for progress updates
         setProgressStep('Starting data collection...');
+        const forceParam = forceRefresh ? '&force=true' : '';
         const eventSource = new EventSource(
-          `/api/pr-progress/${params.owner}/${params.repo}/${params.prNumber}`
+          `/api/pr/${params.owner}/${params.repo}/${params.prNumber}?stream=true${forceParam}`
         );
 
         eventSource.onmessage = event => {
@@ -115,26 +116,13 @@ export default function ClientOnlyPrPage() {
               throw new Error(data.error);
             }
 
-            if (data.complete) {
-              // Progress complete, now fetch the final data
+            if (data.complete && data.data) {
+              // SSE complete with data included
               eventSource.close();
-              fetch(`/api/pr/${params.owner}/${params.repo}/${params.prNumber}`)
-                .then(res => res.json())
-                .then((result: ApiResponse<PullRequestStats>) => {
-                  if (result.data) {
-                    setPrStats(result.data);
-                  }
-                  setLoading(false);
-                  setProgressPercent(100);
-                  setProgressStep('Complete');
-                })
-                .catch(err => {
-                  console.error('Error fetching final data:', err);
-                  setError(
-                    err instanceof Error ? err.message : 'Unknown error'
-                  );
-                  setLoading(false);
-                });
+              setPrStats(data.data);
+              setLoading(false);
+              setProgressPercent(100);
+              setProgressStep('Complete');
             } else if (data.step) {
               setProgressStep(data.step);
               setProgressPercent(data.current);
@@ -166,6 +154,7 @@ export default function ClientOnlyPrPage() {
     const workflows = new Set<string>();
     prStats.timeline.forEach(event => {
       if (
+        'workflow_name' in event &&
         event.workflow_name &&
         (event.type === 'ci_run' || event.type.includes('ci_'))
       ) {
@@ -192,7 +181,9 @@ export default function ClientOnlyPrPage() {
         if (selectedWorkflow === 'all') {
           return true;
         }
-        return event.workflow_name === selectedWorkflow;
+        return (
+          'workflow_name' in event && event.workflow_name === selectedWorkflow
+        );
       }),
     };
 
@@ -207,32 +198,6 @@ export default function ClientOnlyPrPage() {
   useEffect(() => {
     fetchPrData();
   }, [fetchPrData]);
-
-  // Calculate author-codeowner relationship
-  const authorCodeownerRelationship = useMemo(() => {
-    if (!prStats) return null;
-
-    // Check if the author is in any of the code owner teams
-    const codeOwnerTeams = prStats.codeowners?.teams || [];
-    const requestedTeams = prStats.requested_teams || [];
-    const allCodeOwnerTeams = [
-      ...new Set([...codeOwnerTeams, ...requestedTeams]),
-    ];
-
-    // Check review events to see if any reviewer from code owner teams
-    // has the same relationship info
-    const reviewWithRelationship = prStats.timeline.find(
-      event => event.type === 'review' && event.author_reviewer_relationship
-    );
-
-    if (reviewWithRelationship?.author_reviewer_relationship) {
-      return reviewWithRelationship.author_reviewer_relationship;
-    }
-
-    // Fallback: check if author is in code owner teams
-    const isAuthorInCodeOwners = allCodeOwnerTeams.length > 0;
-    return isAuthorInCodeOwners ? 'same-team' : 'cross-team';
-  }, [prStats]);
 
   // Calculate zoom ranges for different views
   const zoomRanges = useMemo(() => {
@@ -482,26 +447,6 @@ export default function ClientOnlyPrPage() {
             </a>
           </>
         }
-        description={
-          authorCodeownerRelationship && (
-            <EuiFlexGroup gutterSize="s" alignItems="center">
-              <EuiFlexItem grow={false}>
-                <EuiText size="s">
-                  <strong>Author:</strong> {prStats?.author}
-                </EuiText>
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                <EuiBadge color="hollow">
-                  {authorCodeownerRelationship === 'same-team'
-                    ? 'Same Team as Code Owners'
-                    : authorCodeownerRelationship === 'cross-team'
-                      ? 'Cross Team'
-                      : authorCodeownerRelationship}
-                </EuiBadge>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-          )
-        }
         rightSideItems={[
           <EuiButtonIcon
             aria-label="Refresh"
@@ -519,7 +464,54 @@ export default function ClientOnlyPrPage() {
             iconType="arrowLeft"
           />,
         ]}
-      />
+      >
+        {prStats?.linked_issues?.map(issue => (
+          <EuiFlexItem key={issue.number} grow={false}>
+            <EuiFlexGroup direction="column" gutterSize="xs">
+              <EuiFlexItem>
+                <EuiFlexGroup gutterSize="s" alignItems="center">
+                  <EuiFlexItem grow={false}>
+                    <EuiText size="s">
+                      <strong>
+                        Linked issue:
+                        <a
+                          href={issue.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          {issue.title} #{issue.number}
+                        </a>{' '}
+                      </strong>{' '}
+                      {issue.assignees.length > 0 &&
+                        issue.assignees.map(assignee => assignee).join(', ')}
+                    </EuiText>
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiBadge
+                      color={issue.state === 'open' ? 'success' : 'default'}
+                    >
+                      {issue.state.toUpperCase()}
+                    </EuiBadge>
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+              </EuiFlexItem>
+
+              {issue.labels.length > 0 && (
+                <EuiFlexItem>
+                  <EuiFlexGroup gutterSize="xs" wrap>
+                    {issue.labels.map(label => (
+                      <EuiFlexItem key={label} grow={false}>
+                        <EuiBadge color="hollow">{label}</EuiBadge>
+                      </EuiFlexItem>
+                    ))}
+                  </EuiFlexGroup>
+                </EuiFlexItem>
+              )}
+            </EuiFlexGroup>
+          </EuiFlexItem>
+        ))}
+      </EuiPageTemplate.Header>
       <EuiPageTemplate.Header>
         {prStats && (
           <PRStats pr={prStats} selectedWorkflow={selectedWorkflow} />
@@ -528,66 +520,8 @@ export default function ClientOnlyPrPage() {
 
       <EuiPageTemplate.Section>
         <EuiFlexGroup direction="row" gutterSize="s" alignItems="center">
-          {prStats?.linked_issues?.map(issue => (
-            <EuiFlexItem key={issue.number} grow={false}>
-              <a
-                href={issue.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ textDecoration: 'none' }}
-              >
-                <EuiPanel
-                  hasBorder
-                  paddingSize="s"
-                  style={{ cursor: 'pointer' }}
-                >
-                  <EuiFlexGroup direction="column" gutterSize="xs">
-                    <EuiFlexItem>
-                      <EuiFlexGroup gutterSize="s" alignItems="center">
-                        <EuiFlexItem grow={false}>
-                          <EuiText size="s">
-                            <strong>#{issue.number}</strong>
-                          </EuiText>
-                        </EuiFlexItem>
-                        <EuiFlexItem grow={false}>
-                          <EuiBadge
-                            color={
-                              issue.state === 'open' ? 'success' : 'default'
-                            }
-                          >
-                            {issue.state.toUpperCase()}
-                          </EuiBadge>
-                        </EuiFlexItem>
-                        {issue.assignees && issue.assignees.length > 0 && (
-                          <EuiFlexItem grow={false}>
-                            <EuiBadge color="hollow">
-                              Assignee: {issue.assignees[0]}
-                            </EuiBadge>
-                          </EuiFlexItem>
-                        )}
-                      </EuiFlexGroup>
-                    </EuiFlexItem>
-                    <EuiFlexItem>
-                      <EuiText size="s">{issue.title}</EuiText>
-                    </EuiFlexItem>
-                    {issue.labels.length > 0 && (
-                      <EuiFlexItem>
-                        <EuiFlexGroup gutterSize="xs" wrap>
-                          {issue.labels.map(label => (
-                            <EuiFlexItem key={label} grow={false}>
-                              <EuiBadge color="hollow">{label}</EuiBadge>
-                            </EuiFlexItem>
-                          ))}
-                        </EuiFlexGroup>
-                      </EuiFlexItem>
-                    )}
-                  </EuiFlexGroup>
-                </EuiPanel>
-              </a>
-            </EuiFlexItem>
-          ))}
-          <EuiFlexItem grow={false}>
-            <EuiFormRow label="Filter CI/CD Workflows" display="rowCompressed">
+          <EuiFlexItem grow>
+            <EuiFormRow label="Filter CI/CD Workflows" display="row">
               <EuiSelect
                 options={[
                   { value: 'all', text: 'All Workflows' },
@@ -602,8 +536,8 @@ export default function ClientOnlyPrPage() {
               />
             </EuiFormRow>
           </EuiFlexItem>
-          <EuiFlexItem grow={false}>
-            <EuiFormRow label="Zoom to Phase" display="rowCompressed">
+          <EuiFlexItem>
+            <EuiFormRow label="Zoom to Phase" display="row" fullWidth>
               <EuiButtonGroup
                 legend="Timeline zoom options"
                 options={[

@@ -359,7 +359,7 @@ function getEventGroupForCodeOwners(
  */
 export function transformToTimelineData(pr: PullRequestStats): TimelineData {
   // Use requested teams as the primary source of code owner teams
-  const requestedTeams = pr.requested_teams || [];
+  const requestedTeams = pr.reviews.requested_teams || [];
 
   // Also extract teams from actual reviews (in case there are teams not in requested_teams)
   const reviewerTeams = extractCodeOwners(pr);
@@ -429,6 +429,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         url: event.url,
         color: createEventColor(event),
         isPointInTime: !event.end_date, // Track if this was originally a point-in-time event
+        eventType: event.type, // Store the original event type
       };
 
       if (
@@ -499,6 +500,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         className: 'team-review-duration',
         color: 'hollow', // Use a subtle color
         isPointInTime: false,
+        eventType: 'team_review_requested', // Synthetic event based on team_review_requested
       });
     }
   }

@@ -19,6 +19,106 @@ export function formatDurationBetweenDates(
 }
 
 /**
+ * Calculate PR complexity score based on multiple dimensions
+ *
+ * Formula:
+ * PR_Complexity =
+ *   0.3 * log(1 + LOC_added + LOC_deleted) +
+ *   0.25 * log(1 + num_files_changed) +
+ *   0.25 * (num_code_owners_involved / num_files_changed) +
+ *   0.2 * log(1 + num_review_comments)
+ *
+ * @param pr PullRequestStats object
+ * @returns Complexity score (typically 0-10 range)
+ */
+export function calculatePRComplexity(pr: {
+  additions: number;
+  deletions: number;
+  changed_files: number;
+  reviews: {
+    review_comments: number;
+    requested_teams?: string[];
+  };
+  codeowners?: { teams: string[]; individuals: string[] };
+}): number {
+  // Lines of code changed (additions + deletions)
+  const locChanged = pr.additions + pr.deletions;
+
+  // Number of files changed
+  const filesChanged = pr.changed_files;
+
+  // Number of code owners involved (teams + individuals)
+  const codeOwnersTeams = pr.codeowners?.teams?.length || 0;
+  const codeOwnersIndividuals = pr.codeowners?.individuals?.length || 0;
+  const requestedTeams = pr.reviews.requested_teams?.length || 0;
+  const numCodeOwners = Math.max(
+    codeOwnersTeams + codeOwnersIndividuals,
+    requestedTeams
+  );
+
+  // Number of review comments
+  const reviewComments = pr.reviews.review_comments;
+
+  // Calculate weighted components using natural logarithm
+  const locComponent = 0.3 * Math.log(1 + locChanged);
+  const filesComponent = 0.25 * Math.log(1 + filesChanged);
+  const ownersComponent =
+    filesChanged > 0 ? 0.25 * (numCodeOwners / filesChanged) : 0;
+  const commentsComponent = 0.2 * Math.log(1 + reviewComments);
+
+  // Sum all components
+  const complexity =
+    locComponent + filesComponent + ownersComponent + commentsComponent;
+
+  return complexity;
+}
+
+/**
+ * Format PR complexity score with descriptive label
+ * @param complexity Complexity score
+ * @returns Object with formatted value, label, and color
+ */
+export function formatPRComplexity(complexity: number): {
+  value: string;
+  label: string;
+  color: string;
+} {
+  const rounded = complexity.toFixed(2);
+
+  if (complexity <= 2) {
+    return {
+      value: rounded,
+      label: 'Trivial',
+      color: '#2E7D32', // Green
+    };
+  } else if (complexity <= 4) {
+    return {
+      value: rounded,
+      label: 'Simple',
+      color: '#689F38', // Light Green
+    };
+  } else if (complexity <= 6) {
+    return {
+      value: rounded,
+      label: 'Moderate',
+      color: '#F57C00', // Orange
+    };
+  } else if (complexity <= 8) {
+    return {
+      value: rounded,
+      label: 'Complex',
+      color: '#E64A19', // Deep Orange
+    };
+  } else {
+    return {
+      value: rounded,
+      label: 'Very Complex',
+      color: '#C62828', // Red
+    };
+  }
+}
+
+/**
  * Calculate delivery friction score
  * @param pr PullRequestStats object
  * @param totalBuildMinutes Total CI build minutes
@@ -30,8 +130,10 @@ export function calculateDeliveryFriction(
     additions: number;
     deletions: number;
     commits: number;
-    review_comments: number;
-    turnaround_time_hours: number;
+    reviews: {
+      review_comments: number;
+    };
+    metrics: { turnaround_time_hours: number };
   },
   totalBuildMinutes: number,
   totalWaitingMinutes: number
@@ -48,11 +150,14 @@ export function calculateDeliveryFriction(
   const complexityCost = Math.min(100, (linesChanged / 1500) * 100);
 
   // 4. Review Iteration Cost (0-100 pts based on back-and-forth)
-  const iterationFactor = pr.commits * 2 + pr.review_comments;
+  const iterationFactor = pr.commits * 2 + pr.reviews.review_comments;
   const iterationCost = Math.min(100, (iterationFactor / 30) * 100);
 
   // 5. Duration Cost (0-100 pts based on turnaround time)
-  const durationCost = Math.min(100, (pr.turnaround_time_hours / 336) * 100);
+  const durationCost = Math.min(
+    100,
+    (pr.metrics.turnaround_time_hours / 336) * 100
+  );
 
   // Weighted average
   const totalCost =
