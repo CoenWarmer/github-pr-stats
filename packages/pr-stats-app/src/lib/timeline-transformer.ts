@@ -9,7 +9,6 @@ import {
 // Event type to group mapping for cleaner organization
 // Note: Order matters! More specific patterns should come before general ones
 const EVENT_GROUPS = {
-  iteration: ['issue_iteration'], // Check iteration first before issue_
   admin: ['closed', 'merged', 'ready_for_review', 'draft', 'issue_'],
   dev: ['opened', 'commit', 'commits_pushed', 'head_ref_force_pushed'],
   discussion: ['comment_added', 'review_comment_added', 'issue_comment'], // Check before review to catch review_comment_added
@@ -102,6 +101,12 @@ function createEventContent(event: AnyTimelineEvent): string {
     return `⏳ Awaiting Review`;
   }
 
+  // Handle iteration events with iteration title (check BEFORE generic issue_ handler)
+  if (event.type === 'issue_iteration' && event.workflow_name) {
+    // workflow_name contains the iteration title
+    return `📅 ${event.workflow_name}`;
+  }
+
   // Handle issue events with specific information
   if (event.type.startsWith('issue_')) {
     const baseContent = EVENT_CONTENT[event.type];
@@ -118,12 +123,6 @@ function createEventContent(event: AnyTimelineEvent): string {
   // Handle release events with tag name
   if (event.type === 'released' && event.release_tag) {
     return `🚀 ${event.release_tag}`;
-  }
-
-  // Handle iteration events with iteration title
-  if (event.type === 'issue_iteration' && event.workflow_name) {
-    // workflow_name contains the iteration title
-    return `📅 ${event.workflow_name}`;
   }
 
   if (baseContent) {
@@ -388,14 +387,13 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
 
   // Create timeline groups (rows) - with dynamic code owner team rows
   const groups: TimelineGroup[] = [
-    { id: 'iteration', content: '📅 Iteration', order: 1 },
-    { id: 'admin', content: '📋 Administrative', order: 2 },
-    { id: 'dev', content: '👨‍💻 Development', order: 3 },
+    { id: 'admin', content: '📋 Administrative', order: 1 },
+    { id: 'dev', content: '👨‍💻 Development', order: 2 },
     // Add code owner team rows
     ...codeOwners.map((teamName, index) => ({
       id: `reviewer_${teamName}`,
       content: `👥 ${teamName}`,
-      order: 4 + index,
+      order: 3 + index,
     })),
     // Add additional reviewers row if there are any
     ...(hasAdditionalReviewersFlag
@@ -403,18 +401,18 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
           {
             id: 'additional_reviewers',
             content: '👤 Additional reviewers',
-            order: 4 + codeOwners.length,
+            order: 3 + codeOwners.length,
           },
         ]
       : []),
     {
       id: 'discussion',
       content: '💬 Discussion',
-      order: 5 + codeOwners.length + (hasAdditionalReviewersFlag ? 1 : 0),
+      order: 4 + codeOwners.length + (hasAdditionalReviewersFlag ? 1 : 0),
     },
-    { id: 'ci', content: '🔧 CI/CD', order: 6 },
-    { id: 'ci_jobs', content: '⚙️ CI Jobs', order: 7, collapsed: true },
-    { id: 'released', content: '🚀 Released', order: 8 },
+    { id: 'ci', content: '🔧 CI/CD', order: 5 },
+    { id: 'ci_jobs', content: '⚙️ CI Jobs', order: 6, collapsed: true },
+    { id: 'released', content: '🚀 Released', order: 7 },
   ];
 
   // Transform timeline events to timeline items
@@ -452,6 +450,18 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         return {
           ...base,
           reviewBody: event.review_body,
+        };
+      }
+
+      // Pass commit data for commit events
+      if (
+        (event.type === 'commits_added' || event.type === 'commits_pushed') &&
+        'commits' in event &&
+        event.commits
+      ) {
+        return {
+          ...base,
+          commits: event.commits,
         };
       }
 

@@ -155,6 +155,23 @@ export function buildTooltipHtml(d: ProcessedTimelineItem): string {
     tooltipHtml += `<br/><br/><strong>Review:</strong><br/><em>${truncated}</em>`;
   }
 
+  // Add commit details for commit events
+  if (d.commits && d.commits.length > 0) {
+    const commit = d.commits[0]; // Since we show individual commits now, there's only one
+    tooltipHtml += `<br/><br/><strong>Commit:</strong> ${commit.sha}`;
+    tooltipHtml += `<br/><strong>Author:</strong> ${commit.author}`;
+    tooltipHtml += `<br/><strong>Message:</strong> ${commit.message}`;
+
+    if (commit.body) {
+      const maxBodyLength = 200;
+      const truncatedBody =
+        commit.body.length > maxBodyLength
+          ? commit.body.substring(0, maxBodyLength) + '...'
+          : commit.body;
+      tooltipHtml += `<br/><br/><em>${truncatedBody}</em>`;
+    }
+  }
+
   return tooltipHtml;
 }
 

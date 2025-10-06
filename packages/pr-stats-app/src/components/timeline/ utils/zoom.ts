@@ -135,7 +135,7 @@ export function createZoomBehavior(
         .attr('class', 'day-separator')
         .attr('y1', -20)
         .attr('y2', totalRowHeight)
-        .attr('stroke', colorMode === 'DARK' ? '#444' : '#ddd')
+        .attr('stroke', colorMode === 'DARK' ? '#2B394F' : '#ddd')
         .attr('stroke-width', 1)
         .attr('opacity', 0.7)
         .merge(daySeps)

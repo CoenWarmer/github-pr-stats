@@ -25,7 +25,7 @@ export function renderGroupLabels(
         .attr('x2', innerWidth)
         .attr('y1', currentY)
         .attr('y2', currentY)
-        .attr('stroke', colorMode === 'DARK' ? '#444' : '#ccc')
+        .attr('stroke', colorMode === 'DARK' ? '#2B394F' : '#ccc')
         .attr('stroke-width', 1);
     }
 
@@ -37,7 +37,7 @@ export function renderGroupLabels(
       .attr('width', margin.left)
       .attr('height', rowHeight)
       .attr('fill', colorMode === 'DARK' ? 'rgb(7, 16, 31)' : '#fafafa')
-      .attr('stroke', colorMode === 'DARK' ? '#444' : '#ddd')
+      .attr('stroke', colorMode === 'DARK' ? '#2B394F' : '#ddd')
       .attr('stroke-width', 1)
       .attr('opacity', 1);
 

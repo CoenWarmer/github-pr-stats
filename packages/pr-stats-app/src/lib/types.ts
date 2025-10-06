@@ -40,6 +40,8 @@ interface CommitFields {
   commits?: Array<{
     sha: string;
     message: string;
+    full_message?: string;
+    body?: string;
     author: string;
     date: string;
   }>;
@@ -383,6 +385,7 @@ export interface BuildkiteJob {
 export interface IssueLifecycleEvent {
   event_type: 'created' | 'assigned' | 'unassigned' | 'in_progress' | 'closed';
   date: string;
+  end_date?: string;
   actor?: string;
   assignee?: string;
 }
@@ -399,7 +402,9 @@ export interface LinkedIssue {
   lifecycle_events: IssueLifecycleEvent[];
   project_iteration?: {
     projectTitle: string;
+    projectNumber?: number;
     iterationTitle: string;
+    iterationId?: string;
     iterationStartDate: string;
     iterationEndDate: string;
   };
@@ -497,6 +502,15 @@ export interface TimelineItem {
   commentAuthor?: string;
   reviewBody?: string; // Review comment/body for review events
   eventType?: TimelineEvent['type']; // Original event type from TimelineEvent
+  // Commit fields for commit events
+  commits?: Array<{
+    sha: string;
+    message: string;
+    full_message?: string;
+    body?: string;
+    author: string;
+    date: string;
+  }>;
 }
 
 export interface TimelineData {

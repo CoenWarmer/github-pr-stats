@@ -33,11 +33,11 @@ export function renderDayAxis(
 
   dayAxisGroup
     .selectAll('line')
-    .attr('stroke', colorMode === 'DARK' ? '#666' : '#999');
+    .attr('stroke', colorMode === 'DARK' ? '#2B394F' : '#999');
 
   dayAxisGroup
     .select('.domain')
-    .attr('stroke', colorMode === 'DARK' ? '#666' : '#999')
+    .attr('stroke', colorMode === 'DARK' ? '#2B394F' : '#999')
     .attr('opacity', 0);
 }
 

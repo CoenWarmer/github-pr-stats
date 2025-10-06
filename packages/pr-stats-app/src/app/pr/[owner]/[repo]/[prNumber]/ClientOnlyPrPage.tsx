@@ -521,22 +521,6 @@ export default function ClientOnlyPrPage() {
 
       <EuiPageTemplate.Section>
         <EuiFlexGroup direction="row" gutterSize="s" alignItems="center">
-          <EuiFlexItem grow>
-            <EuiFormRow label="Filter CI/CD Workflows" display="row">
-              <EuiSelect
-                options={[
-                  { value: 'all', text: 'All Workflows' },
-                  ...availableWorkflows.map(workflow => ({
-                    value: workflow,
-                    text: workflow,
-                  })),
-                ]}
-                value={selectedWorkflow}
-                onChange={e => setSelectedWorkflow(e.target.value)}
-                compressed
-              />
-            </EuiFormRow>
-          </EuiFlexItem>
           <EuiFlexItem>
             <EuiFormRow label="Zoom to Phase" display="row" fullWidth>
               <EuiButtonGroup
@@ -564,6 +548,22 @@ export default function ClientOnlyPrPage() {
                 onChange={(id: string) => setZoomOption(id)}
                 buttonSize="compressed"
                 color="primary"
+              />
+            </EuiFormRow>
+          </EuiFlexItem>
+          <EuiFlexItem grow>
+            <EuiFormRow label="Filter CI/CD Workflows" display="row">
+              <EuiSelect
+                options={[
+                  { value: 'all', text: 'All Workflows' },
+                  ...availableWorkflows.map(workflow => ({
+                    value: workflow,
+                    text: workflow,
+                  })),
+                ]}
+                value={selectedWorkflow}
+                onChange={e => setSelectedWorkflow(e.target.value)}
+                compressed
               />
             </EuiFormRow>
           </EuiFlexItem>
