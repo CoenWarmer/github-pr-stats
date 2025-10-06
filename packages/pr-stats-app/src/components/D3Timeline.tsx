@@ -755,7 +755,7 @@ export default function D3Timeline({
           // Build tooltip content
           let tooltipHtml = `
           <strong>${d.content}</strong><br/>
-          <strong>Start:</strong> ${new Date(d.startTime).toLocaleString()}<br/>
+          ${new Date(d.startTime).toLocaleString()}<br/>
           ${d.end ? `<strong>End:</strong> ${new Date(d.endTime).toLocaleString()}<br/>` : ''}
           ${d.duration > 0 ? `<strong>Duration:</strong> ${formatDuration(d.duration)}<br/>` : ''}`;
 
