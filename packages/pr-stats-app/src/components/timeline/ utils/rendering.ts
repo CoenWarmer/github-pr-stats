@@ -127,50 +127,17 @@ export function getDisplayText(d: ProcessedTimelineItem): string {
  * Build tooltip HTML for a timeline item
  */
 export function buildTooltipHtml(d: ProcessedTimelineItem): string {
-  let tooltipHtml = `
+  // If popoverContent is provided, use it directly
+  if (d.popoverContent) {
+    return d.popoverContent;
+  }
+
+  // Otherwise, build a basic tooltip with timestamp and duration
+  const tooltipHtml = `
     <strong>${d.content}</strong><br/>
     ${new Date(d.startTime).toLocaleString()}<br/>
     ${d.end ? `<strong>End:</strong> ${new Date(d.endTime).toLocaleString()}<br/>` : ''}
     ${d.duration > 0 ? `<strong>Duration:</strong> ${formatDuration(d.duration)}<br/>` : ''}`;
-
-  // Add comment content for discussion items
-  if (d.group === 'discussion' && d.commentContent) {
-    // Truncate long comments
-    const maxLength = 300;
-    const truncated =
-      d.commentContent.length > maxLength
-        ? d.commentContent.substring(0, maxLength) + '...'
-        : d.commentContent;
-    tooltipHtml += `<br/><br/><strong>Comment:</strong><br/><em>${truncated}</em>`;
-  }
-
-  // Add review body for code owner review items
-  if (d.group.startsWith('reviewer_') && d.reviewBody) {
-    // Truncate long review bodies
-    const maxLength = 300;
-    const truncated =
-      d.reviewBody.length > maxLength
-        ? d.reviewBody.substring(0, maxLength) + '...'
-        : d.reviewBody;
-    tooltipHtml += `<br/><br/><strong>Review:</strong><br/><em>${truncated}</em>`;
-  }
-
-  // Add commit details for commit events
-  if (d.commits && d.commits.length > 0) {
-    const commit = d.commits[0]; // Since we show individual commits now, there's only one
-    tooltipHtml += `<br/><br/><strong>Commit:</strong> ${commit.sha}`;
-    tooltipHtml += `<br/><strong>Author:</strong> ${commit.author}`;
-    tooltipHtml += `<br/><strong>Message:</strong> ${commit.message}`;
-
-    if (commit.body) {
-      const maxBodyLength = 200;
-      const truncatedBody =
-        commit.body.length > maxBodyLength
-          ? commit.body.substring(0, maxBodyLength) + '...'
-          : commit.body;
-      tooltipHtml += `<br/><br/><em>${truncatedBody}</em>`;
-    }
-  }
 
   return tooltipHtml;
 }

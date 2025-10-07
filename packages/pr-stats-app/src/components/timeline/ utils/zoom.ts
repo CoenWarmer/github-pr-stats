@@ -68,14 +68,31 @@ export function createZoomBehavior(
             );
           } else {
             // Update grouped rectangles
+            const barWidth = Math.max(
+              2,
+              newXScale(d.endTime) - newXScale(d.startTime)
+            );
             element
               .select('rect')
               .attr('x', newXScale(d.startTime))
-              .attr('width', d =>
-                Math.max(2, newXScale(d.endTime) - newXScale(d.startTime))
-              );
-            // Update text labels
-            element.select('text').attr('x', newXScale(d.endTime) + 20);
+              .attr('width', barWidth);
+
+            // Update text labels - position depends on event type
+            const isCiEvent =
+              d.eventType === 'ci_run' ||
+              d.eventType === 'ci_started' ||
+              d.eventType === 'ci_completed';
+
+            if (isCiEvent) {
+              // CI events: update foreignObject position and width
+              element
+                .select('foreignObject')
+                .attr('x', newXScale(d.startTime) + 5)
+                .attr('width', Math.max(0, barWidth - 10));
+            } else {
+              // Other events: update text position
+              element.select('text').attr('x', newXScale(d.endTime) + 20);
+            }
           }
         }
       );

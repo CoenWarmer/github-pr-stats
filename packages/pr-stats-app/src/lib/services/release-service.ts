@@ -142,4 +142,37 @@ export class ReleaseService {
       return [];
     }
   }
+
+  /**
+   * Get releases for a PR with a timeout to prevent hanging on large repos
+   */
+  async getReleasesForPR(
+    owner: string,
+    repo: string,
+    commitSha: string | undefined,
+    mergedAt: string | null
+  ): Promise<Array<any>> {
+    if (!mergedAt || !commitSha) {
+      return [];
+    }
+
+    try {
+      logger.debug(`Checking releases for ${commitSha.substring(0, 8)}`);
+
+      return await Promise.race([
+        this.getFirstReleasesForCommit(owner, repo, commitSha, mergedAt),
+        new Promise<Array<any>>(resolve =>
+          setTimeout(() => resolve([]), 10000)
+        ), // 10 second timeout
+      ]);
+    } catch (releaseError) {
+      logger.warn('Error fetching release information', {
+        error:
+          releaseError instanceof Error
+            ? releaseError.message
+            : String(releaseError),
+      });
+      return [];
+    }
+  }
 }

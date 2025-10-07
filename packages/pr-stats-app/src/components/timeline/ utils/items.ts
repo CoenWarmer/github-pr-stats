@@ -55,27 +55,81 @@ export function renderRectangleItems(
     .append('rect')
     .attr('class', 'timeline-rect')
     .attr('x', d => xScale(d.startTime))
-    .attr('y', d => getItemY(d, rowHeights, levelHeight, rectHeight))
+    .attr('y', d => {
+      // CI events get fixed 24px height, others use rectHeight
+      const height =
+        d.eventType === 'ci_run' ||
+        d.eventType === 'ci_started' ||
+        d.eventType === 'ci_completed'
+          ? 24
+          : rectHeight;
+      return getItemY(d, rowHeights, levelHeight, height);
+    })
     .attr('width', d => Math.max(2, xScale(d.endTime) - xScale(d.startTime)))
-    .attr('height', rectHeight)
+    .attr('height', d => {
+      // CI events get fixed 24px height, others use rectHeight
+      if (
+        d.eventType === 'ci_run' ||
+        d.eventType === 'ci_started' ||
+        d.eventType === 'ci_completed'
+      ) {
+        return 24;
+      }
+      return rectHeight;
+    })
     .attr('rx', 3)
     .attr('ry', 3)
     .attr('fill', d => getEventColor(d));
 
-  // Add text labels
-  rectGroups
-    .append('text')
-    .attr('class', 'timeline-rect-label')
-    .attr('x', d => xScale(d.endTime) + 20)
-    .attr(
-      'y',
-      d => getItemY(d, rowHeights, levelHeight, rectHeight) + rectHeight / 2
-    )
-    .attr('dy', '0.35em')
-    .attr('font-size', '13px')
-    .attr('fill', colorMode === 'DARK' ? '#DFE5EF' : '#343741')
-    .attr('pointer-events', 'none')
-    .text(d => getDisplayText(d));
+  // Add text labels - use foreignObject for CI events to enable CSS truncation
+  rectGroups.each(function (d) {
+    const group = d3.select(this);
+    const isCiEvent =
+      d.eventType === 'ci_run' ||
+      d.eventType === 'ci_started' ||
+      d.eventType === 'ci_completed';
+
+    if (isCiEvent) {
+      // CI events: use foreignObject with CSS for text truncation
+      const height = 24;
+      const barWidth = Math.max(2, xScale(d.endTime) - xScale(d.startTime));
+      const yPos = getItemY(d, rowHeights, levelHeight, height);
+
+      group
+        .append('foreignObject')
+        .attr('x', xScale(d.startTime) + 5)
+        .attr('y', yPos)
+        .attr('width', Math.max(0, barWidth - 10))
+        .attr('height', height)
+        .append('xhtml:div')
+        .style('width', '100%')
+        .style('height', '100%')
+        .style('display', 'flex')
+        .style('align-items', 'center')
+        .style('color', '#FFFFFF')
+        .style('font-size', '13px')
+        .style('white-space', 'nowrap')
+        .style('overflow', 'hidden')
+        .style('text-overflow', 'ellipsis')
+        .style('pointer-events', 'none')
+        .text(getDisplayText(d));
+    } else {
+      // Other events: use regular SVG text
+      group
+        .append('text')
+        .attr('class', 'timeline-rect-label')
+        .attr('x', xScale(d.endTime) + 20)
+        .attr(
+          'y',
+          getItemY(d, rowHeights, levelHeight, rectHeight) + rectHeight / 2
+        )
+        .attr('dy', '0.35em')
+        .attr('font-size', '13px')
+        .attr('fill', colorMode === 'DARK' ? '#DFE5EF' : '#343741')
+        .attr('pointer-events', 'none')
+        .text(getDisplayText(d));
+    }
+  });
 
   return rectGroups;
 }

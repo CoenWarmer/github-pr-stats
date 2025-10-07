@@ -104,27 +104,27 @@ export class GitHubCollector {
 
     sendProgress('Fetching related data', 10, 100);
 
-    // Fetch PR timeline events once (used by both linkedIssues and buildPRTimeline)
-    const { data: prTimelineEvents } =
-      await this.octokit.rest.issues.listEventsForTimeline({
-        owner,
-        repo,
-        issue_number: prNumber,
-        per_page: 100,
-      });
+    // Fetch PR timeline events and related data in parallel
+    const [{ data: prTimelineEvents }, userTeams, codeowners] =
+      await Promise.all([
+        this.octokit.rest.issues.listEventsForTimeline({
+          owner,
+          repo,
+          issue_number: prNumber,
+          per_page: 100,
+        }),
+        this.reviewService.getUserTeams(pr.user?.login || '', owner),
+        this.codeownersService.getCodeOwnersForPR(owner, repo, prNumber),
+      ]);
 
-    // Fetch related data in parallel
-    const [userTeams, codeowners, linkedIssues] = await Promise.all([
-      this.reviewService.getUserTeams(pr.user?.login || '', owner),
-      this.codeownersService.getCodeOwnersForPR(owner, repo, prNumber),
-      this.issuesService.getLinkedIssues(
-        owner,
-        repo,
-        pr.body,
-        prNumber,
-        prTimelineEvents
-      ),
-    ]);
+    // Get linked issues (depends on prTimelineEvents, so must be after)
+    const linkedIssues = await this.issuesService.getLinkedIssues(
+      owner,
+      repo,
+      pr.body,
+      prNumber,
+      prTimelineEvents
+    );
 
     sendProgress('Fetched related data', 20, 100);
 
@@ -186,6 +186,7 @@ export class GitHubCollector {
       prDataForTimeline,
       reviewTimings,
       linkedIssues,
+      prTimelineEvents,
       (step, current, total) => {
         // Map internal progress (0-10) to our range (70-85)
         const percentage = 70 + Math.floor((current / total) * 15);
@@ -235,7 +236,6 @@ export class GitHubCollector {
         complexity: metrics.complexity,
         delivery_friction: metrics.deliveryFriction,
         total_team_review_time_ms: metrics.totalTeamReviewTimeMs,
-        author_codeowner_relationship: metrics.authorCodeownerRelationship,
         run_start_time: metrics.runStartTime,
         run_end_time: metrics.runEndTime,
       },
@@ -263,6 +263,7 @@ export class GitHubCollector {
     prData: PullRequestStats,
     reviewTimings: ReviewTiming[],
     linkedIssues?: LinkedIssue[],
+    prTimelineEvents?: any[],
     onProgress?: (step: string, current: number, total: number) => void
   ): Promise<TimelineEvent[]> {
     const timeline: TimelineEvent[] = [];
@@ -277,36 +278,57 @@ export class GitHubCollector {
         date: prData.created_at,
       });
 
-      reportProgress('Fetching timeline events', 2, 10);
+      reportProgress('Processing timeline events', 2, 10);
 
-      // Fetch PR timeline events for draft/ready transitions
-      const { data: prTimelineEvents } =
-        await this.octokit.rest.issues.listEvents({
+      // Add ready for review event (using passed prTimelineEvents to avoid duplicate API call)
+      if (prTimelineEvents) {
+        for (const event of prTimelineEvents) {
+          if (event.event === 'ready_for_review' && event.created_at) {
+            timeline.push({
+              type: 'ready_for_review',
+              date: event.created_at,
+            });
+          }
+        }
+      }
+
+      reportProgress('Fetching data in parallel', 3, 10);
+
+      // Fetch commits, comments, review comments, and releases in parallel (they're independent)
+      const [
+        { data: commits },
+        { data: comments },
+        { data: reviewComments },
+        releases,
+      ] = await Promise.all([
+        this.octokit.rest.pulls.listCommits({
+          owner,
+          repo,
+          pull_number: prNumber,
+          per_page: 100,
+        }),
+        this.octokit.rest.issues.listComments({
           owner,
           repo,
           issue_number: prNumber,
           per_page: 100,
-        });
+        }),
+        this.octokit.rest.pulls.listReviewComments({
+          owner,
+          repo,
+          pull_number: prNumber,
+          per_page: 100,
+        }),
+        // Fetch releases with timeout (handled by ReleaseService)
+        this.releaseService.getReleasesForPR(
+          owner,
+          repo,
+          prData.mergeCommitSha || prData.headSha,
+          prData.merged_at
+        ),
+      ]);
 
-      // Add ready for review event
-      for (const event of prTimelineEvents) {
-        if (event.event === 'ready_for_review' && event.created_at) {
-          timeline.push({
-            type: 'ready_for_review',
-            date: event.created_at,
-          });
-        }
-      }
-
-      reportProgress('Fetching commits', 3, 10);
-
-      // Fetch commits
-      const { data: commits } = await this.octokit.rest.pulls.listCommits({
-        owner,
-        repo,
-        pull_number: prNumber,
-        per_page: 100,
-      });
+      reportProgress('Processing commits', 4, 10);
 
       // Show each commit individually
       const commitGroups: Array<{
@@ -342,34 +364,62 @@ export class GitHubCollector {
         });
       }
 
-      // Add commit events and fetch Buildkite builds for each commit
+      // Add commit events to timeline
       for (const group of commitGroups) {
+        // Build popover content for commits
+        let commitsPopoverContent = '';
+        if (group.commits && group.commits.length > 0) {
+          const commit = group.commits[0]; // Since we show individual commits now
+          commitsPopoverContent = `
+            <strong>${commit.sha} added</strong><br/>
+            ${new Date(commit.date).toLocaleString()}<br/>
+            <br/><strong>Commit:</strong> ${commit.sha}<br/>
+            <strong>Author:</strong> ${commit.author}
+          `;
+
+          if (commit.message) {
+            commitsPopoverContent += `<br/><strong>Message:</strong> ${commit.message}`;
+          }
+
+          if (commit.body) {
+            const maxBodyLength = 200;
+            const truncatedBody =
+              commit.body.length > maxBodyLength
+                ? commit.body.substring(0, maxBodyLength) + '...'
+                : commit.body;
+            commitsPopoverContent += `<br/><br/><em>${truncatedBody}</em>`;
+          }
+        }
+
         timeline.push({
           type: 'commits_added',
           date: group.date,
           commit_count: group.commits.length,
           commits: group.commits,
+          popoverContent: commitsPopoverContent,
         });
+      }
 
-        // Fetch Buildkite builds for each commit in the group
+      // Fetch and add Buildkite CI build events for all commits in parallel
+      const buildkitePromises = commitGroups.map(async group => {
+        const buildEvents: typeof timeline = [];
         for (const commitInfo of group.commits) {
           const fullSha = commits.find(c =>
             c.sha.startsWith(commitInfo.sha)
           )?.sha;
           if (fullSha) {
-            const buildkiteBuilds =
+            const builds =
               await this.buildkiteService.getBuildkiteBuildsForCommit(fullSha);
 
-            for (const build of buildkiteBuilds) {
+            for (const build of builds) {
               // Create enriched CI events from Buildkite data
               const buildkiteEvents =
                 this.buildkiteService.createCIEventsFromBuildkiteBuild(build, {
-                  includeJobs: true, // Create job events for cache
+                  includeJobs: false, // Create job events for cache
                   hideJobsFromTimeline: false, // Show them in timeline (in collapsible CI Jobs row)
                 });
 
-              // Add the enriched events to timeline
-              timeline.push(...buildkiteEvents);
+              buildEvents.push(...buildkiteEvents);
 
               logger.debug('Added Buildkite events for commit', {
                 commitSha: fullSha.substring(0, 8),
@@ -381,48 +431,63 @@ export class GitHubCollector {
             }
           }
         }
-      }
-
-      reportProgress('Fetching comments', 5, 10);
-
-      // Add comments
-      const { data: comments } = await this.octokit.rest.issues.listComments({
-        owner,
-        repo,
-        issue_number: prNumber,
-        per_page: 100,
+        return buildEvents;
       });
 
+      const allBuildEvents = await Promise.all(buildkitePromises);
+
+      // Add all build events to timeline
+      for (const buildEvents of allBuildEvents) {
+        timeline.push(...buildEvents);
+      }
+
+      reportProgress('Processing comments', 6, 10);
+
+      // Add comments
       for (const comment of comments) {
+        const commentBody = comment.body || '';
+        const maxLength = 300;
+        const truncated =
+          commentBody.length > maxLength
+            ? commentBody.substring(0, maxLength) + '...'
+            : commentBody;
+
         timeline.push({
           type: 'comment_added',
           date: comment.created_at,
           comment_author: comment.user?.login || 'unknown',
-          comment_content: comment.body || '',
+          comment_content: commentBody,
           url: comment.html_url,
           comment_id: comment.id,
+          popoverContent: `
+            <strong>${comment.user?.login || 'unknown'}</strong><br/>
+            ${new Date(comment.created_at).toLocaleString()}<br/>
+            <br/><strong>Comment:</strong><br/><em>${truncated}</em>
+          `,
         });
       }
 
-      reportProgress('Fetching review comments', 6, 10);
-
       // Add review comments
-      const { data: reviewComments } =
-        await this.octokit.rest.pulls.listReviewComments({
-          owner,
-          repo,
-          pull_number: prNumber,
-          per_page: 100,
-        });
-
       for (const comment of reviewComments) {
+        const commentBody = comment.body || '';
+        const maxLength = 300;
+        const truncated =
+          commentBody.length > maxLength
+            ? commentBody.substring(0, maxLength) + '...'
+            : commentBody;
+
         timeline.push({
           type: 'review_comment_added',
           date: comment.created_at,
           comment_author: comment.user?.login || 'unknown',
-          comment_content: comment.body || '',
+          comment_content: commentBody,
           url: comment.html_url,
           comment_id: comment.id,
+          popoverContent: `
+            <strong>${comment.user?.login || 'unknown'}</strong><br/>
+            ${new Date(comment.created_at).toLocaleString()}<br/>
+            <br/><strong>Review Comment:</strong><br/><em>${truncated}</em>
+          `,
         });
       }
 
@@ -450,6 +515,22 @@ export class GitHubCollector {
 
       // Add review timeline events from reviewTimings
       for (const reviewTiming of reviewTimings) {
+        const reviewBody = reviewTiming.body || '';
+        const maxLength = 300;
+        const truncated =
+          reviewBody.length > maxLength
+            ? reviewBody.substring(0, maxLength) + '...'
+            : reviewBody;
+
+        let popoverContent = `
+          <strong>${reviewTiming.reviewer} - ${reviewTiming.state}</strong><br/>
+          ${new Date(reviewTiming.submitted_at).toLocaleString()}
+        `;
+
+        if (reviewBody) {
+          popoverContent += `<br/><br/><strong>Review:</strong><br/><em>${truncated}</em>`;
+        }
+
         timeline.push({
           type: 'review',
           date: reviewTiming.submitted_at,
@@ -461,7 +542,8 @@ export class GitHubCollector {
             reviewTiming.author_reviewer_relationship,
           url: reviewTiming.url,
           submitted_at: reviewTiming.submitted_at,
-          review_body: reviewTiming.body,
+          review_body: reviewBody,
+          popoverContent: popoverContent,
         });
       }
 
@@ -490,51 +572,16 @@ export class GitHubCollector {
         }
       }
 
-      reportProgress('Checking releases', 9, 10);
+      reportProgress('Adding releases', 9, 10);
 
-      // Check for releases that include this PR's merge commit
-      // Add timeout to prevent hanging on large repos
-      if (prData.merged_at) {
-        // Prefer merge_commit_sha if available, fallback to headSha
-        const commitToCheck = prData.mergeCommitSha || prData.headSha;
-
-        if (commitToCheck) {
-          try {
-            logger.debug(
-              `Checking releases for ${commitToCheck.substring(0, 8)} (${prData.mergeCommitSha ? 'merge commit' : 'head commit'})`
-            );
-
-            const releases = await Promise.race([
-              this.releaseService.getFirstReleasesForCommit(
-                owner,
-                repo,
-                commitToCheck,
-                prData.merged_at
-              ),
-              new Promise<Array<any>>(resolve =>
-                setTimeout(() => resolve([]), 10000)
-              ), // 10 second timeout
-            ]);
-
-            // Add all releases (up to 3) to the timeline
-            for (const release of releases) {
-              timeline.push({
-                type: 'released',
-                date: release.published_at,
-                release_tag: release.tag_name,
-                url: release.html_url,
-              });
-            }
-          } catch (releaseError) {
-            logger.warn('Error fetching release information', {
-              error:
-                releaseError instanceof Error
-                  ? releaseError.message
-                  : String(releaseError),
-            });
-            // Continue without release information
-          }
-        }
+      // Add all releases (up to 3) to the timeline
+      for (const release of releases) {
+        timeline.push({
+          type: 'released',
+          date: release.published_at,
+          release_tag: release.tag_name,
+          url: release.html_url,
+        });
       }
 
       reportProgress('Timeline complete', 10, 10);

@@ -395,7 +395,8 @@ export default function ClientOnlyPrPage() {
     );
   }
 
-  if (!data || !data.items || !data.groups) {
+  if (!loading && (!data || !data.items || !data.groups)) {
+    // Only show "no data" if we're not loading and have no data
     return (
       <EuiPageTemplate>
         <EuiPageTemplate.Header

@@ -433,6 +433,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
           ...base,
           commentContent: event.comment_content,
           commentAuthor: event.comment_author,
+          popoverContent: event.popoverContent,
         };
       }
 
@@ -440,6 +441,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         return {
           ...base,
           reviewBody: event.review_body,
+          popoverContent: event.popoverContent,
         };
       }
 
@@ -452,6 +454,26 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         return {
           ...base,
           commits: event.commits,
+          popoverContent: event.popoverContent,
+        };
+      }
+
+      // Pass CI/CD fields for CI events
+      if (
+        event.type === 'ci_run' ||
+        event.type === 'ci_started' ||
+        event.type === 'ci_completed'
+      ) {
+        return {
+          ...base,
+          ci_conclusion: event.ci_conclusion,
+          ci_status: event.ci_status,
+          buildkite_build_id: event.buildkite_build_id,
+          buildkite_build_number: event.buildkite_build_number,
+          buildkite_pipeline_slug: event.buildkite_pipeline_slug,
+          workflow_name: event.workflow_name,
+          ci_failure_reason: event.ci_failure_reason,
+          popoverContent: event.popoverContent,
         };
       }
 
@@ -505,6 +527,13 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         color: 'hollow', // Use a subtle color
         isPointInTime: false,
         eventType: 'team_review_requested', // Synthetic event based on team_review_requested
+        popoverContent: `
+          <strong>Team Review Duration</strong><br/>
+          <strong>Team:</strong> ${teamName}<br/>
+          <strong>Requested:</strong> ${new Date(requestEvent.date).toLocaleString()}<br/>
+          <strong>Approved:</strong> ${new Date(firstApproval.date).toLocaleString()}<br/>
+          <strong>Duration:</strong> ${durationHours.toFixed(1)}h
+        `,
       });
     }
   }
@@ -545,10 +574,16 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
       start: pr.created_at,
       end: prEnd,
       emoji: '📋',
-      content: `📋 PR #${pr.id}: ${pr.title}`,
+      content: `${durationHours}h`,
       title: `PR Lifecycle\n${pr.title}\nDuration: ${durationHours}h`,
       className: pr.merged_at ? 'merged' : 'closed',
       url: pr.timeline.find(event => event.type === 'opened')?.url,
+      popoverContent: `
+        <strong>📋 PR #${pr.id}: ${pr.title}</strong><br/>
+        <strong>Created:</strong> ${new Date(pr.created_at).toLocaleString()}<br/>
+        <strong>${pr.merged_at ? 'Merged' : 'Closed'}:</strong> ${new Date(prEnd).toLocaleString()}<br/>
+        <strong>Duration:</strong> ${durationHours}h (${Math.round(durationHours / 24)}d)
+      `,
     });
   }
 
@@ -564,6 +599,10 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
       className: 'merged',
       isPointInTime: true,
       url: pr.timeline.find(event => event.type === 'merged')?.url,
+      popoverContent: `
+        <strong>✅ PR #${pr.id} Merged</strong><br/>
+        ${new Date(pr.merged_at).toLocaleString()}
+      `,
     });
   }
 
@@ -589,6 +628,12 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
           title: `Issue Lifecycle\n#${issue.number}: ${issue.title}\nDuration: ${durationDays}d (${durationHours}h)`,
           className: 'closed',
           url: issue.url,
+          popoverContent: `
+            <strong>🎫 Issue #${issue.number}: ${issue.title}</strong><br/>
+            <strong>Created:</strong> ${issueStart.toLocaleString()}<br/>
+            <strong>Closed:</strong> ${issueEnd.toLocaleString()}<br/>
+            <strong>Duration:</strong> ${durationDays}d (${durationHours}h)
+          `,
         });
       }
     }

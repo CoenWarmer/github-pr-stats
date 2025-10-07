@@ -149,6 +149,19 @@ export class BuildkiteService {
   }
 
   /**
+   * Format duration in milliseconds to a human-readable string
+   */
+  private formatDuration(durationMs: number): string {
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  }
+
+  /**
    * Create enriched CI events from Buildkite build data
    */
   createCIEventsFromBuildkiteBuild(
@@ -166,6 +179,65 @@ export class BuildkiteService {
       durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
     }
 
+    // Determine failure reason if build failed
+    let failureReason: string | undefined;
+    if (build.state === 'failed' || build.state === 'canceled') {
+      const failedJobs = build.jobs?.filter(
+        job =>
+          job.state === 'failed' ||
+          job.state === 'broken' ||
+          job.state === 'timed_out' ||
+          job.state === 'canceled'
+      );
+
+      if (failedJobs && failedJobs.length > 0) {
+        const reasons: string[] = [];
+        for (const job of failedJobs) {
+          if (job.name) {
+            if (job.state === 'timed_out') {
+              reasons.push(`${job.name}: Timed out`);
+            } else if (
+              job.exit_status !== null &&
+              job.exit_status !== undefined
+            ) {
+              reasons.push(`${job.name}: Exit code ${job.exit_status}`);
+            } else {
+              reasons.push(`${job.name}: ${job.state}`);
+            }
+          }
+        }
+        if (reasons.length > 0) {
+          failureReason = reasons.slice(0, 5).join(', '); // Limit to first 5 failures
+          if (reasons.length > 5) {
+            failureReason += `, and ${reasons.length - 5} more...`;
+          }
+        }
+      } else if (build.state === 'canceled') {
+        failureReason = 'Build was canceled';
+      }
+    }
+
+    // Build popover content
+    let popoverContent = `
+      <strong>${build.pipeline.name}</strong><br/>
+      ${new Date(startTime).toLocaleString()}<br/>
+      ${endTime ? `<strong>End:</strong> ${new Date(endTime).toLocaleString()}<br/>` : ''}
+      ${durationMs > 0 ? `<strong>Duration:</strong> ${this.formatDuration(durationMs)}<br/>` : ''}
+    `;
+
+    if (build.number) {
+      popoverContent += `<br/><strong>Build #:</strong> ${build.number}`;
+    }
+    if (build.pipeline.slug) {
+      popoverContent += `<br/><strong>Pipeline:</strong> ${build.pipeline.slug}`;
+    }
+    popoverContent += `<br/><strong>Status:</strong> ${build.state === 'running' ? 'started' : 'completed'}`;
+    popoverContent += `<br/><strong>Conclusion:</strong> ${this.mapBuildkiteStateToCIConclusion(build.state)}`;
+
+    if (failureReason) {
+      popoverContent += `<br/><br/><strong>Failure Reason:</strong><br/><em>${failureReason}</em>`;
+    }
+
     // Create main build event
     const buildEvent: TimelineEvent = {
       type: build.state === 'running' ? 'ci_started' : 'ci_run',
@@ -176,7 +248,10 @@ export class BuildkiteService {
       ci_status: build.state === 'running' ? 'started' : 'completed',
       url: build.web_url,
       buildkite_build_id: build.id,
+      buildkite_build_number: build.number,
       buildkite_pipeline_slug: build.pipeline.slug,
+      ci_failure_reason: failureReason,
+      popoverContent: popoverContent,
       // Add duration information
       duration_ms: durationMs,
       duration_minutes: Math.round(durationMs / (1000 * 60)),
@@ -201,6 +276,36 @@ export class BuildkiteService {
               new Date(jobEndTime).getTime() - new Date(jobStartTime).getTime();
           }
 
+          // Build job popover content
+          let jobPopoverContent = `
+            <strong>${build.pipeline.name} - ${job.name}</strong><br/>
+            ${new Date(jobStartTime).toLocaleString()}<br/>
+            ${jobEndTime ? `<strong>End:</strong> ${new Date(jobEndTime).toLocaleString()}<br/>` : ''}
+            ${jobDurationMs > 0 ? `<strong>Duration:</strong> ${this.formatDuration(jobDurationMs)}<br/>` : ''}
+          `;
+
+          if (build.number) {
+            jobPopoverContent += `<br/><strong>Build #:</strong> ${build.number}`;
+          }
+          if (build.pipeline.slug) {
+            jobPopoverContent += `<br/><strong>Pipeline:</strong> ${build.pipeline.slug}`;
+          }
+          jobPopoverContent += `<br/><strong>Status:</strong> ${job.state === 'running' ? 'started' : 'completed'}`;
+          jobPopoverContent += `<br/><strong>Conclusion:</strong> ${this.mapBuildkiteStateToCIConclusion(job.state)}`;
+
+          // Add job-specific failure info
+          if (
+            (job.state === 'failed' ||
+              job.state === 'broken' ||
+              job.state === 'timed_out') &&
+            job.exit_status !== null &&
+            job.exit_status !== undefined
+          ) {
+            jobPopoverContent += `<br/><br/><strong>Exit Code:</strong> ${job.exit_status}`;
+          } else if (job.state === 'timed_out') {
+            jobPopoverContent += `<br/><br/><strong>Failure Reason:</strong><br/><em>Job timed out</em>`;
+          }
+
           const jobEvent: TimelineEvent = {
             type: job.state === 'running' ? 'ci_started' : 'ci_run',
             date: jobStartTime,
@@ -210,7 +315,9 @@ export class BuildkiteService {
             ci_status: job.state === 'running' ? 'started' : 'completed',
             url: job.web_url,
             buildkite_build_id: build.id,
+            buildkite_build_number: build.number,
             buildkite_pipeline_slug: build.pipeline.slug,
+            popoverContent: jobPopoverContent,
             // Add job duration information
             duration_ms: jobDurationMs,
             duration_minutes: Math.round(jobDurationMs / (1000 * 60)),

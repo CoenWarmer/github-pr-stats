@@ -19,6 +19,7 @@ interface ReviewFields {
   author_reviewer_relationship?: string;
   submitted_at?: string;
   review_body?: string; // Review comment/body content
+  popoverContent?: string;
 }
 
 interface CiFields {
@@ -26,13 +27,17 @@ interface CiFields {
   ci_conclusion?: string;
   ci_status?: string;
   buildkite_build_id?: string;
+  buildkite_build_number?: number;
   buildkite_pipeline_slug?: string;
+  ci_failure_reason?: string;
+  popoverContent?: string;
 }
 
 interface CommentFields {
   comment_author?: string;
   comment_content?: string;
   comment_id?: number;
+  popoverContent?: string;
 }
 
 interface CommitFields {
@@ -45,6 +50,7 @@ interface CommitFields {
     author: string;
     date: string;
   }>;
+  popoverContent?: string;
 }
 
 interface IssueFields {
@@ -380,6 +386,8 @@ export interface BuildkiteJob {
   created_at: string;
   web_url: string;
   type: 'script' | 'waiter' | 'manual' | 'trigger';
+  exit_status?: number | null;
+  soft_failed?: boolean;
 }
 
 export interface IssueLifecycleEvent {
@@ -505,6 +513,7 @@ export interface TimelineItem {
   commentAuthor?: string;
   reviewBody?: string; // Review comment/body for review events
   eventType?: TimelineEvent['type']; // Original event type from TimelineEvent
+  popoverContent?: string;
   // Commit fields for commit events
   commits?: Array<{
     sha: string;
@@ -514,6 +523,14 @@ export interface TimelineItem {
     author: string;
     date: string;
   }>;
+  // CI/CD fields for build events
+  ci_conclusion?: string;
+  ci_status?: string;
+  buildkite_build_id?: string;
+  buildkite_build_number?: number;
+  buildkite_pipeline_slug?: string;
+  workflow_name?: string;
+  ci_failure_reason?: string;
 }
 
 export interface TimelineData {
