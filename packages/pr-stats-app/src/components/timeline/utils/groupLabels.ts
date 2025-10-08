@@ -12,7 +12,8 @@ export function renderGroupLabels(
   setCollapsedGroups: React.Dispatch<React.SetStateAction<Set<string>>>,
   margin: { top: number; right: number; bottom: number; left: number },
   innerWidth: number,
-  colorMode: 'LIGHT' | 'DARK'
+  colorMode: 'LIGHT' | 'DARK',
+  onRowClick?: (groupId: string) => void
 ) {
   let currentY = 0;
   data.groups.forEach((group, i) => {
@@ -42,10 +43,12 @@ export function renderGroupLabels(
       .attr('opacity', 1);
 
     // Group label text (rendered after background)
+    // Position near the top of the row for better visibility when rows are tall
+    const labelY = currentY + 20; // Fixed offset from top of row
     const labelText = g
       .append('text')
       .attr('x', -15)
-      .attr('y', currentY + rowHeight / 2)
+      .attr('y', labelY)
       .attr('dy', '0.35em')
       .attr('text-anchor', 'end')
       .attr('font-size', '14px')
@@ -57,7 +60,7 @@ export function renderGroupLabels(
       const isCollapsed = collapsedGroups.has(group.id);
       g.append('text')
         .attr('x', -margin.left + 5)
-        .attr('y', currentY + rowHeight / 2)
+        .attr('y', labelY)
         .attr('dy', '0.35em')
         .attr('text-anchor', 'start')
         .attr('font-size', '12px')
@@ -83,6 +86,29 @@ export function renderGroupLabels(
 
       bgRect.on('click', toggleCollapse);
       labelText.on('click', toggleCollapse);
+    }
+
+    // Add click handler for row selection (zoom and dim)
+    if (onRowClick) {
+      bgRect.style('cursor', 'pointer');
+      labelText.style('cursor', 'pointer');
+
+      const handleRowClick = (event: MouseEvent) => {
+        // If this is a collapsible group and we clicked the collapse indicator, don't trigger row click
+        if (group.collapsed !== undefined) {
+          const clickX = event.offsetX + margin.left;
+          // Check if click was on the collapse indicator area (left 30px)
+          if (clickX < 30) {
+            return; // Let the collapse handler deal with it
+          }
+        }
+        onRowClick(group.id);
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      bgRect.on('click', handleRowClick as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      labelText.on('click', handleRowClick as any);
     }
 
     currentY += rowHeight;

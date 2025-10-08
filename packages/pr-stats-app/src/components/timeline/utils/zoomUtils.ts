@@ -37,9 +37,9 @@ export function calculateInitialZoom(
     maxEventTime = midpoint + MIN_TIME_RANGE / 2;
   }
 
-  // Add small padding (5% on each side)
+  // Add minimal padding (1% on each side, or at least 30 seconds)
   const adjustedTimeRange = maxEventTime - minEventTime;
-  const padding = adjustedTimeRange * 0.05;
+  const padding = Math.max(adjustedTimeRange * 0.01, 30 * 1000); // 1% or 30 seconds minimum
   const paddedMin = minEventTime - padding;
   const paddedMax = maxEventTime + padding;
 

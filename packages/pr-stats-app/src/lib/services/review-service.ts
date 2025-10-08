@@ -105,7 +105,12 @@ export class ReviewService {
   getAuthorReviewerRelationship(
     authorTeams: string[],
     reviewerTeam: string
-  ): string {
+  ):
+    | 'same-team'
+    | 'intra-team'
+    | 'intra-department'
+    | 'cross-department'
+    | 'additional-reviewer' {
     if (authorTeams.includes(reviewerTeam)) {
       return 'same-team';
     }

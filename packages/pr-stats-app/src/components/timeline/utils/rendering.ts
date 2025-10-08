@@ -100,27 +100,7 @@ export function getEmojiForItem(d: ProcessedTimelineItem): string {
  * Get text to display for a rectangle item
  */
 export function getDisplayText(d: ProcessedTimelineItem): string {
-  // Use content first (clean text), then title as fallback
-  let displayText = d.content;
-  if (!displayText && d.title) {
-    // Extract the first line or clean up the title
-    displayText = d.title.split('\n')[0].trim();
-    // If it starts with "awaiting_review", replace with something cleaner
-    if (displayText.startsWith('awaiting_review')) {
-      displayText = 'Awaiting Review';
-    }
-  }
-
-  // Clean up the display text
-  if (displayText && displayText.includes('⏳')) {
-    displayText = displayText.split('⏳')[1]?.trim() || displayText;
-  }
-
-  if (!displayText) {
-    displayText = 'Event';
-  }
-
-  return displayText;
+  return d.title;
 }
 
 /**

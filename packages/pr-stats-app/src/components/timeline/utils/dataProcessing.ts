@@ -38,9 +38,34 @@ export function processTimelineData(
   // Sort items by start time for collision detection
   items.sort((a, b) => a.startTime - b.startTime);
 
-  // All items in the same row/group will be at level 0 (no vertical stacking)
+  // Calculate levels (vertical stacking) for items within each group
+  const groupItems = new Map<string, ProcessedTimelineItem[]>();
+
+  // Group items by their group ID
   items.forEach(item => {
-    item.level = 0;
+    if (!groupItems.has(item.group)) {
+      groupItems.set(item.group, []);
+    }
+    groupItems.get(item.group)!.push(item);
+  });
+
+  // For each group, calculate levels based on time overlap
+  groupItems.forEach((groupItemsList, groupId) => {
+    // For ci_jobs group, enable vertical stacking
+    if (groupId === 'ci_jobs') {
+      // Sort by start time
+      groupItemsList.sort((a, b) => a.startTime - b.startTime);
+
+      // Assign levels based on chronological order (earliest on top)
+      groupItemsList.forEach((item, index) => {
+        item.level = index;
+      });
+    } else {
+      // For all other groups, no vertical stacking (level 0)
+      groupItemsList.forEach(item => {
+        item.level = 0;
+      });
+    }
   });
 
   return items;

@@ -45,9 +45,16 @@ export default function ClientOnlyPrPage() {
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [zoomOption, setZoomOption] = useState<string>('full');
   const [zoomRange, setZoomRange] = useState<[Date, Date] | null>(null);
+  const [selectedBuildId, setSelectedBuildId] = useState<string | null>(null);
+  const [selectedRowGroup, setSelectedRowGroup] = useState<string | null>(null);
 
   // Map zoom options to their relevant groups
   const activeGroups = useMemo(() => {
+    // If a row is selected, only show items from that row
+    if (selectedRowGroup) {
+      return [selectedRowGroup];
+    }
+
     if (zoomOption === 'full') return null; // Show all groups
 
     const groupMap: Record<string, string[]> = {
@@ -67,7 +74,54 @@ export default function ClientOnlyPrPage() {
     }
 
     return groupMap[zoomOption] || null;
-  }, [zoomOption, data?.groups]);
+  }, [zoomOption, data?.groups, selectedRowGroup]);
+
+  // Handle row click: zoom to show all items in that row
+  const handleRowClick = useCallback(
+    (groupId: string) => {
+      if (!data) return;
+
+      // Toggle: if clicking the same row, deselect it
+      if (selectedRowGroup === groupId) {
+        setSelectedRowGroup(null);
+        setZoomRange(null);
+        setZoomOption('full');
+        return;
+      }
+
+      // Select the row
+      setSelectedRowGroup(groupId);
+      setZoomOption('full'); // Clear zoom preset
+
+      // Find all items in this group
+      const groupItems = data.items.filter(item => item.group === groupId);
+
+      if (groupItems.length === 0) {
+        // No items in this group
+        setZoomRange(null);
+        return;
+      }
+
+      // Find min and max times
+      const times = groupItems.flatMap(item => [
+        new Date(item.start).getTime(),
+        item.end
+          ? new Date(item.end).getTime()
+          : new Date(item.start).getTime(),
+      ]);
+
+      const minTime = Math.min(...times);
+      const maxTime = Math.max(...times);
+
+      // Add some padding (10% on each side)
+      const padding = (maxTime - minTime) * 0.1;
+      const startDate = new Date(minTime - padding);
+      const endDate = new Date(maxTime + padding);
+
+      setZoomRange([startDate, endDate]);
+    },
+    [data, selectedRowGroup]
+  );
 
   const fetchPrData = useCallback(
     async (forceRefresh = false) => {
@@ -181,9 +235,19 @@ export default function ClientOnlyPrPage() {
         if (selectedWorkflow === 'all') {
           return true;
         }
-        return (
-          'workflow_name' in event && event.workflow_name === selectedWorkflow
-        );
+        // For CI events, match both main builds (exact match) and jobs (starts with workflow name)
+        if ('workflow_name' in event && event.workflow_name) {
+          // Exact match for main builds (e.g., "kibana / pull request")
+          if (event.workflow_name === selectedWorkflow) {
+            return true;
+          }
+          // Match jobs that belong to the selected workflow (e.g., "kibana / pull request - Pre-Build")
+          // Jobs have format "workflow - job name"
+          if (event.workflow_name.startsWith(selectedWorkflow + ' - ')) {
+            return true;
+          }
+        }
+        return false;
       }),
     };
 
@@ -521,8 +585,8 @@ export default function ClientOnlyPrPage() {
       </EuiPageTemplate.Header>
 
       <EuiPageTemplate.Section>
-        <EuiFlexGroup direction="row" gutterSize="s" alignItems="center">
-          <EuiFlexItem>
+        <EuiFlexGroup direction="row" gutterSize="l" alignItems="center">
+          <EuiFlexItem grow={false}>
             <EuiFormRow label="Zoom to Phase" display="row" fullWidth>
               <EuiButtonGroup
                 legend="Timeline zoom options"
@@ -553,6 +617,66 @@ export default function ClientOnlyPrPage() {
             </EuiFormRow>
           </EuiFlexItem>
           <EuiFlexItem grow>
+            <EuiFlexGroup
+              gutterSize="m"
+              responsive={false}
+              direction="row"
+              alignItems="center"
+            >
+              <EuiFlexItem grow={false}>
+                <EuiFlexGroup
+                  gutterSize="xs"
+                  responsive={false}
+                  direction="column"
+                >
+                  <EuiFlexItem grow={false}>
+                    <EuiText size="xs">Hold option + scroll to zoom</EuiText>
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        border: '1px solid rgb(72, 89, 117)',
+                        borderRadius: '4px',
+                        padding: '4px',
+                        width: '32px',
+                        height: '32px',
+                      }}
+                    >
+                      <svg
+                        fill="#fff"
+                        version="1.1"
+                        id="icon"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 32 32"
+                      >
+                        <rect x="18" y="5" width="10" height="2" />
+                        <polygon points="10.6,5 4,5 4,7 9.4,7 18.4,27 28,27 28,25 19.6,25 " />
+                      </svg>
+                    </div>
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiFlexGroup
+                  gutterSize="xs"
+                  responsive={false}
+                  direction="column"
+                >
+                  <EuiFlexItem grow={false}>
+                    <EuiText size="xs">
+                      Hold command (⌘) + drag to select area
+                    </EuiText>
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiBadge color="hollow">⌘ Command</EuiBadge>
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
             <EuiFormRow label="Filter CI/CD Workflows" display="row">
               <EuiSelect
                 options={[
@@ -575,7 +699,47 @@ export default function ClientOnlyPrPage() {
         style={{ height: '100%', paddingInline: '0px' }}
         restrictWidth="100%"
       >
-        <Chart data={data} zoomRange={zoomRange} activeGroups={activeGroups} />
+        {data && (
+          <Chart
+            data={data}
+            zoomRange={zoomRange}
+            activeGroups={activeGroups}
+            selectedBuildId={selectedBuildId}
+            onBuildDoubleClick={buildId => {
+              // Always zoom to the build item (no toggle)
+              setSelectedBuildId(buildId);
+
+              // Find the build item in the timeline
+              const buildItem = data.items.find(
+                item =>
+                  (item.eventType === 'ci_run' ||
+                    item.eventType === 'ci_started') &&
+                  item.buildkite_build_id === buildId
+              );
+
+              if (buildItem) {
+                const startTime = new Date(buildItem.start).getTime();
+                const endTime = buildItem.end
+                  ? new Date(buildItem.end).getTime()
+                  : startTime + 30 * 60 * 1000; // Default 30 min if no end time
+
+                // Add minimal padding (1% on each side)
+                const duration = endTime - startTime;
+                const padding = Math.max(duration * 0.01, 1 * 60 * 1000); // At least 1 minute padding
+                const startDate = new Date(startTime - padding);
+                const endDate = new Date(endTime + padding);
+
+                setZoomRange([startDate, endDate]);
+              }
+            }}
+            onRowClick={handleRowClick}
+            onZoomRangeChange={range => {
+              setZoomRange(range);
+              setZoomOption('full'); // Clear preset
+              setSelectedRowGroup(null); // Clear row selection
+            }}
+          />
+        )}
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );

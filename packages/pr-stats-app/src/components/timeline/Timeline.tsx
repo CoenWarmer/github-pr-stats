@@ -38,6 +38,10 @@ export default function D3Timeline({
   height = 600,
   zoomRange = null,
   activeGroups = null,
+  selectedBuildId = null,
+  onBuildDoubleClick,
+  onRowClick,
+  onZoomRangeChange,
 }: D3TimelineProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,6 +51,11 @@ export default function D3Timeline({
     new Set(data.groups.filter(g => g.collapsed).map(g => g.id))
   );
   const isDimmedRef = useRef<boolean>(false);
+  const isTransitioningRef = useRef<boolean>(false);
+  const brushSelectionRef = useRef<{
+    start: number | null;
+    current: number | null;
+  }>({ start: null, current: null });
 
   // Measure container width for responsive behavior
   useEffect(() => {
@@ -69,11 +78,41 @@ export default function D3Timeline({
     };
   }, []);
 
+  // Auto-expand CI Jobs row when a build is selected
+  useEffect(() => {
+    if (selectedBuildId) {
+      setCollapsedGroups(prev => {
+        const next = new Set(prev);
+        next.delete('ci_jobs'); // Expand CI Jobs row
+        return next;
+      });
+    }
+  }, [selectedBuildId]);
+
   // Process timeline data
-  const processedData = useMemo(
-    () => processTimelineData(data, collapsedGroups),
-    [data, collapsedGroups]
-  );
+  const processedData = useMemo(() => {
+    let processed = processTimelineData(data, collapsedGroups);
+
+    // If a build is selected, filter CI jobs to only show jobs for that build
+    if (selectedBuildId) {
+      processed = processed.filter(item => {
+        // Keep all items that are not CI jobs
+        if (item.group !== 'ci_jobs') return true;
+        // For CI jobs, only keep those matching the selected build
+        return item.buildkite_build_id === selectedBuildId;
+      });
+
+      // Reassign levels to CI jobs after filtering so they stack correctly
+      // (levels 0, 1, 2... instead of having gaps from filtered-out items)
+      const ciJobs = processed.filter(item => item.group === 'ci_jobs');
+      ciJobs.sort((a, b) => a.startTime - b.startTime);
+      ciJobs.forEach((item, index) => {
+        item.level = index;
+      });
+    }
+
+    return processed;
+  }, [data, collapsedGroups, selectedBuildId]);
 
   // Calculate time domain
   const timeDomain = useMemo(
@@ -87,6 +126,26 @@ export default function D3Timeline({
     const actualWidth = containerWidth > 0 ? containerWidth : width;
 
     const svg = d3.select(svgRef.current);
+
+    // Add keyboard event listeners for cursor change
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && svgRef.current) {
+        svgRef.current.style.cursor = 'zoom-in';
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.altKey && svgRef.current) {
+        svgRef.current.style.cursor = 'default';
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    // Also handle blur to reset cursor when window loses focus
+    window.addEventListener('blur', () => {
+      if (svgRef.current) svgRef.current.style.cursor = 'default';
+    });
     svg.selectAll('*').remove();
 
     const { margin } = TIMELINE_CONFIG;
@@ -115,7 +174,7 @@ export default function D3Timeline({
     // Create scales
     const xScale = d3
       .scaleTime()
-      .domain(timeDomain as [Date, Date])
+      .domain([new Date(timeDomain[0]), new Date(timeDomain[1])])
       .range([0, innerWidth]);
 
     // Create main group
@@ -164,16 +223,107 @@ export default function D3Timeline({
     // Apply zoom behavior
     svg.call(zoom);
 
+    // Add brush selection overlay
+    const brushGroup = svg.append('g').attr('class', 'brush-selection');
+    const brushRect = brushGroup
+      .append('rect')
+      .attr('class', 'brush-rect')
+      .attr(
+        'fill',
+        colorMode === 'DARK'
+          ? 'rgba(100, 150, 255, 0.2)'
+          : 'rgba(0, 100, 255, 0.2)'
+      )
+      .attr(
+        'stroke',
+        colorMode === 'DARK' ? 'rgb(100, 150, 255)' : 'rgb(0, 100, 255)'
+      )
+      .attr('stroke-width', 2)
+      .attr('stroke-dasharray', '5,5')
+      .style('display', 'none');
+
+    // Add mouse handlers for brush selection (only when Command/Meta is held)
+    let brushStartX: number | null = null;
+
+    svg.on('mousedown', (event: MouseEvent) => {
+      if (event.metaKey) {
+        event.preventDefault();
+        const [x] = d3.pointer(event);
+        brushStartX = x;
+        brushSelectionRef.current = { start: x, current: x };
+        brushRect
+          .style('display', null)
+          .attr('x', x)
+          .attr('y', margin.top)
+          .attr('width', 0)
+          .attr('height', totalRowHeight);
+      }
+    });
+
+    svg.on('mousemove', (event: MouseEvent) => {
+      if (brushStartX !== null && event.metaKey) {
+        const [x] = d3.pointer(event);
+        brushSelectionRef.current.current = x;
+        const rectX = Math.min(brushStartX, x);
+        const rectWidth = Math.abs(x - brushStartX);
+        brushRect.attr('x', rectX).attr('width', rectWidth);
+      }
+    });
+
+    svg.on('mouseup', (event: MouseEvent) => {
+      if (brushStartX !== null && event.metaKey) {
+        const [x] = d3.pointer(event);
+        const startX = Math.min(brushStartX, x) - margin.left;
+        const endX = Math.max(brushStartX, x) - margin.left;
+
+        // Use the CURRENT zoom transform for accurate inversion
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const currentTransform = d3.zoomTransform(svg.node() as any);
+        const currentXScale = currentTransform.rescaleX(xScale);
+
+        // Convert pixel coordinates to time values using current scale
+        const startTime = currentXScale.invert(startX);
+        const endTime = currentXScale.invert(endX);
+
+        // Only zoom if selection is significant (> 20 pixels)
+        if (Math.abs(endX - startX) > 20 && onZoomRangeChange) {
+          onZoomRangeChange([startTime, endTime]);
+        }
+
+        // Reset brush
+        brushStartX = null;
+        brushSelectionRef.current = { start: null, current: null };
+        brushRect.style('display', 'none');
+      }
+    });
+
+    // Hide brush if Ctrl is released while dragging
+    svg.on('mouseleave', () => {
+      if (brushStartX !== null) {
+        brushStartX = null;
+        brushSelectionRef.current = { start: null, current: null };
+        brushRect.style('display', 'none');
+      }
+    });
+
     // Set initial zoom state
     if (zoomRange) {
+      // Mark that we're transitioning
+      isTransitioningRef.current = true;
+
       svg
         .transition()
         .duration(750)
         .ease(d3.easeCubicInOut)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .call(zoom.transform as any, initialTransform);
+        .call(zoom.transform as any, initialTransform)
+        .on('end', () => {
+          // Mark transition as complete
+          isTransitioningRef.current = false;
+        });
     } else {
       svg.property('__zoom', initialTransform);
+      isTransitioningRef.current = false;
     }
 
     // Calculate initial visibility settings
@@ -241,8 +391,20 @@ export default function D3Timeline({
     const tooltip = createTooltip(colorMode);
 
     // Add event handlers
-    addEventHandlers(rectGroups, tooltip, activeGroups);
-    addEventHandlers(pointGroups, tooltip, activeGroups);
+    addEventHandlers(
+      rectGroups,
+      tooltip,
+      activeGroups,
+      onBuildDoubleClick,
+      isTransitioningRef
+    );
+    addEventHandlers(
+      pointGroups,
+      tooltip,
+      activeGroups,
+      onBuildDoubleClick,
+      isTransitioningRef
+    );
 
     // Render axes
     renderDayAxis(g, transformedXScale, dayTicks, colorMode);
@@ -262,12 +424,15 @@ export default function D3Timeline({
       setCollapsedGroups,
       margin,
       innerWidth,
-      colorMode
+      colorMode,
+      onRowClick
     );
 
     // Cleanup
     return () => {
       d3.select('.d3-tooltip').remove();
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
   }, [
     data,
@@ -280,6 +445,9 @@ export default function D3Timeline({
     collapsedGroups,
     zoomRange,
     activeGroups,
+    onBuildDoubleClick,
+    onRowClick,
+    onZoomRangeChange,
   ]);
 
   return (

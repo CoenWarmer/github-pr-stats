@@ -68,163 +68,6 @@ function getEventGroup(eventType: string, event?: AnyTimelineEvent): string {
 }
 
 /**
- * Creates display content for a timeline event
- */
-function createEventContent(event: AnyTimelineEvent): string {
-  const baseContent = EVENT_CONTENT[event.type];
-
-  // Handle CI events first (before checking baseContent)
-  if (
-    (event.type.includes('ci_') || event.type === 'ci_run') &&
-    event.workflow_name
-  ) {
-    // Add emoji based on CI conclusion
-    let emoji = '';
-    if (event.ci_conclusion === 'success') {
-      emoji = '✅ ';
-    } else if (event.ci_conclusion === 'failure') {
-      emoji = '❌ ';
-    } else if (event.ci_conclusion === 'cancelled') {
-      emoji = '🟡 ';
-    }
-    return `${emoji}${event.workflow_name}`;
-  }
-
-  // Handle awaiting review events with team information
-  if (event.type === 'awaiting_review') {
-    const teamName = event.reviewer_teams?.[0];
-    if (teamName) {
-      return event.workflow_name?.includes('Re-review')
-        ? `⏳ Awaiting Re-review`
-        : `⏳ Awaiting Review`;
-    }
-    return `⏳ Awaiting Review`;
-  }
-
-  // Handle iteration events with iteration title (check BEFORE generic issue_ handler)
-  if (event.type === 'issue_iteration' && event.workflow_name) {
-    // workflow_name contains the iteration title
-    return `📅 ${event.workflow_name}`;
-  }
-
-  // Handle issue events with specific information
-  if (event.type.startsWith('issue_')) {
-    const baseContent = EVENT_CONTENT[event.type];
-    if (baseContent) {
-      if (event.issue_title && event.issue_number) {
-        return `${baseContent.emoji} ${baseContent.text}: #${event.issue_number} ${event.issue_title}`;
-      } else if (event.issue_number) {
-        return `${baseContent.emoji} ${baseContent.text}: #${event.issue_number}`;
-      }
-      return `${baseContent.emoji} ${baseContent.text}`;
-    }
-  }
-
-  // Handle release events with tag name
-  if (event.type === 'released' && event.release_tag) {
-    return `🚀 ${event.release_tag}`;
-  }
-
-  if (baseContent) {
-    // Handle specific event types with custom formatting
-    if (event.type === 'commits_pushed' && event.commit_count) {
-      return `${baseContent.emoji} ${event.commit_count} commit${event.commit_count > 1 ? 's' : ''}`;
-    }
-
-    if (
-      event.type === 'commits_added' &&
-      event.commits &&
-      event.commits.length > 0
-    ) {
-      // Show the first commit's SHA (shortened to 7 characters)
-      const firstCommit = event.commits[0];
-      const shortSha = firstCommit.sha.substring(0, 7);
-      return `${baseContent.emoji} ${shortSha} added`;
-    }
-
-    if (event.type === 'review' && event.reviewer && event.state) {
-      return `${baseContent.emoji} ${event.reviewer} - ${event.state}`;
-    }
-
-    if (event.type.includes('comment') && event.comment_author) {
-      return `${baseContent.emoji} ${event.comment_author}`;
-    }
-
-    return `${baseContent.emoji} ${baseContent.text}`;
-  }
-
-  // Fallback for unknown event types
-  return event.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-}
-
-/**
- * Creates a detailed title/tooltip for a timeline event
- */
-function createEventTitle(event: AnyTimelineEvent): string {
-  const lines = [event.type, new Date(event.date).toLocaleString()];
-
-  if (event.reviewer) lines.push(`Reviewer: ${event.reviewer}`);
-  if (event.state) lines.push(`State: ${event.state}`);
-  if (event.commit_count) lines.push(`Commits: ${event.commit_count}`);
-  if (event.comment_author) lines.push(`Author: ${event.comment_author}`);
-  if (event.workflow_name) lines.push(`Workflow: ${event.workflow_name}`);
-  if (event.ci_conclusion || event.ci_status) {
-    lines.push(`Status: ${event.ci_conclusion || event.ci_status}`);
-  }
-  if (event.url && (event.type.includes('ci_') || event.type === 'ci_run')) {
-    lines.push(`Build: ${event.url}`);
-  }
-  if (event.time_to_review_hours) {
-    lines.push(`Review time: ${event.time_to_review_hours.toFixed(1)}h`);
-  }
-  if (event.comment_content) {
-    const preview = event.comment_content.substring(0, 100);
-    lines.push(
-      `Content: ${preview}${event.comment_content.length > 100 ? '...' : ''}`
-    );
-  }
-  if (event.release_tag) {
-    lines.push(`Release: ${event.release_tag}`);
-  }
-  if (event.url && event.type === 'released') {
-    lines.push(`URL: ${event.url}`);
-  }
-  if (event.type === 'issue_iteration') {
-    if (event.workflow_name) lines.push(`Iteration: ${event.workflow_name}`);
-    if (event.comment_content) lines.push(`Project: ${event.comment_content}`);
-    if (event.issue_number) lines.push(`Issue: #${event.issue_number}`);
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Creates CSS class names for styling timeline events
- */
-function createEventClassName(event: AnyTimelineEvent): string {
-  const group = getEventGroup(event.type);
-  const classes = [group];
-
-  // Add specific styling classes
-  // Generic type tags to help downstream renderers (e.g., D3) with coloring
-  if (event.type.includes('review')) classes.push('review');
-  if (event.type.includes('commit')) classes.push('commit');
-  if (event.type.includes('comment')) classes.push('comment');
-  if (event.type.startsWith('issue_')) classes.push('discussion');
-  if (event.type.includes('ci_') || event.type === 'ci_run') classes.push('ci');
-  if (event.type === 'merged') classes.push('merged');
-  if (event.type === 'closed') classes.push('closed');
-  if (event.state) classes.push(`review-${event.state.toLowerCase()}`);
-  if (event.ci_conclusion) classes.push(`ci-${event.ci_conclusion}`);
-  if (event.ci_status) classes.push(`ci-${event.ci_status}`);
-  if (event.url) classes.push('clickable');
-  if (event.type === 'released') classes.push('released');
-  if (event.type === 'issue_iteration') classes.push('iteration');
-
-  return classes.join(' ');
-}
-
-/**
  * Determines the color for timeline events based on type and status
  */
 function createEventColor(event: AnyTimelineEvent): string {
@@ -273,30 +116,6 @@ function createEventColor(event: AnyTimelineEvent): string {
 
   // Default color
   return 'primary';
-}
-
-/**
- * Extracts all code owner teams from the PR timeline
- */
-function extractCodeOwners(pr: PullRequestStats): string[] {
-  const codeOwnerTeams = new Set<string>();
-
-  // Extract teams from review events
-  pr.timeline.forEach(event => {
-    if (event.type === 'review') {
-      if (event.reviewer_teams && event.reviewer_teams.length > 0) {
-        // Add all teams for this reviewer
-        event.reviewer_teams.forEach(team => {
-          codeOwnerTeams.add(team);
-        });
-      }
-    }
-  });
-
-  const result = Array.from(codeOwnerTeams).sort();
-
-  // Only return actual teams - no fallback to individual reviewers
-  return result;
 }
 
 /**
@@ -411,17 +230,17 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
     .map((event, index) => {
       const base = {
         id: `event_${index}`,
-        group: getEventGroupForCodeOwners(event.type, event),
+        eventType: event.type, // Store the original event type
         start: event.date,
         end: event.end_date,
-        content: createEventContent(event),
+        group: getEventGroupForCodeOwners(event.type, event),
+        content: '', // createEventContent(event),
         emoji: EVENT_CONTENT[event.type]?.emoji,
-        title: createEventTitle(event),
-        className: createEventClassName(event),
+        title: event.title,
         url: event.url,
         color: createEventColor(event),
         isPointInTime: !event.end_date, // Track if this was originally a point-in-time event
-        eventType: event.type, // Store the original event type
+        popoverContent: event.popoverContent,
       };
 
       if (
@@ -433,7 +252,6 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
           ...base,
           commentContent: event.comment_content,
           commentAuthor: event.comment_author,
-          popoverContent: event.popoverContent,
         };
       }
 
@@ -441,7 +259,6 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         return {
           ...base,
           reviewBody: event.review_body,
-          popoverContent: event.popoverContent,
         };
       }
 
@@ -454,7 +271,6 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         return {
           ...base,
           commits: event.commits,
-          popoverContent: event.popoverContent,
         };
       }
 
@@ -473,7 +289,6 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
           buildkite_pipeline_slug: event.buildkite_pipeline_slug,
           workflow_name: event.workflow_name,
           ci_failure_reason: event.ci_failure_reason,
-          popoverContent: event.popoverContent,
         };
       }
 
@@ -522,7 +337,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
         end: firstApproval.date,
         content: `${durationHours.toFixed(1)}h`,
         emoji: '',
-        title: `Team Review Duration\nTeam: ${teamName}\nRequested: ${new Date(requestEvent.date).toLocaleString()}\nApproved: ${new Date(firstApproval.date).toLocaleString()}\nDuration: ${durationHours.toFixed(1)}h`,
+        title: `${durationHours.toFixed(1)}h`,
         className: 'team-review-duration',
         color: 'hollow', // Use a subtle color
         isPointInTime: false,
@@ -575,7 +390,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
       end: prEnd,
       emoji: '📋',
       content: `${durationHours}h`,
-      title: `PR Lifecycle\n${pr.title}\nDuration: ${durationHours}h`,
+      title: `${durationHours}h`,
       className: pr.merged_at ? 'merged' : 'closed',
       url: pr.timeline.find(event => event.type === 'opened')?.url,
       popoverContent: `
@@ -625,7 +440,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
           end: issue.closed_at,
           emoji: '🎫',
           content: `🎫 Issue #${issue.number}: ${issue.title}`,
-          title: `Issue Lifecycle\n#${issue.number}: ${issue.title}\nDuration: ${durationDays}d (${durationHours}h)`,
+          title: `${durationDays}d (${durationHours}h)`,
           className: 'closed',
           url: issue.url,
           popoverContent: `

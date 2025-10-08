@@ -4,10 +4,12 @@ interface BaseTimelineEvent {
   end_date?: string;
   url?: string;
   hidden_from_timeline?: boolean;
+  title: string;
   // Duration fields (calculated at data collection time)
   duration_ms?: number;
   duration_minutes?: number;
   duration_hours?: number;
+  popoverContent?: string;
 }
 
 // Mixin interfaces for shared field groups
@@ -19,7 +21,6 @@ interface ReviewFields {
   author_reviewer_relationship?: string;
   submitted_at?: string;
   review_body?: string; // Review comment/body content
-  popoverContent?: string;
 }
 
 interface CiFields {
@@ -30,14 +31,12 @@ interface CiFields {
   buildkite_build_number?: number;
   buildkite_pipeline_slug?: string;
   ci_failure_reason?: string;
-  popoverContent?: string;
 }
 
 interface CommentFields {
   comment_author?: string;
   comment_content?: string;
   comment_id?: number;
-  popoverContent?: string;
 }
 
 interface CommitFields {
@@ -50,7 +49,6 @@ interface CommitFields {
     author: string;
     date: string;
   }>;
-  popoverContent?: string;
 }
 
 interface IssueFields {
@@ -503,7 +501,7 @@ export interface TimelineItem {
   end?: string;
   content: string;
   emoji: string;
-  title?: string;
+  title: string;
   className?: string;
   url?: string;
   slackUrl?: string;

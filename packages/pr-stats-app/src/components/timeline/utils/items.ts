@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import React from 'react';
 import { ProcessedTimelineItem } from '../types';
 import {
   getEventColor,
@@ -21,11 +22,18 @@ export function getItemY(
   for (let i = 0; i < item.groupIndex; i++) {
     y += rowHeights[i];
   }
-  // Get the current row height
+
+  // For CI jobs group, position items from top of row with stacking
+  if (item.group === 'ci_jobs') {
+    // Small top padding + level offset
+    const topPadding = 5;
+    return y + topPadding + item.level * levelHeight;
+  }
+
+  // For all other groups, center vertically within the row
   const currentRowHeight = rowHeights[item.groupIndex] || 0;
-  // Center the item vertically within the row
   const centeredY = y + (currentRowHeight - itemHeight) / 2;
-  return centeredY + item.level * levelHeight;
+  return centeredY;
 }
 
 /**
@@ -183,7 +191,7 @@ export function renderPointItems(
 }
 
 /**
- * Add event handlers (hover, click) to timeline items
+ * Add event handlers (hover, click, double-click) to timeline items
  */
 export function addEventHandlers(
   selection: d3.Selection<
@@ -194,10 +202,21 @@ export function addEventHandlers(
   >,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tooltip: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>,
-  activeGroups: string[] | null
+  activeGroups: string[] | null,
+  onBuildDoubleClick?: (buildId: string) => void,
+  isTransitioningRef?: React.MutableRefObject<boolean>
 ) {
+  let clickTimer: NodeJS.Timeout | null = null;
+
   selection
     .on('mouseover', function (event, d) {
+      event.stopPropagation(); // Prevent event from bubbling to zoom behavior
+
+      // Don't show tooltip during transitions
+      if (isTransitioningRef?.current) {
+        return;
+      }
+
       // Set opacity on child elements, not the group
       d3.select(this).select('.timeline-rect').attr('opacity', 1);
       d3.select(this).select('.timeline-circle').attr('opacity', 1);
@@ -224,9 +243,56 @@ export function addEventHandlers(
       tooltip.transition().duration(500).style('opacity', 0);
     })
     .on('click', function (event, d) {
-      console.log('clicked', d);
-      if (d.url) {
-        window.open(d.url, '_blank');
+      // Check if this is a CI build that can be double-clicked
+      const isCIBuild =
+        onBuildDoubleClick &&
+        d.group === 'ci' &&
+        (d.eventType === 'ci_run' ||
+          d.eventType === 'ci_started' ||
+          d.eventType === 'ci_completed') &&
+        d.buildkite_build_id;
+
+      // For CI builds, delay the click to allow double-click to intercept
+      if (isCIBuild) {
+        if (clickTimer) {
+          clearTimeout(clickTimer);
+          clickTimer = null;
+        } else {
+          clickTimer = setTimeout(() => {
+            clickTimer = null;
+            console.log('clicked', d);
+            if (d.url) {
+              window.open(d.url, '_blank');
+            }
+          }, 250); // Wait 250ms to see if it's a double-click
+        }
+      } else {
+        // For non-CI builds, open URL immediately
+        console.log('clicked', d);
+        if (d.url) {
+          window.open(d.url, '_blank');
+        }
+      }
+    })
+    .on('dblclick', function (event, d) {
+      // Clear the single-click timer if it exists
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+      }
+
+      // Handle double-click on CI/CD build events
+      if (
+        onBuildDoubleClick &&
+        d.group === 'ci' &&
+        (d.eventType === 'ci_run' ||
+          d.eventType === 'ci_started' ||
+          d.eventType === 'ci_completed') &&
+        d.buildkite_build_id
+      ) {
+        event.stopPropagation(); // Prevent default double-click behavior
+        event.preventDefault(); // Prevent any default action
+        onBuildDoubleClick(d.buildkite_build_id);
       }
     });
 }

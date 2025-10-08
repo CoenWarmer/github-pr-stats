@@ -276,6 +276,7 @@ export class GitHubCollector {
       timeline.push({
         type: prData.draft ? 'opened_draft' : 'opened',
         date: prData.created_at,
+        title: 'PR opened',
       });
 
       reportProgress('Processing timeline events', 2, 10);
@@ -287,6 +288,11 @@ export class GitHubCollector {
             timeline.push({
               type: 'ready_for_review',
               date: event.created_at,
+              title: 'Ready for review',
+              popoverContent: `
+                <strong>Marked as ready for review</strong><br/>
+                ${new Date(event.created_at).toLocaleString()}
+              `,
             });
           }
         }
@@ -393,6 +399,7 @@ export class GitHubCollector {
 
         timeline.push({
           type: 'commits_added',
+          title: 'Commits added',
           date: group.date,
           commit_count: group.commits.length,
           commits: group.commits,
@@ -415,7 +422,7 @@ export class GitHubCollector {
               // Create enriched CI events from Buildkite data
               const buildkiteEvents =
                 this.buildkiteService.createCIEventsFromBuildkiteBuild(build, {
-                  includeJobs: false, // Create job events for cache
+                  includeJobs: true, // Create job events for cache and CI Jobs row
                   hideJobsFromTimeline: false, // Show them in timeline (in collapsible CI Jobs row)
                 });
 
@@ -454,6 +461,7 @@ export class GitHubCollector {
 
         timeline.push({
           type: 'comment_added',
+          title: 'Comment added',
           date: comment.created_at,
           comment_author: comment.user?.login || 'unknown',
           comment_content: commentBody,
@@ -478,6 +486,7 @@ export class GitHubCollector {
 
         timeline.push({
           type: 'review_comment_added',
+          title: 'Review comment added',
           date: comment.created_at,
           comment_author: comment.user?.login || 'unknown',
           comment_content: commentBody,
@@ -499,6 +508,7 @@ export class GitHubCollector {
           for (const event of issue.lifecycle_events) {
             timeline.push({
               type: `issue_${event.event_type}`,
+              title: 'Issue lifecycle',
               date: event.date,
               end_date: event.end_date,
               issue_number: issue.number,
@@ -533,6 +543,7 @@ export class GitHubCollector {
 
         timeline.push({
           type: 'review',
+          title: 'Review',
           date: reviewTiming.submitted_at,
           reviewer: reviewTiming.reviewer,
           state: reviewTiming.state,
@@ -562,8 +573,13 @@ export class GitHubCollector {
             if (eventAny.requested_team) {
               timeline.push({
                 type: 'team_review_requested',
+                title: 'Team review requested',
                 date: eventAny.created_at || prData.created_at,
                 requested_team: eventAny.requested_team.slug,
+                popoverContent: `
+                  <strong>Requested review from ${eventAny.requested_team.slug}</strong><br/>
+                  ${new Date(eventAny.created_at || prData.created_at).toLocaleString()}
+                `,
               });
             }
           }
@@ -578,6 +594,7 @@ export class GitHubCollector {
       for (const release of releases) {
         timeline.push({
           type: 'released',
+          title: 'Released',
           date: release.published_at,
           release_tag: release.tag_name,
           url: release.html_url,

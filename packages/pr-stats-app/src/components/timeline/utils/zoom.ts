@@ -25,7 +25,21 @@ export function createZoomBehavior(
 
   return d3
     .zoom<SVGSVGElement, unknown>()
-    .scaleExtent([minScale * 0.9, 100])
+    .filter(event => {
+      // Allow panning with mouse drag (no modifier key needed)
+      // Only allow zooming (wheel events) when Alt/Option key is held
+      if (event.type === 'wheel') {
+        if (!event.altKey) return false;
+        // Ignore wheel zooms when hovering tooltip to avoid odd centers
+        const target = event.target as Element | null;
+        if (target && target.closest('.d3-tooltip')) return false;
+        return true;
+      }
+      // Allow all other events (drag, touch, etc.).
+      // When Command/Meta is held (used for brushing), ignore zoom/pan.
+      return !event.metaKey && !event.button;
+    })
+    .scaleExtent([minScale * 0.9, 1000])
     .extent([
       [0, 0],
       [innerWidth, totalRowHeight],
@@ -35,12 +49,20 @@ export function createZoomBehavior(
       [xScale(timeDomain[1]), totalRowHeight],
     ])
     .on('start', event => {
-      // Reset opacity when user starts interacting
+      // Reset opacity when user starts interacting (only for actual pan/zoom, not hover)
       if (isDimmedRef.current && event.sourceEvent) {
-        isDimmedRef.current = false;
-        // Reset all items to full opacity
-        g.selectAll('.timeline-rect').attr('opacity', 0.9);
-        g.selectAll('.timeline-circle').attr('opacity', 0.9);
+        const sourceEventType = event.sourceEvent.type;
+        // Only reset for actual pan/zoom gestures (wheel, mousedown, touchstart)
+        if (
+          sourceEventType === 'wheel' ||
+          sourceEventType === 'mousedown' ||
+          sourceEventType === 'touchstart'
+        ) {
+          isDimmedRef.current = false;
+          // Reset all items to full opacity
+          g.selectAll('.timeline-rect').attr('opacity', 0.9);
+          g.selectAll('.timeline-circle').attr('opacity', 0.9);
+        }
       }
     })
     .on('zoom', event => {
@@ -103,9 +125,24 @@ export function createZoomBehavior(
       const visibleDays = visibleTimeRange / ONE_DAY_MS;
       const visibility = calculateVisibility(visibleDays);
 
-      // Update hour grid lines
+      // Update hour grid lines with adaptive intervals based on zoom level
+      let timeInterval: d3.CountableTimeInterval;
+      if (visibility.visibleDays < 0.5) {
+        // Extremely zoomed in: show 30-minute intervals
+        timeInterval = d3.timeMinute.every(30)!;
+      } else if (visibility.visibleDays < 1) {
+        // Very zoomed in: show hourly intervals
+        timeInterval = d3.timeHour.every(1)!;
+      } else if (visibility.visibleDays < 3) {
+        timeInterval = d3.timeHour.every(2)!;
+      } else if (visibility.visibleDays < 5) {
+        timeInterval = d3.timeHour.every(4)!;
+      } else {
+        timeInterval = d3.timeHour.every(6)!;
+      }
+
       const newHourTicks = visibility.showHourGridLines
-        ? newXScale.ticks(d3.timeHour.every(6))
+        ? newXScale.ticks(timeInterval)
         : [];
       const hourGridLines = bgGroup
         .selectAll('.hour-grid-line')
@@ -178,9 +215,24 @@ export function createZoomBehavior(
 
       // Update hour axis
       if (visibility.showHourAxis) {
+        // Use adaptive interval for hour axis labels (same logic as grid lines)
+        let axisTimeInterval: d3.CountableTimeInterval;
+        if (visibility.visibleDays < 0.5) {
+          // Extremely zoomed in: show 30-minute intervals
+          axisTimeInterval = d3.timeMinute.every(30)!;
+        } else if (visibility.visibleDays < 1) {
+          axisTimeInterval = d3.timeHour.every(1)!;
+        } else if (visibility.visibleDays < 3) {
+          axisTimeInterval = d3.timeHour.every(2)!;
+        } else if (visibility.visibleDays < 5) {
+          axisTimeInterval = d3.timeHour.every(4)!;
+        } else {
+          axisTimeInterval = d3.timeHour.every(6)!;
+        }
+
         const newHourAxis = d3
           .axisTop(newXScale)
-          .ticks(d3.timeHour.every(4))
+          .ticks(axisTimeInterval)
           .tickFormat(
             d3.timeFormat('%H:%M') as (date: Date | d3.NumberValue) => string
           )

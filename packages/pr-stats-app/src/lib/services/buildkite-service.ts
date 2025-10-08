@@ -238,13 +238,26 @@ export class BuildkiteService {
       popoverContent += `<br/><br/><strong>Failure Reason:</strong><br/><em>${failureReason}</em>`;
     }
 
+    const conclusion = this.mapBuildkiteStateToCIConclusion(build.state);
+
+    const conclusionEmojiMap = {
+      success: '✅',
+      failure: '❌',
+      cancelled: '✖️',
+      skipped: '⚠️',
+      neutral: '❌',
+      in_progress: '🏃‍♀️',
+      action_required: '⚠️',
+    };
+
     // Create main build event
     const buildEvent: TimelineEvent = {
       type: build.state === 'running' ? 'ci_started' : 'ci_run',
       date: startTime,
+      title: `${conclusionEmojiMap[conclusion as keyof typeof conclusionEmojiMap]} ${build.pipeline.name} (${build.number})`,
       end_date: endTime || undefined,
       workflow_name: build.pipeline.name,
-      ci_conclusion: this.mapBuildkiteStateToCIConclusion(build.state),
+      ci_conclusion: conclusion,
       ci_status: build.state === 'running' ? 'started' : 'completed',
       url: build.web_url,
       buildkite_build_id: build.id,
@@ -309,6 +322,7 @@ export class BuildkiteService {
           const jobEvent: TimelineEvent = {
             type: job.state === 'running' ? 'ci_started' : 'ci_run',
             date: jobStartTime,
+            title: `${job.name} ${durationMs > 0 ? `(${this.formatDuration(durationMs)})` : ''}`,
             end_date: jobEndTime || undefined,
             workflow_name: `${build.pipeline.name} - ${job.name}`,
             ci_conclusion: this.mapBuildkiteStateToCIConclusion(job.state),

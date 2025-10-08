@@ -4,7 +4,7 @@ export const TIMELINE_CONFIG: TimelineConfig = {
   margin: { top: 100, right: 40, bottom: 40, left: 200 },
   baseRowHeight: 17,
   levelHeight: 25,
-  collapsedRowHeight: 30,
+  collapsedRowHeight: 42,
   pointRadius: 12,
   minPixelGap: 24, // pointRadius * 2
   rectHeight: 1,
