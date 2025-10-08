@@ -127,6 +127,51 @@ export function calculateRowHeights(
 }
 
 /**
+ * Filter CI items based on selected build and reassign levels for jobs
+ */
+export function filterCIItems(
+  processedData: ProcessedTimelineItem[],
+  selectedBuildId: string | null
+): ProcessedTimelineItem[] {
+  // Filter CI items based on whether a build is selected
+  const filtered = processedData.filter(item => {
+    // Keep all items that are not in the CI group
+    if (item.group !== 'ci') return true;
+
+    // For CI group items, check if it's a job (has ' - ' in workflow_name)
+    const isJob = item.workflow_name?.includes(' - ');
+
+    // Always keep ALL main builds (not jobs), regardless of selectedBuildId
+    if (!isJob) {
+      return true;
+    }
+
+    // For job items:
+    // - If a build is selected, only show jobs for that build
+    // - If no build is selected, hide all job items
+    if (selectedBuildId) {
+      return item.buildkite_build_id === selectedBuildId;
+    } else {
+      return false; // Hide jobs when no build is selected
+    }
+  });
+
+  // If a build is selected, reassign levels to CI jobs so they stack correctly
+  // (levels 1, 2, 3... instead of having gaps from filtered-out items)
+  if (selectedBuildId) {
+    const ciJobs = filtered.filter(
+      item => item.group === 'ci' && item.workflow_name?.includes(' - ')
+    );
+    ciJobs.sort((a, b) => a.startTime - b.startTime);
+    ciJobs.forEach((item, index) => {
+      item.level = index + 1; // Start at level 1 (level 0 is for main builds)
+    });
+  }
+
+  return filtered;
+}
+
+/**
  * Compute pixel nudges for overlapping point-in-time items
  */
 export function computeNudges(
