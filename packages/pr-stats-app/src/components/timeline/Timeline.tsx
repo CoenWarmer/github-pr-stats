@@ -11,26 +11,26 @@ import {
   calculateTimeDomain,
   calculateRowHeights,
   computeNudges,
-} from './ utils/dataProcessing';
+} from './utils/dataProcessing';
 import {
   calculateInitialZoom,
   calculateMinScale,
   calculateVisibility,
-} from './ utils/zoomUtils';
-import { createTooltip } from './ utils/rendering';
+} from './utils/zoomUtils';
+import { createTooltip } from './utils/rendering';
 import {
   renderDayAxis,
   renderHourAxis,
   calculateInitialDayTicks,
-} from './ utils/axes';
-import { renderHourGridLines, renderDaySeparators } from './ utils/gridLines';
+} from './utils/axes';
+import { renderHourGridLines, renderDaySeparators } from './utils/gridLines';
 import {
   renderRectangleItems,
   renderPointItems,
   addEventHandlers,
-} from './ utils/items';
-import { renderGroupLabels } from './ utils/groupLabels';
-import { createZoomBehavior } from './ utils/zoom';
+} from './utils/items';
+import { renderGroupLabels } from './utils/groupLabels';
+import { createZoomBehavior } from './utils/zoom';
 
 export default function D3Timeline({
   data,
@@ -78,36 +78,42 @@ export default function D3Timeline({
     };
   }, []);
 
-  // Auto-expand CI Jobs row when a build is selected
-  useEffect(() => {
-    if (selectedBuildId) {
-      setCollapsedGroups(prev => {
-        const next = new Set(prev);
-        next.delete('ci_jobs'); // Expand CI Jobs row
-        return next;
-      });
-    }
-  }, [selectedBuildId]);
-
   // Process timeline data
   const processedData = useMemo(() => {
     let processed = processTimelineData(data, collapsedGroups);
 
-    // If a build is selected, filter CI jobs to only show jobs for that build
-    if (selectedBuildId) {
-      processed = processed.filter(item => {
-        // Keep all items that are not CI jobs
-        if (item.group !== 'ci_jobs') return true;
-        // For CI jobs, only keep those matching the selected build
-        return item.buildkite_build_id === selectedBuildId;
-      });
+    // Filter CI items based on whether a build is selected
+    processed = processed.filter(item => {
+      // Keep all items that are not in the CI group
+      if (item.group !== 'ci') return true;
 
-      // Reassign levels to CI jobs after filtering so they stack correctly
-      // (levels 0, 1, 2... instead of having gaps from filtered-out items)
-      const ciJobs = processed.filter(item => item.group === 'ci_jobs');
+      // For CI group items, check if it's a job (has ' - ' in workflow_name)
+      const isJob = item.workflow_name?.includes(' - ');
+
+      // Always keep ALL main builds (not jobs), regardless of selectedBuildId
+      if (!isJob) {
+        return true;
+      }
+
+      // For job items:
+      // - If a build is selected, only show jobs for that build
+      // - If no build is selected, hide all job items
+      if (selectedBuildId) {
+        return item.buildkite_build_id === selectedBuildId;
+      } else {
+        return false; // Hide jobs when no build is selected
+      }
+    });
+
+    // If a build is selected, reassign levels to CI jobs so they stack correctly
+    // (levels 1, 2, 3... instead of having gaps from filtered-out items)
+    if (selectedBuildId) {
+      const ciJobs = processed.filter(
+        item => item.group === 'ci' && item.workflow_name?.includes(' - ')
+      );
       ciJobs.sort((a, b) => a.startTime - b.startTime);
       ciJobs.forEach((item, index) => {
-        item.level = index;
+        item.level = index + 1; // Start at level 1 (level 0 is for main builds)
       });
     }
 

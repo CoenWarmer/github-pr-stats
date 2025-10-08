@@ -51,14 +51,25 @@ export function processTimelineData(
 
   // For each group, calculate levels based on time overlap
   groupItems.forEach((groupItemsList, groupId) => {
-    // For ci_jobs group, enable vertical stacking
-    if (groupId === 'ci_jobs') {
-      // Sort by start time
-      groupItemsList.sort((a, b) => a.startTime - b.startTime);
+    // For CI group, enable vertical stacking for job items only
+    if (groupId === 'ci') {
+      // Separate main builds and jobs
+      const jobItems = groupItemsList.filter(item =>
+        item.workflow_name?.includes(' - ')
+      );
+      const mainBuildItems = groupItemsList.filter(
+        item => !item.workflow_name?.includes(' - ')
+      );
 
-      // Assign levels based on chronological order (earliest on top)
-      groupItemsList.forEach((item, index) => {
-        item.level = index;
+      // Main builds stay at level 0
+      mainBuildItems.forEach(item => {
+        item.level = 0;
+      });
+
+      // Jobs are stacked based on chronological order (earliest on top)
+      jobItems.sort((a, b) => a.startTime - b.startTime);
+      jobItems.forEach((item, index) => {
+        item.level = index + 1; // Start at level 1 (level 0 is for main builds)
       });
     } else {
       // For all other groups, no vertical stacking (level 0)

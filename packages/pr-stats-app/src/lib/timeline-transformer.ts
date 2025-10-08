@@ -14,7 +14,6 @@ const EVENT_GROUPS = {
   discussion: ['comment_added', 'review_comment_added', 'issue_comment'], // Check before review to catch review_comment_added
   review: ['review_requested', 'review_dismissed', 'awaiting_review', 'review'], // 'review' last to avoid false matches
   ci: ['ci_', 'workflow', 'check_run', 'status'],
-  ci_jobs: [], // CI jobs will be identified by workflow_name pattern
   released: ['released'],
 } as const;
 
@@ -47,16 +46,13 @@ const EVENT_CONTENT: Record<string, { emoji: string; text: string }> = {
  * Determines which group an event belongs to based on its type
  */
 function getEventGroup(eventType: string, event?: AnyTimelineEvent): string {
-  // Check if this is a CI job (has workflow_name with a hyphen separator after the pipeline name)
+  // All CI events (both main builds and jobs) go to 'ci' group
   if (
     event &&
     (eventType.includes('ci_') || eventType === 'ci_run') &&
     event.workflow_name
   ) {
-    // CI jobs have format "pipeline - job name" (e.g., "kibana / pull request - Pre-Build")
-    if (event.workflow_name.includes(' - ')) {
-      return 'ci_jobs';
-    }
+    return 'ci';
   }
 
   for (const [group, patterns] of Object.entries(EVENT_GROUPS)) {
@@ -220,8 +216,12 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
       order: 4 + codeOwners.length + (hasAdditionalReviewersFlag ? 1 : 0),
     },
     { id: 'ci', content: '🔧 CI/CD', order: 5 },
-    { id: 'ci_jobs', content: '⚙️ CI Jobs', order: 6, collapsed: true },
-    { id: 'released', content: '🚀 Released', order: 7 },
+    { id: 'released', content: '🚀 Released', order: 6 },
+    {
+      id: 'released_serverless',
+      content: '🚀 Released (Serverless)',
+      order: 7,
+    },
   ];
 
   // Transform timeline events to timeline items

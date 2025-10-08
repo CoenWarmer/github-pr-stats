@@ -24,6 +24,7 @@ import {
   EuiButtonGroup,
 } from '@elastic/eui';
 import PRStats from '@/components/PRStats';
+import ToolHelp from '@/components/ToolHelp';
 
 interface PrPageParams {
   owner: string;
@@ -61,6 +62,7 @@ export default function ClientOnlyPrPage() {
       delivery: ['admin'], // Administrative (issues)
       development: ['dev'], // Development (PR lifecycle, commits)
       reviews: ['additional_reviewers'], // Review groups (dynamically generated)
+      ci: ['ci'], // CI/CD group
     };
 
     // For reviews, include all code owner team groups (they start with "reviewer_")
@@ -272,6 +274,7 @@ export default function ClientOnlyPrPage() {
       delivery: null,
       development: null,
       reviews: null,
+      ci: null,
     };
 
     // Feature Delivery: Issue created to Issue closed (or PR created/merged as fallback)
@@ -352,6 +355,37 @@ export default function ClientOnlyPrPage() {
         ];
       } else {
         ranges.reviews = [firstReview, lastApproval];
+      }
+    }
+
+    // CI/CD: First CI run to last CI completion
+    const ciEvents = prStats.timeline.filter(
+      event =>
+        event.type === 'ci_run' ||
+        event.type === 'ci_started' ||
+        event.type === 'ci_completed' ||
+        event.type.includes('ci_')
+    );
+
+    if (ciEvents.length > 0) {
+      const ciTimes = ciEvents.map(e => new Date(e.date));
+      const firstCi = ciTimes.sort((a, b) => a.getTime() - b.getTime())[0];
+      const lastCi = ciTimes.sort((a, b) => b.getTime() - a.getTime())[0];
+
+      // Ensure there's a minimum time range (at least 30 minutes)
+      const minRangeMs = 30 * 60 * 1000; // 30 minutes
+      const rangeMs = lastCi.getTime() - firstCi.getTime();
+
+      if (rangeMs < minRangeMs) {
+        // Expand the range symmetrically around the midpoint
+        const midpoint = (firstCi.getTime() + lastCi.getTime()) / 2;
+        const halfRange = minRangeMs / 2;
+        ranges.ci = [
+          new Date(midpoint - halfRange),
+          new Date(midpoint + halfRange),
+        ];
+      } else {
+        ranges.ci = [firstCi, lastCi];
       }
     }
 
@@ -585,8 +619,8 @@ export default function ClientOnlyPrPage() {
       </EuiPageTemplate.Header>
 
       <EuiPageTemplate.Section>
-        <EuiFlexGroup direction="row" gutterSize="l" alignItems="center">
-          <EuiFlexItem grow={false}>
+        <EuiFlexGroup direction="row" gutterSize="l" alignItems="flexEnd">
+          <EuiFlexItem grow>
             <EuiFormRow label="Zoom to Phase" display="row" fullWidth>
               <EuiButtonGroup
                 legend="Timeline zoom options"
@@ -608,6 +642,10 @@ export default function ClientOnlyPrPage() {
                     label: 'Code Reviews',
                     isDisabled: !zoomRanges?.reviews,
                   },
+                  {
+                    id: 'ci',
+                    label: 'CI/CD',
+                  },
                 ]}
                 idSelected={zoomOption}
                 onChange={(id: string) => setZoomOption(id)}
@@ -616,66 +654,7 @@ export default function ClientOnlyPrPage() {
               />
             </EuiFormRow>
           </EuiFlexItem>
-          <EuiFlexItem grow>
-            <EuiFlexGroup
-              gutterSize="m"
-              responsive={false}
-              direction="row"
-              alignItems="center"
-            >
-              <EuiFlexItem grow={false}>
-                <EuiFlexGroup
-                  gutterSize="xs"
-                  responsive={false}
-                  direction="column"
-                >
-                  <EuiFlexItem grow={false}>
-                    <EuiText size="xs">Hold option + scroll to zoom</EuiText>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        border: '1px solid rgb(72, 89, 117)',
-                        borderRadius: '4px',
-                        padding: '4px',
-                        width: '32px',
-                        height: '32px',
-                      }}
-                    >
-                      <svg
-                        fill="#fff"
-                        version="1.1"
-                        id="icon"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 32 32"
-                      >
-                        <rect x="18" y="5" width="10" height="2" />
-                        <polygon points="10.6,5 4,5 4,7 9.4,7 18.4,27 28,27 28,25 19.6,25 " />
-                      </svg>
-                    </div>
-                  </EuiFlexItem>
-                </EuiFlexGroup>
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                <EuiFlexGroup
-                  gutterSize="xs"
-                  responsive={false}
-                  direction="column"
-                >
-                  <EuiFlexItem grow={false}>
-                    <EuiText size="xs">
-                      Hold command (⌘) + drag to select area
-                    </EuiText>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiBadge color="hollow">⌘ Command</EuiBadge>
-                  </EuiFlexItem>
-                </EuiFlexGroup>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-          </EuiFlexItem>
+
           <EuiFlexItem grow={false}>
             <EuiFormRow label="Filter CI/CD Workflows" display="row">
               <EuiSelect
@@ -699,6 +678,11 @@ export default function ClientOnlyPrPage() {
         style={{ height: '100%', paddingInline: '0px' }}
         restrictWidth="100%"
       >
+        <div
+          style={{ position: 'absolute', right: '14px', paddingInline: '16px' }}
+        >
+          <ToolHelp />
+        </div>
         {data && (
           <Chart
             data={data}
@@ -706,7 +690,14 @@ export default function ClientOnlyPrPage() {
             activeGroups={activeGroups}
             selectedBuildId={selectedBuildId}
             onBuildDoubleClick={buildId => {
-              // Always zoom to the build item (no toggle)
+              // Toggle: if same build is double-clicked, deselect it
+              if (selectedBuildId === buildId) {
+                setSelectedBuildId(null);
+                setZoomRange(null);
+                return;
+              }
+
+              // Select the build and zoom to show it
               setSelectedBuildId(buildId);
 
               // Find the build item in the timeline

@@ -23,14 +23,14 @@ export function getItemY(
     y += rowHeights[i];
   }
 
-  // For CI jobs group, position items from top of row with stacking
-  if (item.group === 'ci_jobs') {
+  // For CI group items (both main builds and jobs), position from top with stacking
+  if (item.group === 'ci') {
     // Small top padding + level offset
     const topPadding = 5;
     return y + topPadding + item.level * levelHeight;
   }
 
-  // For all other groups, center vertically within the row
+  // For all other items, center vertically within the row
   const currentRowHeight = rowHeights[item.groupIndex] || 0;
   const centeredY = y + (currentRowHeight - itemHeight) / 2;
   return centeredY;
