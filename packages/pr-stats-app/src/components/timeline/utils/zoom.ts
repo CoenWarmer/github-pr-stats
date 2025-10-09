@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as d3 from 'd3';
 import { ProcessedTimelineItem } from '../types';
 import { ONE_DAY_MS, TIMELINE_CONFIG } from '../constants';
@@ -126,7 +127,7 @@ export function createZoomBehavior(
       const visibility = calculateVisibility(visibleDays);
 
       // Update hour grid lines with adaptive intervals based on zoom level
-      let timeInterval: d3.CountableTimeInterval;
+      let timeInterval: d3.TimeInterval;
       if (visibility.visibleDays < 0.5) {
         // Extremely zoomed in: show 30-minute intervals
         timeInterval = d3.timeMinute.every(30)!;
@@ -159,7 +160,7 @@ export function createZoomBehavior(
         .attr('stroke', colorMode === 'DARK' ? '#222' : '#eee')
         .attr('stroke-width', 1)
         .attr('opacity', 0.6)
-        .merge(hourGridLines)
+        .merge(hourGridLines as any)
         .attr('x1', d => newXScale(d))
         .attr('x2', d => newXScale(d));
 
@@ -192,7 +193,7 @@ export function createZoomBehavior(
         .attr('stroke', colorMode === 'DARK' ? '#2B394F' : '#ddd')
         .attr('stroke-width', 1)
         .attr('opacity', 0.7)
-        .merge(daySeps)
+        .merge(daySeps as any)
         .attr('x1', d => newXScale(d))
         .attr('x2', d => newXScale(d));
 
@@ -200,12 +201,9 @@ export function createZoomBehavior(
       const newDayAxis = d3
         .axisTop(newXScale)
         .tickValues(newDayTicks)
-        .tickFormat(
-          d3.timeFormat('%a %m/%d') as (date: Date | d3.NumberValue) => string
-        )
+        .tickFormat(d3.timeFormat('%a %m/%d') as any)
         .tickSize(5);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       g.select('.day-axis').call(newDayAxis as any);
       g.select('.day-axis')
         .selectAll('text')
@@ -216,7 +214,7 @@ export function createZoomBehavior(
       // Update hour axis
       if (visibility.showHourAxis) {
         // Use adaptive interval for hour axis labels (same logic as grid lines)
-        let axisTimeInterval: d3.CountableTimeInterval;
+        let axisTimeInterval: d3.TimeInterval;
         if (visibility.visibleDays < 0.5) {
           // Extremely zoomed in: show 30-minute intervals
           axisTimeInterval = d3.timeMinute.every(30)!;
@@ -233,14 +231,12 @@ export function createZoomBehavior(
         const newHourAxis = d3
           .axisTop(newXScale)
           .ticks(axisTimeInterval)
-          .tickFormat(
-            d3.timeFormat('%H:%M') as (date: Date | d3.NumberValue) => string
-          )
+          .tickFormat(d3.timeFormat('%H:%M') as any)
           .tickSize(5);
 
         g.select('.hour-axis')
           .style('opacity', 1)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           .call(newHourAxis as any);
         g.select('.hour-axis')
           .selectAll('text')

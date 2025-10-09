@@ -9,7 +9,7 @@ export function renderHourGridLines(
   totalRowHeight: number,
   colorMode: 'LIGHT' | 'DARK'
 ) {
-  const hourTicks = xScale.ticks(d3.timeHour.every(6));
+  const hourTicks = xScale.ticks(d3.timeHour.every(6)!);
   bgGroup
     .selectAll('.hour-grid-line')
     .data(hourTicks)

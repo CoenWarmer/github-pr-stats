@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Octokit } from '@octokit/rest';
 import {
   TimelineEvent,
@@ -197,7 +198,11 @@ export class GitHubCollector {
     sendProgress('Calculating metrics', 85, 100);
 
     // Calculate all metrics from timeline
-    const metrics = calculateMetricsFromTimeline(timeline, pr, linkedIssues);
+    const metrics = calculateMetricsFromTimeline(
+      timeline,
+      prDataForTimeline,
+      linkedIssues
+    );
 
     sendProgress('Finalizing data', 95, 100);
 

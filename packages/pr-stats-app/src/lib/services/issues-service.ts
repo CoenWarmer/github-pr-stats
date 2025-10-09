@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Octokit } from '@octokit/rest';
 import { LinkedIssue, IssueLifecycleEvent } from '../types';
 import { logger } from '../logger';
@@ -69,11 +70,11 @@ export class IssuesService {
             issue.created_at
           );
 
-          const projectIteration = await this.getIssueProjectIteration(
-            owner,
-            repo,
-            issueNumber
-          );
+          // const projectIteration = await this.getIssueProjectIteration(
+          //   owner,
+          //   repo,
+          //   issueNumber
+          // );
 
           issues.push({
             number: issue.number,
@@ -90,7 +91,6 @@ export class IssuesService {
             created_at: issue.created_at,
             closed_at: issue.closed_at,
             lifecycle_events: lifecycleEvents,
-            project_iteration: projectIteration || undefined,
           });
 
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -165,7 +165,11 @@ export class IssuesService {
       let hasClosedEvent = false;
 
       for (const event of events) {
-        if (event.event === 'assigned' && event.assignee) {
+        if (
+          event.event === 'assigned' &&
+          'assignee' in event &&
+          event.assignee
+        ) {
           lifecycleEvents.push({
             event_type: 'assigned',
             date: event.created_at,
