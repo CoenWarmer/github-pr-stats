@@ -163,7 +163,7 @@ export class ReleaseService {
       return await Promise.race([
         this.getFirstReleasesForCommit(owner, repo, commitSha, mergedAt),
         new Promise<Array<any>>(resolve =>
-          setTimeout(() => resolve([]), 10000)
+          setTimeout(() => resolve([]), 15000)
         ), // 10 second timeout
       ]);
     } catch (releaseError) {

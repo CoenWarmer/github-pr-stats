@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import React from 'react';
 import { euiPaletteColorBlindBehindText } from '@elastic/eui';
 import { ProcessedTimelineItem } from '../types';
 import { formatDuration } from '@/lib/utils';
@@ -53,6 +54,9 @@ export function getEventColor(d: ProcessedTimelineItem): string {
     // Release events
     case 'released':
       return palette[5]; // Light Pink #FFC7DB
+
+    case 'time_to_release':
+      return palette[8]; // Purple/Lavender for duration
 
     // Issue/Iteration events
     case 'issue_created':
@@ -145,4 +149,41 @@ export function createTooltip(
     .style('box-shadow', '0 2px 4px rgba(0,0,0,0.1)')
     .style('pointer-events', 'none')
     .style('z-index', '1000');
+}
+
+/**
+ * Apply color-mode-dependent styles to tooltip
+ */
+function updateTooltipColorMode(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tooltip: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>,
+  colorMode: 'LIGHT' | 'DARK'
+): void {
+  tooltip
+    .style('background', colorMode === 'DARK' ? '#0B1628' : '#fff')
+    .style('border', `1px solid ${colorMode === 'DARK' ? '#2B394F' : '#ddd'}`)
+    .style('color', colorMode === 'DARK' ? '#fff' : '#000');
+}
+
+/**
+ * Get or create a tooltip element (for use with refs to avoid creating duplicates)
+ */
+export function getOrCreateTooltip(
+  tooltipRef: React.MutableRefObject<d3.Selection<
+    HTMLDivElement,
+    unknown,
+    HTMLElement,
+    any
+  > | null>,
+  colorMode: 'LIGHT' | 'DARK'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): d3.Selection<HTMLDivElement, unknown, HTMLElement, any> {
+  if (!tooltipRef.current) {
+    // Create new tooltip if it doesn't exist (already styled with correct colorMode)
+    tooltipRef.current = createTooltip(colorMode);
+  } else {
+    // Update color-mode-dependent styles in case it changed
+    updateTooltipColorMode(tooltipRef.current, colorMode);
+  }
+  return tooltipRef.current;
 }

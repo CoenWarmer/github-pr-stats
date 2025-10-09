@@ -3,16 +3,18 @@ import { EuiFlexGroup, EuiFlexItem, EuiText } from '@elastic/eui';
 export default function ToolHelp() {
   return (
     <EuiFlexGroup
-      gutterSize="m"
+      gutterSize="l"
       responsive={false}
       direction="row"
       alignItems="center"
     >
       <EuiFlexItem grow={false}>
-        <EuiFlexGroup gutterSize="xs" responsive={false} direction="column">
-          <EuiFlexItem grow={false}>
-            <EuiText size="xs">Option + scroll to zoom</EuiText>
-          </EuiFlexItem>
+        <EuiFlexGroup
+          gutterSize="xs"
+          responsive={false}
+          direction="row"
+          alignItems="center"
+        >
           <EuiFlexItem grow={false}>
             <div
               style={{
@@ -68,13 +70,18 @@ export default function ToolHelp() {
               </div>
             </div>
           </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiText size="xs">Option + scroll to zoom</EuiText>
+          </EuiFlexItem>
         </EuiFlexGroup>
       </EuiFlexItem>
       <EuiFlexItem grow={false}>
-        <EuiFlexGroup gutterSize="xs" responsive={false} direction="column">
-          <EuiFlexItem grow={false}>
-            <EuiText size="xs">Command (⌘) + drag to select area</EuiText>
-          </EuiFlexItem>
+        <EuiFlexGroup
+          gutterSize="xs"
+          responsive={false}
+          direction="row"
+          alignItems="center"
+        >
           <EuiFlexItem grow={false}>
             <div
               style={{
@@ -100,6 +107,9 @@ export default function ToolHelp() {
                 }}
               ></div>
             </div>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiText size="xs">Command (⌘) + drag to select area</EuiText>
           </EuiFlexItem>
         </EuiFlexGroup>
       </EuiFlexItem>

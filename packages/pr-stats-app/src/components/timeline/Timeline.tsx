@@ -18,7 +18,7 @@ import {
   calculateMinScale,
   calculateVisibility,
 } from './utils/zoomUtils';
-import { createTooltip } from './utils/rendering';
+import { getOrCreateTooltip } from './utils/rendering';
 import {
   renderDayAxis,
   renderHourAxis,
@@ -55,6 +55,25 @@ export default function D3Timeline({
   );
   const isDimmedRef = useRef<boolean>(false);
   const isTransitioningRef = useRef<boolean>(false);
+
+  const tooltipRef = useRef<d3.Selection<
+    HTMLDivElement,
+    unknown,
+    HTMLElement,
+    any
+  > | null>(null);
+
+  // Store callbacks in refs to avoid triggering effect when they change
+  const onBuildDoubleClickRef = useRef(onBuildDoubleClick);
+  const onRowClickRef = useRef(onRowClick);
+  const onZoomRangeChangeRef = useRef(onZoomRangeChange);
+
+  // Update refs when callbacks change (doesn't trigger effect)
+  useEffect(() => {
+    onBuildDoubleClickRef.current = onBuildDoubleClick;
+    onRowClickRef.current = onRowClick;
+    onZoomRangeChangeRef.current = onZoomRangeChange;
+  }, [onBuildDoubleClick, onRowClick, onZoomRangeChange]);
 
   // Measure container width for responsive behavior
   useEffect(() => {
@@ -99,6 +118,13 @@ export default function D3Timeline({
     // Setup keyboard event listeners for cursor change
     const cleanupKeyboardHandlers = setupKeyboardHandlers(svgRef.current);
 
+    // Interrupt any ongoing transitions on the SVG before clearing
+    svg.interrupt();
+
+    // Reset transition state (interrupt callback might not always fire)
+    isTransitioningRef.current = false;
+
+    // Clear all child elements
     svg.selectAll('*').remove();
 
     const { margin } = TIMELINE_CONFIG;
@@ -183,13 +209,21 @@ export default function D3Timeline({
       totalRowHeight,
       colorMode,
       xScale,
-      onZoomRangeChange
+      onZoomRangeChangeRef.current
     );
+
+    // Track safety timeout for cleanup
+    let safetyTimeout: NodeJS.Timeout | null = null;
 
     // Set initial zoom state
     if (zoomRange) {
       // Mark that we're transitioning
       isTransitioningRef.current = true;
+
+      // Safety timeout to ensure transition state is reset even if callbacks don't fire
+      safetyTimeout = setTimeout(() => {
+        isTransitioningRef.current = false;
+      }, 1000); // 750ms transition + 250ms buffer
 
       svg
         .transition()
@@ -199,6 +233,12 @@ export default function D3Timeline({
         .call(zoom.transform as any, initialTransform)
         .on('end', () => {
           // Mark transition as complete
+          if (safetyTimeout) clearTimeout(safetyTimeout);
+          isTransitioningRef.current = false;
+        })
+        .on('interrupt', () => {
+          // Also reset if transition is interrupted
+          if (safetyTimeout) clearTimeout(safetyTimeout);
           isTransitioningRef.current = false;
         });
     } else {
@@ -262,27 +302,25 @@ export default function D3Timeline({
       activeGroups
     );
 
-    // Track if we're in dimmed mode
-    if (activeGroups !== null) {
-      isDimmedRef.current = true;
-    }
+    // Track if we're in dimmed mode - update based on current activeGroups
+    isDimmedRef.current = activeGroups !== null;
 
-    // Create tooltip
-    const tooltip = createTooltip(colorMode);
+    // Create or reuse tooltip
+    const tooltip = getOrCreateTooltip(tooltipRef, colorMode);
 
     // Add event handlers
     addEventHandlers(
       rectGroups,
       tooltip,
       activeGroups,
-      onBuildDoubleClick,
+      onBuildDoubleClickRef.current,
       isTransitioningRef
     );
     addEventHandlers(
       pointGroups,
       tooltip,
       activeGroups,
-      onBuildDoubleClick,
+      onBuildDoubleClickRef.current,
       isTransitioningRef
     );
 
@@ -305,13 +343,20 @@ export default function D3Timeline({
       margin,
       innerWidth,
       colorMode,
-      onRowClick
+      onRowClickRef.current
     );
 
     // Cleanup
     return () => {
-      d3.select('.d3-tooltip').remove();
+      if (safetyTimeout) clearTimeout(safetyTimeout);
+      // Don't remove tooltip - we reuse it across renders
+      // Hide it instead
+      if (tooltipRef.current) {
+        tooltipRef.current.style('opacity', 0);
+      }
       cleanupKeyboardHandlers();
+      // Reset transition state on cleanup
+      isTransitioningRef.current = false;
     };
   }, [
     data,
@@ -324,15 +369,28 @@ export default function D3Timeline({
     collapsedGroups,
     zoomRange,
     activeGroups,
-    onBuildDoubleClick,
-    onRowClick,
-    onZoomRangeChange,
+    // Callbacks are handled via refs to avoid re-renders
   ]);
+
+  // Cleanup tooltip on component unmount
+  useEffect(() => {
+    return () => {
+      if (tooltipRef.current) {
+        tooltipRef.current.remove();
+        tooltipRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', overflowX: 'auto', overflowY: 'auto' }}
+      style={{
+        width: '100%',
+        overflowX: 'auto',
+        overflowY: 'auto',
+        borderRadius: '8px',
+      }}
     >
       <svg
         ref={svgRef}

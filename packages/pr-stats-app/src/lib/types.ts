@@ -185,6 +185,11 @@ export interface ReleasedEvent extends BaseTimelineEvent {
   release_tag?: string;
 }
 
+export interface TimeToReleaseEvent extends BaseTimelineEvent {
+  type: 'time_to_release';
+  release_tag?: string;
+}
+
 // Union type of all possible timeline events
 export type TimelineEvent =
   | PrOpenedEvent
@@ -214,7 +219,8 @@ export type TimelineEvent =
   | IssueClosedEvent
   | IssueInProgressEvent
   | IssueIterationEvent
-  | ReleasedEvent;
+  | ReleasedEvent
+  | TimeToReleaseEvent;
 
 // Helper type that allows accessing any field (for transformers/processors)
 // This is useful when you need to access optional fields without type guards

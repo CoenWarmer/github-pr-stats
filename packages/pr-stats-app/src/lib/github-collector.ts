@@ -595,6 +595,33 @@ export class GitHubCollector {
 
       reportProgress('Adding releases', 9, 10);
 
+      // Add time-to-release duration if PR is merged and has releases
+      if (prData.merged_at && releases.length > 0) {
+        const firstRelease = releases[0];
+        const mergedDate = new Date(prData.merged_at);
+        const releaseDate = new Date(firstRelease.published_at);
+        const durationMs = releaseDate.getTime() - mergedDate.getTime();
+        const durationHours = Math.round(durationMs / (1000 * 60 * 60));
+        const durationDays = Math.round((durationHours / 24) * 10) / 10;
+
+        timeline.push({
+          type: 'time_to_release',
+          title: 'Time to Release',
+          date: prData.merged_at,
+          end_date: firstRelease.published_at,
+          duration_ms: durationMs,
+          release_tag: firstRelease.tag_name,
+          popoverContent: `
+            <strong>⏱️ Time to Release</strong><br/>
+            From merge to first release<br/>
+            <br/><strong>Merged:</strong> ${mergedDate.toLocaleString()}<br/>
+            <strong>Released:</strong> ${releaseDate.toLocaleString()}<br/>
+            <strong>Duration:</strong> ${durationDays} days (${durationHours}h)<br/>
+            <strong>Release:</strong> ${firstRelease.tag_name}
+          `,
+        });
+      }
+
       // Add all releases (up to 3) to the timeline
       for (const release of releases) {
         timeline.push({
@@ -603,6 +630,10 @@ export class GitHubCollector {
           date: release.published_at,
           release_tag: release.tag_name,
           url: release.html_url,
+          popoverContent: `
+            <strong>${release.tag_name}</strong><br/>
+            ${new Date(release.published_at).toLocaleString()}
+          `,
         });
       }
 

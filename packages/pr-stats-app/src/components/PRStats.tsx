@@ -110,192 +110,184 @@ export default function PRStats({
   );
 
   return (
-    <div>
-      {/* Statistics */}
-      <EuiPanel hasBorder hasShadow={false}>
-        <EuiFlexGroup direction="row">
-          <EuiFlexItem>
-            <EuiStat
-              title={formatDurationBetweenDates(startTime, endTime)}
-              description={isComplete ? 'Run time' : 'Run time (so far)'}
-              titleSize="s"
-              reverse
-            />
-          </EuiFlexItem>
-          <EuiFlexItem>
-            <EuiToolTip
-              display="block"
-              content={
-                <EuiFlexGroup direction="column">
-                  <EuiFlexItem>
+    <EuiPanel hasBorder hasShadow={false} style={{ width: '100%' }}>
+      <EuiFlexGroup direction="row">
+        <EuiFlexItem>
+          <EuiStat
+            title={formatDurationBetweenDates(startTime, endTime)}
+            description={isComplete ? 'Run time' : 'Run time (so far)'}
+            titleSize="s"
+            reverse
+          />
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiToolTip
+            display="block"
+            content={
+              <EuiFlexGroup direction="column">
+                <EuiFlexItem>
+                  <EuiStat
+                    title={pr.changed_files.toString()}
+                    description="Files Changed"
+                    titleSize="s"
+                    reverse
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={`+${pr.additions}`}
+                    description="Additions"
+                    titleSize="s"
+                    reverse
+                    titleColor="success"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={`-${pr.deletions}`}
+                    description="Deletions"
+                    titleSize="s"
+                    reverse
+                    titleColor="danger"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiToolTip
+                    content={
+                      pr.codeowners
+                        ? `Teams: ${pr.codeowners.teams.length}, Individuals: ${pr.codeowners.individuals.length}`
+                        : 'No code owners found'
+                    }
+                  >
                     <EuiStat
-                      title={pr.changed_files.toString()}
-                      description="Files Changed"
-                      titleSize="s"
-                      reverse
-                    />
-                  </EuiFlexItem>
-                  <EuiFlexItem>
-                    <EuiStat
-                      title={`+${pr.additions}`}
-                      description="Additions"
-                      titleSize="s"
-                      reverse
-                      titleColor="success"
-                    />
-                  </EuiFlexItem>
-                  <EuiFlexItem>
-                    <EuiStat
-                      title={`-${pr.deletions}`}
-                      description="Deletions"
-                      titleSize="s"
-                      reverse
-                      titleColor="danger"
-                    />
-                  </EuiFlexItem>
-                  <EuiFlexItem>
-                    <EuiToolTip
-                      content={
+                      title={
                         pr.codeowners
-                          ? `Teams: ${pr.codeowners.teams.length}, Individuals: ${pr.codeowners.individuals.length}`
-                          : 'No code owners found'
+                          ? (
+                              pr.codeowners.teams.length +
+                              pr.codeowners.individuals.length
+                            ).toString()
+                          : '0'
                       }
-                    >
-                      <EuiStat
-                        title={
-                          pr.codeowners
-                            ? (
-                                pr.codeowners.teams.length +
-                                pr.codeowners.individuals.length
-                              ).toString()
-                            : '0'
-                        }
-                        description="Code Owners"
-                        titleSize="s"
-                        reverse
-                        titleColor="primary"
-                      />
-                    </EuiToolTip>
-                  </EuiFlexItem>
-                </EuiFlexGroup>
-              }
-            >
-              <EuiStat
-                title={complexityFormatted.value}
-                description={`PR Complexity (${complexityFormatted.label})`}
-                titleSize="s"
-                reverse
-                titleColor={
-                  complexity <= 2
-                    ? 'success'
-                    : complexity <= 4
-                      ? 'success'
-                      : complexity <= 6
-                        ? 'warning'
-                        : 'danger'
-                }
-              />
-            </EuiToolTip>
-          </EuiFlexItem>
-          <EuiFlexItem>
+                      description="Code Owners"
+                      titleSize="s"
+                      reverse
+                      titleColor="primary"
+                    />
+                  </EuiToolTip>
+                </EuiFlexItem>
+              </EuiFlexGroup>
+            }
+          >
             <EuiStat
-              title={frictionFormatted.value}
-              description="PR Delivery Friction"
+              title={complexityFormatted.value}
+              description={`PR Complexity (${complexityFormatted.label})`}
               titleSize="s"
               reverse
               titleColor={
-                deliveryFriction <= 30
+                complexity <= 2
                   ? 'success'
-                  : deliveryFriction <= 60
-                    ? 'warning'
-                    : 'danger'
+                  : complexity <= 4
+                    ? 'success'
+                    : complexity <= 6
+                      ? 'warning'
+                      : 'danger'
               }
             />
-          </EuiFlexItem>
+          </EuiToolTip>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiStat
+            title={frictionFormatted.value}
+            description="PR Delivery Friction"
+            titleSize="s"
+            reverse
+            titleColor={
+              deliveryFriction <= 30
+                ? 'success'
+                : deliveryFriction <= 60
+                  ? 'warning'
+                  : 'danger'
+            }
+          />
+        </EuiFlexItem>
 
-          <EuiFlexItem>
-            <ApprovalDirectionStat
-              authorCodeownerRelationships={authorCodeownerRelationships ?? []}
-            />
-          </EuiFlexItem>
+        <EuiFlexItem>
+          <ApprovalDirectionStat
+            authorCodeownerRelationships={authorCodeownerRelationships ?? []}
+          />
+        </EuiFlexItem>
 
-          <EuiFlexItem>
+        <EuiFlexItem>
+          <EuiStat
+            title={formatDuration(totalTeamReviewTimeMs, 'ms')}
+            description="Total team review time"
+            titleSize="s"
+            reverse
+            titleColor="primary"
+          />
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiToolTip
+            content={
+              <EuiFlexGroup direction="column">
+                <EuiFlexItem>
+                  <EuiStat
+                    title={totalBuilds.toString()}
+                    description="Total Builds"
+                    titleSize="s"
+                    reverse
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={completedBuilds.toString()}
+                    description="Builds Completed"
+                    titleSize="s"
+                    reverse
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={successfulBuilds.toString()}
+                    description="Builds Successful"
+                    titleSize="s"
+                    reverse
+                    titleColor="success"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={failedBuilds.toString()}
+                    description="Builds Failed"
+                    titleSize="s"
+                    reverse
+                    titleColor="danger"
+                  />
+                </EuiFlexItem>
+              </EuiFlexGroup>
+            }
+          >
             <EuiStat
-              title={pr.commits.toString()}
-              description="Commits"
+              title={formatDuration(totalBuildMinutes, 'ms')}
+              description="Total build time"
               titleSize="s"
               reverse
             />
-          </EuiFlexItem>
-
-          <EuiFlexItem>
-            <EuiStat
-              title={pr.reviews.comments.toString()}
-              description="Comments"
-              titleSize="s"
-              reverse
-            />
-          </EuiFlexItem>
-          <EuiFlexItem>
-            <EuiStat
-              title={formatDuration(totalTeamReviewTimeMs, 'ms')}
-              description="Total team review time"
-              titleSize="s"
-              reverse
-              titleColor="primary"
-            />
-          </EuiFlexItem>
-          <EuiFlexItem>
-            <EuiToolTip
-              content={
-                <EuiFlexGroup direction="column">
-                  <EuiFlexItem>
-                    <EuiStat
-                      title={totalBuilds.toString()}
-                      description="Total Builds"
-                      titleSize="s"
-                      reverse
-                    />
-                  </EuiFlexItem>
-                  <EuiFlexItem>
-                    <EuiStat
-                      title={completedBuilds.toString()}
-                      description="Builds Completed"
-                      titleSize="s"
-                      reverse
-                    />
-                  </EuiFlexItem>
-                  <EuiFlexItem>
-                    <EuiStat
-                      title={successfulBuilds.toString()}
-                      description="Builds Successful"
-                      titleSize="s"
-                      reverse
-                      titleColor="success"
-                    />
-                  </EuiFlexItem>
-                  <EuiFlexItem>
-                    <EuiStat
-                      title={failedBuilds.toString()}
-                      description="Builds Failed"
-                      titleSize="s"
-                      reverse
-                      titleColor="danger"
-                    />
-                  </EuiFlexItem>
-                </EuiFlexGroup>
-              }
-            >
-              <EuiStat
-                title={formatDuration(totalBuildMinutes, 'ms')}
-                description="Total build time"
-                titleSize="s"
-                reverse
-              />
-            </EuiToolTip>
-          </EuiFlexItem>
-        </EuiFlexGroup>
-      </EuiPanel>
-    </div>
+          </EuiToolTip>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiStat
+            title={formatDuration(
+              pr.timeline.find(event => event.type === 'time_to_release')
+                ?.duration_ms ?? 0,
+              'ms'
+            )}
+            description="Time to first release"
+            titleSize="s"
+            reverse
+          />
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </EuiPanel>
   );
 }

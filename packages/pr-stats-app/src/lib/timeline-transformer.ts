@@ -14,7 +14,7 @@ const EVENT_GROUPS = {
   discussion: ['comment_added', 'review_comment_added', 'issue_comment'], // Check before review to catch review_comment_added
   review: ['review_requested', 'review_dismissed', 'awaiting_review', 'review'], // 'review' last to avoid false matches
   ci: ['ci_', 'workflow', 'check_run', 'status'],
-  released: ['released'],
+  released: ['released', 'time_to_release'],
 } as const;
 
 // Event type to content mapping for better display
@@ -40,6 +40,7 @@ const EVENT_CONTENT: Record<string, { emoji: string; text: string }> = {
   issue_in_progress: { emoji: '🔄', text: 'Issue In Progress' },
   issue_iteration: { emoji: '📅', text: 'Iteration' },
   released: { emoji: '🚀', text: 'Released' },
+  time_to_release: { emoji: '⏱️', text: 'Time to Release' },
 };
 
 /**

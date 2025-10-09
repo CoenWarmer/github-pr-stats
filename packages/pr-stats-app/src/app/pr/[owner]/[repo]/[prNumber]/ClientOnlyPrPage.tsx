@@ -618,7 +618,7 @@ export default function ClientOnlyPrPage() {
         )}
       </EuiPageTemplate.Header>
 
-      <EuiPageTemplate.Section>
+      <EuiPageTemplate.Section grow={false}>
         <EuiFlexGroup direction="row" gutterSize="l" alignItems="flexEnd">
           <EuiFlexItem grow>
             <EuiFormRow label="Zoom to Phase" display="row" fullWidth>
@@ -648,7 +648,10 @@ export default function ClientOnlyPrPage() {
                   },
                 ]}
                 idSelected={zoomOption}
-                onChange={(id: string) => setZoomOption(id)}
+                onChange={(id: string) => {
+                  // Toggle: clicking the same button resets to full view
+                  setZoomOption(id === zoomOption ? 'full' : id);
+                }}
                 buttonSize="compressed"
                 color="primary"
               />
@@ -674,63 +677,67 @@ export default function ClientOnlyPrPage() {
         </EuiFlexGroup>
       </EuiPageTemplate.Section>
 
-      <EuiPageTemplate.Section
-        style={{ height: '100%', paddingInline: '0px' }}
-        restrictWidth="100%"
-      >
-        <div
-          style={{ position: 'absolute', right: '14px', paddingInline: '16px' }}
-        >
-          <ToolHelp />
+      <EuiPageTemplate.Section restrictWidth="100%">
+        <div style={{ position: 'relative' }}>
+          <div
+            style={{
+              position: 'absolute',
+              left: '14px',
+              bottom: '14px',
+              paddingInline: '16px',
+            }}
+          >
+            <ToolHelp />
+          </div>
+          {data && (
+            <Chart
+              data={data}
+              zoomRange={zoomRange}
+              activeGroups={activeGroups}
+              selectedBuildId={selectedBuildId}
+              onBuildDoubleClick={buildId => {
+                // Toggle: if same build is double-clicked, deselect it
+                if (selectedBuildId === buildId) {
+                  setSelectedBuildId(null);
+                  setZoomRange(null);
+                  return;
+                }
+
+                // Select the build and zoom to show it
+                setSelectedBuildId(buildId);
+
+                // Find the build item in the timeline
+                const buildItem = data.items.find(
+                  item =>
+                    (item.eventType === 'ci_run' ||
+                      item.eventType === 'ci_started') &&
+                    item.buildkite_build_id === buildId
+                );
+
+                if (buildItem) {
+                  const startTime = new Date(buildItem.start).getTime();
+                  const endTime = buildItem.end
+                    ? new Date(buildItem.end).getTime()
+                    : startTime + 30 * 60 * 1000; // Default 30 min if no end time
+
+                  // Add minimal padding (1% on each side)
+                  const duration = endTime - startTime;
+                  const padding = Math.max(duration * 0.01, 1 * 60 * 1000); // At least 1 minute padding
+                  const startDate = new Date(startTime - padding);
+                  const endDate = new Date(endTime + padding);
+
+                  setZoomRange([startDate, endDate]);
+                }
+              }}
+              onRowClick={handleRowClick}
+              onZoomRangeChange={range => {
+                setZoomRange(range);
+                setZoomOption('full'); // Clear preset
+                setSelectedRowGroup(null); // Clear row selection
+              }}
+            />
+          )}
         </div>
-        {data && (
-          <Chart
-            data={data}
-            zoomRange={zoomRange}
-            activeGroups={activeGroups}
-            selectedBuildId={selectedBuildId}
-            onBuildDoubleClick={buildId => {
-              // Toggle: if same build is double-clicked, deselect it
-              if (selectedBuildId === buildId) {
-                setSelectedBuildId(null);
-                setZoomRange(null);
-                return;
-              }
-
-              // Select the build and zoom to show it
-              setSelectedBuildId(buildId);
-
-              // Find the build item in the timeline
-              const buildItem = data.items.find(
-                item =>
-                  (item.eventType === 'ci_run' ||
-                    item.eventType === 'ci_started') &&
-                  item.buildkite_build_id === buildId
-              );
-
-              if (buildItem) {
-                const startTime = new Date(buildItem.start).getTime();
-                const endTime = buildItem.end
-                  ? new Date(buildItem.end).getTime()
-                  : startTime + 30 * 60 * 1000; // Default 30 min if no end time
-
-                // Add minimal padding (1% on each side)
-                const duration = endTime - startTime;
-                const padding = Math.max(duration * 0.01, 1 * 60 * 1000); // At least 1 minute padding
-                const startDate = new Date(startTime - padding);
-                const endDate = new Date(endTime + padding);
-
-                setZoomRange([startDate, endDate]);
-              }
-            }}
-            onRowClick={handleRowClick}
-            onZoomRangeChange={range => {
-              setZoomRange(range);
-              setZoomOption('full'); // Clear preset
-              setSelectedRowGroup(null); // Clear row selection
-            }}
-          />
-        )}
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
