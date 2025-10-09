@@ -33,3 +33,4 @@ export function setupKeyboardHandlers(svgElement: SVGSVGElement | null) {
     window.removeEventListener('blur', handleBlur);
   };
 }
+

@@ -1,4 +1,4 @@
-import { EuiBadge, EuiFlexGroup, EuiFlexItem, EuiText } from '@elastic/eui';
+import { EuiFlexGroup, EuiFlexItem, EuiText } from '@elastic/eui';
 
 export default function ToolHelp() {
   return (
