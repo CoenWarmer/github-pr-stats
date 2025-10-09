@@ -616,6 +616,9 @@ export default function ClientOnlyPrPage() {
             </EuiFlexGroup>
           </EuiFlexItem>
         ))}
+        {prStats?.linked_issues?.length === 0 ? (
+          <EuiText color="subdued">No issues linked to this PR.</EuiText>
+        ) : null}
       </EuiPageTemplate.Header>
       <EuiPageTemplate.Header>
         {prStats && (

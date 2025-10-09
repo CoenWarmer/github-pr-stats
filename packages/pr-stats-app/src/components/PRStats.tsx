@@ -187,7 +187,7 @@ export default function PRStats({
           >
             <EuiStat
               title={formatDurationBetweenDates(startTime, endTime)}
-              description={isComplete ? 'Run time' : 'Run time (so far)'}
+              description={`Turnaround time ${!isComplete ? '(so far)' : ''}`}
               titleSize="s"
               reverse
             />
@@ -274,7 +274,7 @@ export default function PRStats({
             }
           >
             <EuiStat
-              title={complexityFormatted.value}
+              title={`${complexityFormatted.value} / 10`}
               description={`PR Complexity (${complexityFormatted.label})`}
               titleSize="s"
               reverse

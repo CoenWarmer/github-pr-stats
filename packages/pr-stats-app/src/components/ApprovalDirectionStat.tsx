@@ -47,7 +47,14 @@ export function ApprovalDirectionStat({
 
   return (
     <>
-      <div style={{ display: 'flex', height: '30px' }}>
+      <div
+        style={{
+          display: 'flex',
+          height: '18px',
+          borderRadius: '2px',
+          overflow: 'hidden',
+        }}
+      >
         {Object.entries(relationshipCounts).map(
           ([relationship, count], index) => {
             const percentage = ((count / totalCount) * 100).toFixed(0);
