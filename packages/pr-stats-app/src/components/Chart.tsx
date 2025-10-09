@@ -9,7 +9,7 @@ export const Chart = dynamic(() => import('./timeline/Timeline'), {
     <div>
       <div>
         <EuiLoadingSpinner />
-        <p>Loading timeline...</p>
+        <p>Loading timeline....</p>
       </div>
     </div>
   ),
