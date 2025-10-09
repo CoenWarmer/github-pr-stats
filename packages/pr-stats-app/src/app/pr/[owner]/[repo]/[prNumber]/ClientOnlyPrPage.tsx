@@ -704,7 +704,7 @@ export default function ClientOnlyPrPage() {
                 // Toggle: if same build is double-clicked, deselect it
                 if (selectedBuildId === buildId) {
                   setSelectedBuildId(null);
-                  setZoomRange(null);
+                  // Keep current zoom level, don't reset it
                   return;
                 }
 

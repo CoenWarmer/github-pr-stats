@@ -47,7 +47,8 @@ export function renderRectangleItems(
   levelHeight: number,
   rectHeight: number,
   activeGroups: string[] | null,
-  colorMode: 'LIGHT' | 'DARK'
+  colorMode: 'LIGHT' | 'DARK',
+  selectedBuildId?: string | null
 ): d3.Selection<SVGGElement, ProcessedTimelineItem, SVGGElement, unknown> {
   const rectGroups = fgGroup
     .selectAll<SVGGElement, ProcessedTimelineItem>('.timeline-rect-group')
@@ -58,7 +59,38 @@ export function renderRectangleItems(
     .style('cursor', 'pointer')
     .attr('opacity', d => (isItemHighlighted(d, activeGroups) ? 0.9 : 0.2));
 
-  // Add rectangles
+  // Add invisible hit area for non-CI events (taller clickable area)
+  const hitAreaHeight = 16; // Taller clickable area
+  rectGroups
+    .append('rect')
+    .attr('class', 'timeline-rect-hit-area')
+    .attr('x', d => xScale(d.startTime))
+    .attr('y', d => {
+      const isCiEvent =
+        d.eventType === 'ci_run' ||
+        d.eventType === 'ci_started' ||
+        d.eventType === 'ci_completed';
+      if (isCiEvent) {
+        // CI events don't need a separate hit area
+        return 0;
+      }
+      // Center the hit area around where the thin line will be
+      const lineY = getItemY(d, rowHeights, levelHeight, rectHeight);
+      return lineY - (hitAreaHeight - rectHeight) / 2;
+    })
+    .attr('width', d => Math.max(2, xScale(d.endTime) - xScale(d.startTime)))
+    .attr('height', d => {
+      const isCiEvent =
+        d.eventType === 'ci_run' ||
+        d.eventType === 'ci_started' ||
+        d.eventType === 'ci_completed';
+      // CI events don't use the hit area, non-CI events get the taller hit area
+      return isCiEvent ? 0 : hitAreaHeight;
+    })
+    .attr('fill', 'transparent') // Invisible
+    .attr('pointer-events', 'all'); // But still catches mouse events
+
+  // Add visible rectangles
   rectGroups
     .append('rect')
     .attr('class', 'timeline-rect')
@@ -87,7 +119,8 @@ export function renderRectangleItems(
     })
     .attr('rx', 3)
     .attr('ry', 3)
-    .attr('fill', d => getEventColor(d));
+    .attr('fill', d => getEventColor(d))
+    .attr('pointer-events', 'none'); // Disable pointer events on visual rect
 
   // Add text labels - use foreignObject for CI events to enable CSS truncation
   rectGroups.each(function (d) {
@@ -103,11 +136,15 @@ export function renderRectangleItems(
       const barWidth = Math.max(2, xScale(d.endTime) - xScale(d.startTime));
       const yPos = getItemY(d, rowHeights, levelHeight, height);
 
+      // Check if this build has jobs (can be expanded)
+      const hasJobs = d.buildkite_build_id && !d.workflow_name?.includes(' - ');
+      const isExpanded = hasJobs && selectedBuildId === d.buildkite_build_id;
+
       group
         .append('foreignObject')
         .attr('x', xScale(d.startTime) + 5)
         .attr('y', yPos)
-        .attr('width', Math.max(0, barWidth - 10))
+        .attr('width', Math.max(0, barWidth - (hasJobs ? 30 : 10))) // Leave space for arrow if expandable
         .attr('height', height)
         .append('xhtml:div')
         .style('width', '100%')
@@ -121,6 +158,43 @@ export function renderRectangleItems(
         .style('text-overflow', 'ellipsis')
         .style('pointer-events', 'none')
         .text(getDisplayText(d));
+
+      // Add expand/collapse arrow for main builds with jobs
+      if (hasJobs) {
+        const arrowX = xScale(d.endTime) - 18; // Position near the right edge
+        const arrowY = yPos + height / 2;
+
+        // Add chevron arrow (pointing right if collapsed, down if expanded)
+        const arrow = group
+          .append('g')
+          .attr('class', 'ci-build-arrow')
+          .attr('transform', `translate(${arrowX}, ${arrowY})`)
+          .style('pointer-events', 'none');
+
+        if (isExpanded) {
+          // Chevron down (expanded state) - V pointing down
+          arrow
+            .append('path')
+            .attr('d', 'M -4 -2 L 0 2 L 4 -2')
+            .attr('stroke', '#FFFFFF')
+            .attr('stroke-width', 1.5)
+            .attr('stroke-linecap', 'round')
+            .attr('stroke-linejoin', 'round')
+            .attr('fill', 'none')
+            .attr('opacity', 0.9);
+        } else {
+          // Chevron right (collapsed state) - V pointing right
+          arrow
+            .append('path')
+            .attr('d', 'M -2 -4 L 2 0 L -2 4')
+            .attr('stroke', '#FFFFFF')
+            .attr('stroke-width', 1.5)
+            .attr('stroke-linecap', 'round')
+            .attr('stroke-linejoin', 'round')
+            .attr('fill', 'none')
+            .attr('opacity', 0.9);
+        }
+      }
     } else {
       // Other events: use regular SVG text
       group

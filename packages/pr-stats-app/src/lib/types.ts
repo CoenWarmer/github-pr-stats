@@ -459,6 +459,7 @@ export interface PullRequestStats {
     completed_builds?: number;
     failed_builds?: number;
     successful_builds?: number;
+    cancelled_builds?: number;
     total_build_time_ms?: number;
   };
 

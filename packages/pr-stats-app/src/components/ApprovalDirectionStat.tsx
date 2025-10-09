@@ -1,12 +1,17 @@
 import {
+  EuiBadge,
   EuiFlexGroup,
   EuiFlexItem,
+  euiPaletteColorBlindBehindText,
   EuiSpacer,
   EuiStat,
   EuiText,
   EuiToolTip,
 } from '@elastic/eui';
-import { ApprovalDirectionBadge } from './ApprovalDirectionBadge';
+import {
+  ApprovalDirectionBadge,
+  approvalDirectionLabelMap,
+} from './ApprovalDirectionBadge';
 
 export function ApprovalDirectionStat({
   authorCodeownerRelationships,
@@ -31,48 +36,92 @@ export function ApprovalDirectionStat({
   // Get unique relationships to display
   const uniqueRelationships = Array.from(new Set(authorCodeownerRelationships));
 
-  return (
-    <EuiToolTip
-      display="block"
-      content={
-        <EuiFlexGroup direction="column">
-          {Object.entries(relationshipCounts).map(([relationship, count]) => (
-            <EuiFlexItem key={relationship}>
-              <EuiStat
-                title={count.toString()}
-                description={
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <span>files</span>
-                    <ApprovalDirectionBadge
-                      authorCodeownerRelationship={relationship}
-                    />
-                  </div>
-                }
-                titleSize="s"
-                reverse
-              />
-            </EuiFlexItem>
-          ))}
-        </EuiFlexGroup>
-      }
-    >
-      <>
-        {uniqueRelationships.map((relationship, index) => (
-          <ApprovalDirectionBadge
-            key={index}
-            authorCodeownerRelationship={relationship}
-          />
-        ))}
+  const palette = euiPaletteColorBlindBehindText({ sortBy: 'natural' });
 
-        <EuiSpacer size="s" />
-        <EuiText size="s">Author Codeowner Relationship</EuiText>
-      </>
-    </EuiToolTip>
+  console.log(relationshipCounts);
+
+  const totalCount = Object.values(relationshipCounts).reduce(
+    (acc, count) => acc + count,
+    0
+  );
+
+  return (
+    <>
+      <div style={{ display: 'flex', height: '30px' }}>
+        {Object.entries(relationshipCounts).map(
+          ([relationship, count], index) => {
+            const percentage = ((count / totalCount) * 100).toFixed(0);
+            const color = palette[index + 1];
+            return (
+              <div
+                key={relationship}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: color,
+                  width: percentage + '%',
+                  overflow: 'hidden',
+                }}
+              >
+                <EuiToolTip
+                  display="block"
+                  position="bottom"
+                  content={
+                    <div>
+                      {count} files -{' '}
+                      {
+                        approvalDirectionLabelMap[
+                          relationship as keyof typeof approvalDirectionLabelMap
+                        ]
+                      }{' '}
+                      ({percentage}%)
+                    </div>
+                  }
+                >
+                  <EuiBadge color={color}>{percentage + '%'}</EuiBadge>
+                </EuiToolTip>
+              </div>
+            );
+          }
+        )}
+      </div>
+      <EuiToolTip
+        display="block"
+        position="bottom"
+        content={
+          <EuiFlexGroup direction="column">
+            {Object.entries(relationshipCounts).map(([relationship, count]) => (
+              <EuiFlexItem key={relationship}>
+                <EuiStat
+                  title={count.toString()}
+                  description={
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <span>files</span>
+                      <ApprovalDirectionBadge
+                        authorCodeownerRelationship={relationship}
+                      />
+                    </div>
+                  }
+                  titleSize="s"
+                  reverse
+                />
+              </EuiFlexItem>
+            ))}
+          </EuiFlexGroup>
+        }
+      >
+        <>
+          <EuiSpacer size="s" />
+          <EuiText size="s">Author Codeowner Relationship</EuiText>
+        </>
+      </EuiToolTip>
+    </>
   );
 }

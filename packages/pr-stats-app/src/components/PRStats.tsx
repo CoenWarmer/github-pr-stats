@@ -76,12 +76,42 @@ export default function PRStats({
       : ciBuilds.filter(
           event => event.type === 'ci_run' && event.ci_conclusion === 'success'
         ).length;
+  const cancelledBuilds =
+    selectedWorkflow === 'all'
+      ? (pr.build_stats.cancelled_builds ??
+        ciBuilds.filter(
+          event =>
+            event.type === 'ci_run' && event.ci_conclusion === 'cancelled'
+        ).length)
+      : ciBuilds.filter(
+          event =>
+            event.type === 'ci_run' && event.ci_conclusion === 'cancelled'
+        ).length;
 
   // Calculate build time (use pre-calculated value when workflow is "all")
   const totalBuildMinutes =
     selectedWorkflow === 'all'
       ? (pr.build_stats.total_build_time_ms ?? 0)
       : ciBuilds.reduce((acc, event) => acc + (event.duration_ms || 0), 0);
+
+  // Calculate build time per conclusion type
+  const successfulBuildTime = ciBuilds
+    .filter(
+      event => event.type === 'ci_run' && event.ci_conclusion === 'success'
+    )
+    .reduce((acc, event) => acc + (event.duration_ms || 0), 0);
+  const failedBuildTime = ciBuilds
+    .filter(
+      event =>
+        event.type === 'ci_run' &&
+        (event.ci_conclusion === 'failure' || event.ci_conclusion === 'error')
+    )
+    .reduce((acc, event) => acc + (event.duration_ms || 0), 0);
+  const cancelledBuildTime = ciBuilds
+    .filter(
+      event => event.type === 'ci_run' && event.ci_conclusion === 'cancelled'
+    )
+    .reduce((acc, event) => acc + (event.duration_ms || 0), 0);
 
   // Use pre-calculated team review time from backend or fallback to 0
   const totalTeamReviewTimeMs = pr.metrics?.total_team_review_time_ms ?? 0;
@@ -113,16 +143,60 @@ export default function PRStats({
     <EuiPanel hasBorder hasShadow={false} style={{ width: '100%' }}>
       <EuiFlexGroup direction="row">
         <EuiFlexItem>
-          <EuiStat
-            title={formatDurationBetweenDates(startTime, endTime)}
-            description={isComplete ? 'Run time' : 'Run time (so far)'}
-            titleSize="s"
-            reverse
-          />
+          <EuiToolTip
+            position="bottom"
+            content={
+              <div
+                style={{
+                  padding: '8px 0',
+                  fontSize: '12px',
+                  lineHeight: '1.5',
+                }}
+              >
+                <strong>Start Date:</strong>
+                <br />
+                {startTime.toLocaleString()}
+                <br />
+                {pr.metrics?.run_start_time &&
+                pr.linked_issues &&
+                pr.linked_issues.length > 0
+                  ? '(Issue created)'
+                  : '(PR opened)'}
+                <br />
+                <br />
+                <strong>End Date:</strong>
+                <br />
+                {endTime.toLocaleString()}
+                <br />
+                {isComplete
+                  ? pr.metrics?.run_end_time &&
+                    pr.linked_issues &&
+                    pr.linked_issues.length > 0
+                    ? '(Issue closed)'
+                    : pr.merged_at
+                      ? '(PR merged)'
+                      : '(PR closed)'
+                  : '(Current time)'}
+                <br />
+                <br />
+                <strong>Duration:</strong>
+                <br />
+                {formatDurationBetweenDates(startTime, endTime)}
+              </div>
+            }
+          >
+            <EuiStat
+              title={formatDurationBetweenDates(startTime, endTime)}
+              description={isComplete ? 'Run time' : 'Run time (so far)'}
+              titleSize="s"
+              reverse
+            />
+          </EuiToolTip>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiToolTip
             display="block"
+            position="bottom"
             content={
               <EuiFlexGroup direction="column">
                 <EuiFlexItem>
@@ -153,6 +227,7 @@ export default function PRStats({
                 </EuiFlexItem>
                 <EuiFlexItem>
                   <EuiToolTip
+                    position="bottom"
                     content={
                       pr.codeowners
                         ? `Teams: ${pr.codeowners.teams.length}, Individuals: ${pr.codeowners.individuals.length}`
@@ -175,6 +250,26 @@ export default function PRStats({
                     />
                   </EuiToolTip>
                 </EuiFlexItem>
+                <EuiFlexItem>
+                  <div
+                    style={{
+                      padding: '8px 0',
+                      fontSize: '12px',
+                      lineHeight: '1.5',
+                    }}
+                  >
+                    <strong>Complexity Formula:</strong>
+                    <br />
+                    Weighted combination of:
+                    <br />
+                    • Lines changed (30%)
+                    <br />
+                    • Files changed (25%)
+                    <br />
+                    • Code owners per file (25%)
+                    <br />• Review comments (20%)
+                  </div>
+                </EuiFlexItem>
               </EuiFlexGroup>
             }
           >
@@ -196,19 +291,46 @@ export default function PRStats({
           </EuiToolTip>
         </EuiFlexItem>
         <EuiFlexItem>
-          <EuiStat
-            title={frictionFormatted.value}
-            description="PR Delivery Friction"
-            titleSize="s"
-            reverse
-            titleColor={
-              deliveryFriction <= 30
-                ? 'success'
-                : deliveryFriction <= 60
-                  ? 'warning'
-                  : 'danger'
+          <EuiToolTip
+            display="block"
+            position="bottom"
+            content={
+              <div
+                style={{
+                  padding: '8px 0',
+                  fontSize: '12px',
+                  lineHeight: '1.5',
+                }}
+              >
+                <strong>Friction Formula:</strong>
+                <br />
+                Weighted combination of:
+                <br />
+                • Waiting time (30%)
+                <br />
+                • CI build time (25%)
+                <br />
+                • Code complexity (20%)
+                <br />
+                • Review iterations (15%)
+                <br />• Turnaround duration (10%)
+              </div>
             }
-          />
+          >
+            <EuiStat
+              title={frictionFormatted.value}
+              description="PR Delivery Friction"
+              titleSize="s"
+              reverse
+              titleColor={
+                deliveryFriction <= 30
+                  ? 'success'
+                  : deliveryFriction <= 60
+                    ? 'warning'
+                    : 'danger'
+              }
+            />
+          </EuiToolTip>
         </EuiFlexItem>
 
         <EuiFlexItem>
@@ -228,6 +350,7 @@ export default function PRStats({
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiToolTip
+            position="bottom"
             content={
               <EuiFlexGroup direction="column">
                 <EuiFlexItem>
@@ -248,7 +371,7 @@ export default function PRStats({
                 </EuiFlexItem>
                 <EuiFlexItem>
                   <EuiStat
-                    title={successfulBuilds.toString()}
+                    title={`${successfulBuilds.toString()} (${formatDuration(successfulBuildTime, 'ms')})`}
                     description="Builds Successful"
                     titleSize="s"
                     reverse
@@ -257,11 +380,20 @@ export default function PRStats({
                 </EuiFlexItem>
                 <EuiFlexItem>
                   <EuiStat
-                    title={failedBuilds.toString()}
+                    title={`${failedBuilds.toString()} (${formatDuration(failedBuildTime, 'ms')})`}
                     description="Builds Failed"
                     titleSize="s"
                     reverse
                     titleColor="danger"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={`${cancelledBuilds.toString()} (${formatDuration(cancelledBuildTime, 'ms')})`}
+                    description="Builds Cancelled"
+                    titleSize="s"
+                    reverse
+                    titleColor="warning"
                   />
                 </EuiFlexItem>
               </EuiFlexGroup>
@@ -276,16 +408,52 @@ export default function PRStats({
           </EuiToolTip>
         </EuiFlexItem>
         <EuiFlexItem>
-          <EuiStat
-            title={formatDuration(
-              pr.timeline.find(event => event.type === 'time_to_release')
-                ?.duration_ms ?? 0,
-              'ms'
-            )}
-            description="Time to first release"
-            titleSize="s"
-            reverse
-          />
+          {(() => {
+            const releaseEvent = pr.timeline.find(
+              event => event.type === 'time_to_release'
+            );
+            const hasRelease = releaseEvent && releaseEvent.release_tag;
+
+            return hasRelease ? (
+              <EuiToolTip
+                position="bottom"
+                content={
+                  <div
+                    style={{
+                      padding: '8px 0',
+                      fontSize: '12px',
+                      lineHeight: '1.5',
+                    }}
+                  >
+                    <strong>First Release:</strong>
+                    <br />
+                    {releaseEvent.release_tag}
+                    <br />
+                    <br />
+                    <strong>Released on:</strong>
+                    <br />
+                    {releaseEvent.end_date
+                      ? new Date(releaseEvent.end_date).toLocaleString()
+                      : 'Unknown'}
+                  </div>
+                }
+              >
+                <EuiStat
+                  title={formatDuration(releaseEvent.duration_ms ?? 0, 'ms')}
+                  description="Time to first release"
+                  titleSize="s"
+                  reverse
+                />
+              </EuiToolTip>
+            ) : (
+              <EuiStat
+                title={formatDuration(0, 'ms')}
+                description="Time to first release"
+                titleSize="s"
+                reverse
+              />
+            );
+          })()}
         </EuiFlexItem>
       </EuiFlexGroup>
     </EuiPanel>

@@ -289,7 +289,8 @@ export default function D3Timeline({
       TIMELINE_CONFIG.levelHeight,
       TIMELINE_CONFIG.rectHeight,
       activeGroups,
-      colorMode
+      colorMode,
+      selectedBuildId
     );
 
     const pointGroups = renderPointItems(

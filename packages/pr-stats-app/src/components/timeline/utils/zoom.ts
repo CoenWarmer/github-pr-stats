@@ -95,8 +95,15 @@ export function createZoomBehavior(
               2,
               newXScale(d.endTime) - newXScale(d.startTime)
             );
+
+            // Update both hit area and visible rect
             element
-              .select('rect')
+              .select('.timeline-rect-hit-area')
+              .attr('x', newXScale(d.startTime))
+              .attr('width', barWidth);
+
+            element
+              .select('.timeline-rect')
               .attr('x', newXScale(d.startTime))
               .attr('width', barWidth);
 
@@ -107,11 +114,33 @@ export function createZoomBehavior(
               d.eventType === 'ci_completed';
 
             if (isCiEvent) {
+              // Check if this build has jobs (can be expanded)
+              const hasJobs =
+                d.buildkite_build_id && !d.workflow_name?.includes(' - ');
+
               // CI events: update foreignObject position and width
               element
                 .select('foreignObject')
                 .attr('x', newXScale(d.startTime) + 5)
-                .attr('width', Math.max(0, barWidth - 10));
+                .attr('width', Math.max(0, barWidth - (hasJobs ? 30 : 10)));
+
+              // Update arrow position if it exists
+              if (hasJobs) {
+                const arrowX = newXScale(d.endTime) - 18;
+                const arrowGroup = element.select('.ci-build-arrow');
+                if (!arrowGroup.empty()) {
+                  // Extract the Y position from the existing transform
+                  const currentTransform = arrowGroup.attr('transform');
+                  const yMatch = currentTransform?.match(
+                    /translate\([^,]+,\s*([^)]+)\)/
+                  );
+                  const arrowY = yMatch ? parseFloat(yMatch[1]) : 12;
+                  arrowGroup.attr(
+                    'transform',
+                    `translate(${arrowX}, ${arrowY})`
+                  );
+                }
+              }
             } else {
               // Other events: update text position
               element.select('text').attr('x', newXScale(d.endTime) + 20);

@@ -12,6 +12,7 @@ export interface PRMetrics {
     completed_builds: number;
     failed_builds: number;
     successful_builds: number;
+    cancelled_builds: number;
     total_build_time_ms: number;
   };
   runStartTime: string;
@@ -104,6 +105,9 @@ export function calculateMetricsFromTimeline(
   const successfulBuilds = allCiBuilds.filter(
     event => event.ci_conclusion === 'success'
   ).length;
+  const cancelledBuilds = allCiBuilds.filter(
+    event => event.ci_conclusion === 'cancelled'
+  ).length;
   const totalBuildTimeMs = allCiBuilds.reduce(
     (sum, event) => sum + (event.duration_ms || 0),
     0
@@ -114,6 +118,7 @@ export function calculateMetricsFromTimeline(
     completed_builds: completedBuilds,
     failed_builds: failedBuilds,
     successful_builds: successfulBuilds,
+    cancelled_builds: cancelledBuilds,
     total_build_time_ms: totalBuildTimeMs,
   };
 

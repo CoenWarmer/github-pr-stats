@@ -53,10 +53,9 @@ export function getEventColor(d: ProcessedTimelineItem): string {
 
     // Release events
     case 'released':
-      return palette[5]; // Light Pink #FFC7DB
-
     case 'time_to_release':
       return palette[8]; // Purple/Lavender for duration
+    // return palette[5]; // Light Pink #FFC7DB
 
     // Issue/Iteration events
     case 'issue_created':
