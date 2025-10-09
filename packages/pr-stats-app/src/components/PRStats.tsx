@@ -6,15 +6,13 @@ import {
   formatPRComplexity,
 } from '@/lib/utils';
 import {
-  EuiBadge,
   EuiFlexGroup,
   EuiFlexItem,
   EuiPanel,
   EuiStat,
-  EuiText,
   EuiToolTip,
 } from '@elastic/eui';
-import { ApprovalDirectionBadge } from './ApprovalDirectionBadge';
+
 import { ApprovalDirectionStat } from './ApprovalDirectionStat';
 
 interface PRStatsProps {
