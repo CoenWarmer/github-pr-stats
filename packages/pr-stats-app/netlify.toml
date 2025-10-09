@@ -1,0 +1,54 @@
+[build]
+  # Base directory for the build
+  base = "packages/pr-stats-app"
+  
+  # Build command
+  command = "npm run build"
+  
+  # Publish directory (Next.js output)
+  publish = ".next"
+
+[build.environment]
+  # Node version
+  NODE_VERSION = "20"
+  
+  # Enable Next.js on Netlify
+  NPM_FLAGS = "--prefix=../.."
+
+[functions]
+  # Increase timeout for serverless functions (GitHub API can be slow)
+  # Max is 26 seconds on free tier, 60 seconds on Pro
+  node_bundler = "esbuild"
+
+[[redirects]]
+  # SPA fallback for client-side routing
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-XSS-Protection = "1; mode=block"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Environment variable hints (actual values set in Netlify UI)
+# GITHUB_TOKEN - Required: GitHub personal access token with repo and read:org scopes
+# BUILDKITE_TOKEN - Optional: Buildkite API token for CI/CD integration
+# BUILDKITE_ORG_SLUG - Optional: Your Buildkite organization slug
+# LOG_LEVEL - Optional: Logging level (error, warn, info, debug)
+

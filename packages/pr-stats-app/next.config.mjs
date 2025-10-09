@@ -5,7 +5,12 @@ import dotenv from 'dotenv';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Load environment variables from the monorepo root
-dotenv.config({ path: path.resolve(__dirname, '../..', '.env') });
+dotenv.config({
+  path: [
+    path.resolve(__dirname, '../..', '.env.local'),
+    path.resolve(__dirname, '../..', '.env'),
+  ],
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

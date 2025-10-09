@@ -13,7 +13,10 @@ interface CacheEntry {
 }
 
 const CACHE_TTL = 60 * 60 * 1000; // 60 minutes in milliseconds
-const CACHE_DIR = path.join(process.cwd(), 'data', 'cache');
+// Use /tmp for Netlify/serverless environments, fallback to local data directory
+const CACHE_DIR = process.env.NETLIFY
+  ? path.join('/tmp', 'cache')
+  : path.join(process.cwd(), 'data', 'cache');
 
 // Ensure cache directory exists
 function ensureCacheDir(): void {
