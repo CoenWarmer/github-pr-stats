@@ -25,6 +25,7 @@ import {
 } from '@elastic/eui';
 import PRStats from '@/components/PRStats';
 import ToolHelp from '@/components/ToolHelp';
+import { NavBar } from '@/components/NavBar';
 
 interface PrPageParams {
   owner: string;
@@ -413,6 +414,7 @@ export default function ClientOnlyPrPage() {
   if (loading) {
     return (
       <EuiPageTemplate>
+        <NavBar />
         <EuiPageTemplate.Header
           pageTitle="Loading PR..."
           description={`Fetching data for PR #${params.prNumber}`}
@@ -458,6 +460,7 @@ export default function ClientOnlyPrPage() {
   if (error) {
     return (
       <EuiPageTemplate>
+        <NavBar />
         <EuiPageTemplate.Header
           pageTitle="Error"
           description="Failed to load PR data"
@@ -497,6 +500,7 @@ export default function ClientOnlyPrPage() {
     // Only show "no data" if we're not loading and have no data
     return (
       <EuiPageTemplate>
+        <NavBar />
         <EuiPageTemplate.Header
           pageTitle="No Data"
           description="No timeline data available"
@@ -533,6 +537,7 @@ export default function ClientOnlyPrPage() {
 
   return (
     <EuiPageTemplate>
+      <NavBar />
       <EuiPageTemplate.Header
         pageTitle={
           <>

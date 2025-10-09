@@ -9,6 +9,7 @@ import {
   EuiFlexGroup,
   EuiEmptyPrompt,
 } from '@elastic/eui';
+import { NavBar } from './NavBar';
 
 export default function ClientOnlyPage() {
   const router = useRouter();
@@ -45,10 +46,7 @@ export default function ClientOnlyPage() {
 
   return (
     <EuiPageTemplate>
-      <EuiPageTemplate.Header
-        pageTitle="📊 GitHub PR Stats"
-        description="Analyze pull request metrics and visualize the development timeline"
-      />
+      <NavBar />
 
       <EuiPageTemplate.Section>
         <EuiEmptyPrompt
