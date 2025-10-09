@@ -60,6 +60,7 @@ export default function D3Timeline({
     HTMLDivElement,
     unknown,
     HTMLElement,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     any
   > | null>(null);
 
