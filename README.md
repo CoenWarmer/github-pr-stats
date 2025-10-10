@@ -14,6 +14,20 @@ A monorepo with the following packages:
   - **Comments**: PR comments, review comments, issue comments
   - **CI/CD**: Started, running, completed (success/failure), released
 
+## Screenshots
+
+### PR Timeline View
+
+![Screenshot 1](screenshot_1.png)
+
+### PR Statistics Dashboard
+
+![Screenshot 2](screenshot_2.png)
+
+### Detailed Build Information
+
+![Screenshot 3](screenshot_3.png)
+
 ## Development
 
 ### Prerequisites
