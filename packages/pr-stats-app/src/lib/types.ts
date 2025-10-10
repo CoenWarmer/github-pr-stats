@@ -1,3 +1,5 @@
+import type { OTelPRTimeline } from './types-otel';
+
 // Base event interface with only truly common fields
 interface BaseTimelineEvent {
   date: string;
@@ -446,7 +448,7 @@ export interface PullRequestStats {
   timeline: TimelineEvent[];
 
   // OpenTelemetry-compliant timeline (optional)
-  otel_timeline?: any; // Import from types-otel.ts to avoid circular dependency
+  otel_timeline?: OTelPRTimeline;
 
   // Review fields
   reviews: {

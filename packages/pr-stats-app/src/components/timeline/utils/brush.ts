@@ -25,7 +25,7 @@ export function createBrushSelection(
       'stroke',
       colorMode === 'DARK' ? 'rgb(100, 150, 255)' : 'rgb(0, 100, 255)'
     )
-    .attr('stroke-width', 2)
+    .attr('stroke-width', 1)
     .attr('stroke-dasharray', '5,5')
     .style('display', 'none');
 

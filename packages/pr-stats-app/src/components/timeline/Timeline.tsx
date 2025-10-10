@@ -371,6 +371,7 @@ export default function D3Timeline({
     collapsedGroups,
     zoomRange,
     activeGroups,
+    selectedBuildId,
     // Callbacks are handled via refs to avoid re-renders
   ]);
 
