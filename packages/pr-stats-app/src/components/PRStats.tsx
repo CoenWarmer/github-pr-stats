@@ -310,6 +310,41 @@ export default function PRStats({
           </EuiToolTip>
         </EuiFlexItem>
         <EuiFlexItem>
+          <ApprovalDirectionStat
+            authorCodeownerRelationships={authorCodeownerRelationships ?? []}
+          />
+        </EuiFlexItem>
+
+        <EuiFlexItem>
+          <EuiToolTip
+            position="bottom"
+            content={
+              <div
+                style={{
+                  padding: '8px 0',
+                  fontSize: '12px',
+                  lineHeight: '1.5',
+                }}
+              >
+                <strong>Time to First Review</strong>
+                <br />
+                Shortest waiting time from when a review was requested
+                <br />
+                to when the first review came in.
+              </div>
+            }
+          >
+            <EuiStat
+              title={formatDuration(totalTeamReviewTimeMs, 'ms')}
+              description="Time to first review"
+              titleSize="s"
+              reverse
+              titleColor="primary"
+            />
+          </EuiToolTip>
+        </EuiFlexItem>
+
+        <EuiFlexItem>
           <EuiToolTip
             display="block"
             position="bottom"
@@ -352,21 +387,6 @@ export default function PRStats({
           </EuiToolTip>
         </EuiFlexItem>
 
-        <EuiFlexItem>
-          <ApprovalDirectionStat
-            authorCodeownerRelationships={authorCodeownerRelationships ?? []}
-          />
-        </EuiFlexItem>
-
-        <EuiFlexItem>
-          <EuiStat
-            title={formatDuration(totalTeamReviewTimeMs, 'ms')}
-            description="Total team review time"
-            titleSize="s"
-            reverse
-            titleColor="primary"
-          />
-        </EuiFlexItem>
         <EuiFlexItem>
           <EuiToolTip
             position="bottom"

@@ -6,7 +6,7 @@ export interface PRMetrics {
   commitCount: number;
   reviewCommentsCount: number;
   issueCommentsCount: number;
-  totalTeamReviewTimeMs: number;
+  totalTeamReviewTimeMs: number; // Shortest time from review request to first review
   buildStats: {
     total_builds: number;
     completed_builds: number;
@@ -66,33 +66,35 @@ export function calculateMetricsFromTimeline(
     event => event.type === 'issue_comment'
   ).length;
 
-  // Calculate total team review time
-  let totalTeamReviewTimeMs = 0;
-  for (const event of timeline) {
-    if (
-      event.type === 'team_review_requested' &&
-      'requested_team' in event &&
-      typeof event.requested_team === 'string'
-    ) {
-      const requestTime = new Date(event.date).getTime();
-      const teamName = event.requested_team;
-      const firstApproval = timeline.find(
-        e =>
-          e.type === 'review' &&
-          e.date > event.date &&
-          'state' in e &&
-          e.state?.toLowerCase() === 'approved' &&
-          'reviewer_teams' in e &&
-          Array.isArray(e.reviewer_teams) &&
-          e.reviewer_teams.includes(teamName)
-      );
+  // Calculate time to first review (shortest waiting time from any review request)
+  let timeToFirstReviewMs: number | null = null;
 
-      if (firstApproval) {
-        const durationMs = new Date(firstApproval.date).getTime() - requestTime;
-        totalTeamReviewTimeMs += durationMs;
+  // Find all review request events
+  const reviewRequests = timeline.filter(
+    event =>
+      event.type === 'team_review_requested' ||
+      event.type === 'review_requested'
+  );
+
+  for (const requestEvent of reviewRequests) {
+    const requestTime = new Date(requestEvent.date).getTime();
+
+    // Find the first review (any type) after this request
+    const firstReview = timeline.find(
+      e => e.type === 'review' && e.date > requestEvent.date
+    );
+
+    if (firstReview) {
+      const waitingTime = new Date(firstReview.date).getTime() - requestTime;
+
+      // Keep the shortest waiting time
+      if (timeToFirstReviewMs === null || waitingTime < timeToFirstReviewMs) {
+        timeToFirstReviewMs = waitingTime;
       }
     }
   }
+
+  const totalTeamReviewTimeMs = timeToFirstReviewMs || 0;
 
   // Calculate build statistics
   // Include both ci_run and ci_started events
