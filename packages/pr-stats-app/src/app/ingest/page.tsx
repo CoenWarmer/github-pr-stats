@@ -21,6 +21,7 @@ import {
 } from '@elastic/eui';
 import type { EuiBasicTableColumn } from '@elastic/eui';
 import { NavBar } from '@/components/NavBar';
+import { JobStatus } from '@/lib/services';
 
 interface PR {
   owner: string;
@@ -50,7 +51,6 @@ function IngestPageContent() {
   >('loading');
   const [prs, setPrs] = useState<PR[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [teamInfo, setTeamInfo] = useState<{
     team: string;
     repo: string;
@@ -61,111 +61,92 @@ function IngestPageContent() {
     if (teams.length === 0) return;
 
     let isCancelled = false;
-    let eventSource: EventSource | null = null;
+    let pollInterval: NodeJS.Timeout | null = null;
 
-    const fetchPRs = async () => {
+    const startJob = async () => {
       setStatus('loading');
 
       try {
         const team = teams[0];
-        const reposParam = repos ? `&repos=${encodeURIComponent(repos)}` : '';
-        const url = `/api/prs/team?team=${encodeURIComponent(team)}&start=${startDate}&end=${endDate}${reposParam}`;
 
-        eventSource = new EventSource(url);
+        // Start the background job
+        const response = await fetch('/api/prs/team/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            team,
+            repos,
+            startDate,
+            endDate,
+          }),
+        });
 
-        eventSource.onmessage = event => {
+        if (!response.ok) {
+          throw new Error('Failed to start job');
+        }
+
+        const { jobId } = await response.json();
+
+        // Start polling for status
+        pollInterval = setInterval(async () => {
           if (isCancelled) return;
 
-          const data = JSON.parse(event.data);
+          try {
+            const statusResponse = await fetch(`/api/prs/team/status/${jobId}`);
 
-          switch (data.type) {
-            case 'init':
+            if (!statusResponse.ok) {
+              throw new Error('Failed to fetch status');
+            }
+
+            const jobStatus: JobStatus = await statusResponse.json();
+
+            // Update team info on first poll
+            if (teamInfo === null) {
               setTeamInfo({
-                team: data.team,
-                repo: data.repo,
-                members: data.members,
+                team: jobStatus.team,
+                repo: jobStatus.repo,
+                members: 0, // Not available in job status
               });
-              setPrs(data.prs);
-              setStatus('processing');
-              if (data.warning) {
-                setWarningMessage(data.warning);
-              }
-              break;
+            }
 
-            case 'processing':
-              setPrs(prev =>
-                prev.map(pr =>
-                  pr.number === data.prNumber
-                    ? { ...pr, status: 'processing' as const }
-                    : pr
-                )
-              );
-              break;
+            // Update PRs - ensure we always have an array
+            if (jobStatus.prs && Array.isArray(jobStatus.prs)) {
+              setPrs(jobStatus.prs);
+            }
+            setStatus('processing');
 
-            case 'completed':
-              setPrs(prev =>
-                prev.map(pr =>
-                  pr.number === data.prNumber
-                    ? { ...pr, status: 'completed' as const }
-                    : pr
-                )
-              );
-              break;
-
-            case 'error':
-              setPrs(prev =>
-                prev.map(pr =>
-                  pr.number === data.prNumber
-                    ? {
-                        ...pr,
-                        status: 'error' as const,
-                        error: data.error,
-                      }
-                    : pr
-                )
-              );
-              break;
-
-            case 'complete':
+            // Check if complete
+            if (jobStatus.status === 'completed') {
               setStatus('complete');
-              eventSource?.close();
-              break;
-
-            case 'stream_error':
-              setErrorMessage(data.error);
+              if (pollInterval) clearInterval(pollInterval);
+            } else if (jobStatus.status === 'error') {
+              setErrorMessage(jobStatus.error || 'Job failed');
               setStatus('error');
-              eventSource?.close();
-              break;
 
-            default:
-              break;
+              if (pollInterval) clearInterval(pollInterval);
+            }
+          } catch (error) {
+            console.error('Error polling status:', error);
+            // Continue polling on error
           }
-        };
-
-        eventSource.onerror = error => {
-          if (isCancelled) return;
-          console.error('SSE Error:', error);
-          setErrorMessage('Connection error while processing PRs');
-          setStatus('error');
-          eventSource?.close();
-        };
+        }, 2000); // Poll every 2 seconds
       } catch (error) {
         if (isCancelled) return;
-        console.error('Error processing PRs:', error);
+        console.error('Error starting job:', error);
         setErrorMessage(
-          error instanceof Error ? error.message : 'Failed to process PRs'
+          error instanceof Error ? error.message : 'Failed to start processing'
         );
         setStatus('error');
       }
     };
 
-    fetchPRs();
+    startJob();
 
     return () => {
       isCancelled = true;
-      eventSource?.close();
+      if (pollInterval) clearInterval(pollInterval);
     };
-  }, [teams, startDate, endDate, repos]);
+  }, [teams, startDate, endDate, repos, teamInfo]);
 
   const handleRefreshPR = async (pr: PR) => {
     // Set PR to processing state
@@ -327,10 +308,14 @@ function IngestPageContent() {
     },
   ];
 
-  const completedCount = prs.filter(pr => pr.status === 'completed').length;
-  const errorCount = prs.filter(pr => pr.status === 'error').length;
+  const completedCount = (prs || []).filter(
+    pr => pr.status === 'completed'
+  ).length;
+  const errorCount = (prs || []).filter(pr => pr.status === 'error').length;
   const progressPercent =
-    prs.length > 0 ? Math.round((completedCount / prs.length) * 100) : 0;
+    (prs || []).length > 0
+      ? Math.round((completedCount / (prs || []).length) * 100)
+      : 0;
 
   if (teams.length === 0) {
     return (
@@ -373,25 +358,11 @@ function IngestPageContent() {
                   <br />
                   <strong>Team Members:</strong> {teamInfo.members}
                   <br />
-                  <strong>Total PRs:</strong> {prs.length}
+                  <strong>Total PRs:</strong> {(prs || []).length}
                 </p>
               </EuiText>
 
               <EuiSpacer size="m" />
-
-              {warningMessage && (
-                <>
-                  <EuiCallOut
-                    title="GitHub API Limit"
-                    color="warning"
-                    iconType="warning"
-                    size="s"
-                  >
-                    <p>{warningMessage}</p>
-                  </EuiCallOut>
-                  <EuiSpacer size="m" />
-                </>
-              )}
             </>
           )}
 
@@ -411,7 +382,7 @@ function IngestPageContent() {
             <>
               <EuiProgress
                 value={completedCount + errorCount}
-                max={prs.length}
+                max={(prs || []).length}
                 size="l"
                 color="primary"
                 label={`Processing PRs (${progressPercent}%)`}
@@ -423,14 +394,14 @@ function IngestPageContent() {
               <EuiText size="s" color="subdued">
                 <p>
                   {completedCount} completed, {errorCount} errors,{' '}
-                  {prs.length - completedCount - errorCount} remaining
+                  {(prs || []).length - completedCount - errorCount} remaining
                 </p>
               </EuiText>
 
               <EuiSpacer size="xl" />
 
               <EuiBasicTable
-                items={prs}
+                items={prs || []}
                 columns={columns}
                 rowHeader="number"
                 tableLayout="auto"
@@ -446,8 +417,8 @@ function IngestPageContent() {
                 iconType="check"
               >
                 <p>
-                  Successfully processed {completedCount} out of {prs.length}{' '}
-                  PRs.
+                  Successfully processed {completedCount} out of{' '}
+                  {(prs || []).length} PRs.
                   {errorCount > 0 && ` ${errorCount} PRs failed to process.`}
                 </p>
               </EuiCallOut>
@@ -455,7 +426,7 @@ function IngestPageContent() {
               <EuiSpacer size="xl" />
 
               <EuiBasicTable
-                items={prs}
+                items={prs || []}
                 columns={columns}
                 rowHeader="number"
                 tableLayout="auto"

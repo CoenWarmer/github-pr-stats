@@ -21,3 +21,11 @@ export {
   CACHE_TTL,
   type CacheEntry,
 } from './pr-processor';
+export {
+  createJob,
+  updateJobStatus,
+  getJobStatus,
+  deleteJob,
+  type JobStatus,
+  type PRJob,
+} from './job-manager';
