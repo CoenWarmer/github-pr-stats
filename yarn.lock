@@ -159,14 +159,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@elastic/elasticsearch@npm:^8.10.0":
-  version: 8.19.1
-  resolution: "@elastic/elasticsearch@npm:8.19.1"
+"@elastic/elasticsearch@npm:^9.1.1":
+  version: 9.1.1
+  resolution: "@elastic/elasticsearch@npm:9.1.1"
   dependencies:
-    "@elastic/transport": "npm:^8.9.6"
-    apache-arrow: "npm:18.x - 21.x"
+    "@elastic/transport": "npm:^9.0.1"
+    apache-arrow: "npm:18.x - 20.x"
     tslib: "npm:^2.4.0"
-  checksum: 10c0/5ebee38df96dd8d0697be3bfdf36ecd1680bc9885982799436af1fa346bea7c574831933e4cccf7279ccc2553b7383f6192b586d5123d8ee1bf974cc190f1b44
+  checksum: 10c0/5d113f2a66b1c54ea299abeddd6e0ec3cde8688cacd91e5a51fe8427e2727ecfd95ffb2b1f1a1af59563ebcaff1711f68a0111cf1056e20765c9cbd7ecefb7ed
   languageName: node
   linkType: hard
 
@@ -253,19 +253,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@elastic/transport@npm:^8.9.6":
-  version: 8.10.0
-  resolution: "@elastic/transport@npm:8.10.0"
+"@elastic/transport@npm:^9.0.1":
+  version: 9.2.0
+  resolution: "@elastic/transport@npm:9.2.0"
   dependencies:
     "@opentelemetry/api": "npm:1.x"
     "@opentelemetry/core": "npm:2.x"
     debug: "npm:^4.4.1"
     hpagent: "npm:^1.2.0"
     ms: "npm:^2.1.3"
-    secure-json-parse: "npm:^3.0.1"
+    secure-json-parse: "npm:^4.0.0"
     tslib: "npm:^2.8.1"
-    undici: "npm:^6.21.1"
-  checksum: 10c0/7bfe8daadbd31fb992d6f7dcfff4fe24c08476b1952eac49fcc197ae625fe0e13412644ae3ce3468c7e2e3444a1dfa5a4a67d9a7e83dd91897c2189d2b7f3765
+    undici: "npm:^7.16.0"
+  checksum: 10c0/711f51d2333c69faa93b8873562d819f4627c0a225fe479a520bba06433f0b436ebedcad848eada4cdb34de8c00f63909c4fa1d963ed4c8fa0a563db30878b99
   languageName: node
   linkType: hard
 
@@ -1520,21 +1520,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^20, @types/node@npm:^20.19.17":
+"@types/node@npm:^20, @types/node@npm:^20.13.0, @types/node@npm:^20.19.17":
   version: 20.19.20
   resolution: "@types/node@npm:20.19.20"
   dependencies:
     undici-types: "npm:~6.21.0"
   checksum: 10c0/f05e931b5a58877520f3c84c93d787a5daf4790cc2a919cb590d3e68241975d53f94f5f340b7a5a7a214c296f2d92fc17730b30111164f666ddfa4e41b2a5706
-  languageName: node
-  linkType: hard
-
-"@types/node@npm:^24.0.3":
-  version: 24.7.1
-  resolution: "@types/node@npm:24.7.1"
-  dependencies:
-    undici-types: "npm:~7.14.0"
-  checksum: 10c0/2525f2aa865d78b1c75faaf8c6bf2af51c930962d8078306620d9a76eafcbbea035142cf2cdc2fcf1b4010cd3958a1c6c59b67aba1ac205dc1e5f895ef6af673
   languageName: node
   linkType: hard
 
@@ -1967,14 +1958,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"apache-arrow@npm:18.x - 21.x":
-  version: 21.1.0
-  resolution: "apache-arrow@npm:21.1.0"
+"apache-arrow@npm:18.x - 20.x":
+  version: 20.0.0
+  resolution: "apache-arrow@npm:20.0.0"
   dependencies:
     "@swc/helpers": "npm:^0.5.11"
     "@types/command-line-args": "npm:^5.2.3"
     "@types/command-line-usage": "npm:^5.0.4"
-    "@types/node": "npm:^24.0.3"
+    "@types/node": "npm:^20.13.0"
     command-line-args: "npm:^6.0.1"
     command-line-usage: "npm:^7.0.1"
     flatbuffers: "npm:^25.1.24"
@@ -1982,7 +1973,7 @@ __metadata:
     tslib: "npm:^2.6.2"
   bin:
     arrow2csv: bin/arrow2csv.js
-  checksum: 10c0/d689b433d0a07bf8741870bd9ae363a64efe73394f6b0a59eb0732eb33c388d657273a4e2a7f89827add7ad7dcb3680b0a9a34f6f1818b370b3b22b43e06d6e1
+  checksum: 10c0/ce6ca6ed3d853c32b7dc1d82a324de117f4a5fd4c1c06090473e1a54aee60ab032fbdda6bba6cc104449208c2b8a446514992c2d0383d51ed5ed7ea12b27be96
   languageName: node
   linkType: hard
 
@@ -3040,7 +3031,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "elastic-github-pr-stats@workspace:."
   dependencies:
-    "@elastic/elasticsearch": "npm:^8.10.0"
+    "@elastic/elasticsearch": "npm:^9.1.1"
     "@octokit/rest": "npm:22.0.0"
     "@types/node": "npm:^20.19.17"
     dotenv: "npm:^16.3.1"
@@ -5820,10 +5811,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"secure-json-parse@npm:^3.0.1":
-  version: 3.0.2
-  resolution: "secure-json-parse@npm:3.0.2"
-  checksum: 10c0/4c9c005e7fdd8528df35fcdec41dc4e8e15820ce52de19f8102da808f9400a9ed8c0a28971e3efe24b001ee1e60296af553f12bbaab81a152f702dd00af2092d
+"secure-json-parse@npm:^4.0.0":
+  version: 4.1.0
+  resolution: "secure-json-parse@npm:4.1.0"
+  checksum: 10c0/52b3f8125ea974db1333a5b63e6a1df550c36c0d5f9a263911d6732812bd02e938b30be324dcbbb9da3ef9bf5a84849e0dd911f56544003d3c09e8eee12504de
   languageName: node
   linkType: hard
 
@@ -6508,17 +6499,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici-types@npm:~7.14.0":
-  version: 7.14.0
-  resolution: "undici-types@npm:7.14.0"
-  checksum: 10c0/e7f3214b45d788f03c51ceb33817be99c65dae203863aa9386b3ccc47201a245a7955fc721fb581da9c888b6ebad59fa3f53405214afec04c455a479908f0f14
-  languageName: node
-  linkType: hard
-
-"undici@npm:^6.21.1":
-  version: 6.22.0
-  resolution: "undici@npm:6.22.0"
-  checksum: 10c0/47903c489d73e26bd47960cf2f04d63282ed050818b672cb05f8dfb6403381b850cf1b1751832654fd3af22aacd9d780e5e61aff563cd97943f5c4f10d5b3e23
+"undici@npm:^7.16.0":
+  version: 7.16.0
+  resolution: "undici@npm:7.16.0"
+  checksum: 10c0/efd867792e9f233facf9efa0a087e2d9c3e4415c0b234061b9b40307ca4fa01d945fee4d43c7b564e1b80e0d519bcc682f9f6e0de13c717146c00a80e2f1fb0f
   languageName: node
   linkType: hard
 
