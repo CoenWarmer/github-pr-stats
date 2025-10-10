@@ -14,6 +14,7 @@
     "@elastic/eui-theme-borealis": "^3.4.0",
     "@emotion/css": "^11.13.5",
     "@emotion/react": "^11.14.0",
+    "@octokit/graphql": "^9.0.2",
     "@types/d3": "^7.4.3",
     "@types/uuid": "^10.0.0",
     "d3": "^7.9.0",

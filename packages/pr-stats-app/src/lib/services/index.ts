@@ -6,3 +6,18 @@ export { CodeOwnersService } from './codeowners-service';
 export { ReviewService } from './review-service';
 export { ReleaseService } from './release-service';
 export { IssuesService } from './issues-service';
+export {
+  ElasticsearchService,
+  elasticsearchService,
+} from './elasticsearch-service';
+export {
+  processPR,
+  getCacheKey,
+  hasCachedData,
+  clearCacheEntry,
+  clearAllCache,
+  getCacheStats,
+  CACHE_DIR,
+  CACHE_TTL,
+  type CacheEntry,
+} from './pr-processor';

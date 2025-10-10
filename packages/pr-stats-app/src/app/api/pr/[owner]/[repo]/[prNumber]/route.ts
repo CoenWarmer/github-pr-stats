@@ -1,183 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GitHubCollector } from '@/lib/github-collector';
 import { logger } from '@/lib/logger';
-import { PullRequestStats } from '@/lib/types';
+import { elasticsearchService } from '@/lib/services';
+import {
+  processPR,
+  getCacheKey,
+  clearCacheEntry,
+  clearAllCache,
+  getCacheStats,
+  CACHE_DIR,
+  CACHE_TTL,
+  type CacheEntry,
+} from '@/lib/services/pr-processor';
 import * as fs from 'fs';
 import * as path from 'path';
-
-// File-based cache configuration
-interface CacheEntry {
-  data: PullRequestStats;
-  timestamp: number;
-  expiresAt: number;
-}
-
-const CACHE_TTL = 60 * 60 * 1000; // 60 minutes in milliseconds
-// Use /tmp for Netlify/serverless environments, fallback to local data directory
-const CACHE_DIR = process.env.NETLIFY
-  ? path.join('/tmp', 'cache')
-  : path.join(process.cwd(), 'data', 'cache');
-
-// Ensure cache directory exists
-function ensureCacheDir(): void {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-    logger.debug(`Created cache directory: ${CACHE_DIR}`);
-  }
-}
-
-function getCacheKey(owner: string, repo: string, prNumber: number): string {
-  return `${owner}-${repo}-${prNumber}`;
-}
-
-function getCacheFilePath(cacheKey: string): string {
-  return path.join(CACHE_DIR, `${cacheKey}.json`);
-}
-
-function getCachedData(cacheKey: string): PullRequestStats | null {
-  try {
-    const filePath = getCacheFilePath(cacheKey);
-
-    if (!fs.existsSync(filePath)) {
-      return null;
-    }
-
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const entry: CacheEntry = JSON.parse(fileContent);
-
-    // Check if cache entry has expired
-    if (Date.now() > entry.expiresAt) {
-      fs.unlinkSync(filePath);
-      logger.debug(`Cache expired and removed for ${cacheKey}`);
-      return null;
-    }
-
-    logger.info(`Cache hit for ${cacheKey}`);
-    return entry.data;
-  } catch (error) {
-    logger.warn(`Error reading cache for ${cacheKey}:`, error);
-    // Clean up corrupted cache file
-    try {
-      const filePath = getCacheFilePath(cacheKey);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    } catch (cleanupError) {
-      logger.warn(`Error cleaning up corrupted cache file:`, cleanupError);
-    }
-    return null;
-  }
-}
-
-function setCachedData(cacheKey: string, data: PullRequestStats): void {
-  try {
-    ensureCacheDir();
-
-    const now = Date.now();
-    const entry: CacheEntry = {
-      data,
-      timestamp: now,
-      expiresAt: now + CACHE_TTL,
-    };
-
-    const filePath = getCacheFilePath(cacheKey);
-    fs.writeFileSync(filePath, JSON.stringify(entry, null, 2), 'utf-8');
-
-    logger.info(
-      `Cached data to file for ${cacheKey} (expires in ${CACHE_TTL / 1000 / 60}m)`
-    );
-  } catch (error) {
-    logger.error(`Error writing cache for ${cacheKey}:`, error);
-  }
-}
-
-function clearCacheEntry(cacheKey: string): boolean {
-  try {
-    const filePath = getCacheFilePath(cacheKey);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      logger.info(`Cache file removed for ${cacheKey}`);
-      return true;
-    }
-    return false;
-  } catch (error) {
-    logger.error(`Error removing cache file for ${cacheKey}:`, error);
-    return false;
-  }
-}
-
-function clearAllCache(): number {
-  try {
-    ensureCacheDir();
-    const files = fs.readdirSync(CACHE_DIR);
-    const cacheFiles = files.filter(file => file.endsWith('.json'));
-
-    let removedCount = 0;
-    for (const file of cacheFiles) {
-      try {
-        fs.unlinkSync(path.join(CACHE_DIR, file));
-        removedCount++;
-      } catch (error) {
-        logger.warn(`Error removing cache file ${file}:`, error);
-      }
-    }
-
-    logger.info(`Cleared ${removedCount} cache files`);
-    return removedCount;
-  } catch (error) {
-    logger.error('Error clearing all cache:', error);
-    return 0;
-  }
-}
-
-function getCacheStats(): {
-  totalFiles: number;
-  totalSize: number;
-  oldestFile?: string;
-  newestFile?: string;
-} {
-  try {
-    ensureCacheDir();
-    const files = fs.readdirSync(CACHE_DIR);
-    const cacheFiles = files.filter(file => file.endsWith('.json'));
-
-    let totalSize = 0;
-    let oldestTime = Number.MAX_SAFE_INTEGER;
-    let newestTime = 0;
-    let oldestFile = '';
-    let newestFile = '';
-
-    for (const file of cacheFiles) {
-      try {
-        const filePath = path.join(CACHE_DIR, file);
-        const stats = fs.statSync(filePath);
-        totalSize += stats.size;
-
-        if (stats.mtime.getTime() < oldestTime) {
-          oldestTime = stats.mtime.getTime();
-          oldestFile = file;
-        }
-
-        if (stats.mtime.getTime() > newestTime) {
-          newestTime = stats.mtime.getTime();
-          newestFile = file;
-        }
-      } catch (error) {
-        logger.warn(`Error getting stats for cache file ${file}:`, error);
-      }
-    }
-
-    return {
-      totalFiles: cacheFiles.length,
-      totalSize,
-      oldestFile: oldestFile || undefined,
-      newestFile: newestFile || undefined,
-    };
-  } catch (error) {
-    logger.error('Error getting cache stats:', error);
-    return { totalFiles: 0, totalSize: 0 };
-  }
-}
 
 export async function GET(
   request: NextRequest,
@@ -213,35 +49,14 @@ export async function GET(
     const forceRefresh = searchParams.get('force') === 'true';
     const streamProgress = searchParams.get('stream') === 'true';
 
-    const cacheKey = getCacheKey(owner, repo, prNum);
-
-    // Try to get cached data if not forcing refresh and not streaming
-    if (!forceRefresh && !streamProgress) {
-      const cachedData = getCachedData(cacheKey);
-      if (cachedData) {
-        logger.info(`Returning cached data for PR #${prNum}`);
-        return NextResponse.json({
-          data: cachedData,
-          cached: true,
-          timestamp: Date.now(),
-        });
-      }
-    } else {
-      logger.info(`Force refresh requested for PR #${prNum}, bypassing cache`);
-      // Remove from cache if force refresh
-      clearCacheEntry(cacheKey);
-    }
-
-    logger.info(`🚀 Fetching fresh data for PR #${prNum}`);
-
-    const collector = new GitHubCollector(
-      process.env.GITHUB_TOKEN!,
-      process.env.BUILDKITE_TOKEN,
-      process.env.BUILDKITE_ORG_SLUG
-    );
-
-    // If streaming is requested, use SSE
+    // If streaming is requested, use SSE with progress updates
+    // Note: Streaming bypasses processPR to provide real-time progress callbacks
     if (streamProgress) {
+      const collector = new GitHubCollector(
+        process.env.GITHUB_TOKEN!,
+        process.env.BUILDKITE_TOKEN,
+        process.env.BUILDKITE_ORG_SLUG
+      );
       const encoder = new TextEncoder();
 
       const stream = new ReadableStream({
@@ -269,8 +84,14 @@ export async function GET(
               sendProgress
             );
 
-            // Cache the result
-            setCachedData(cacheKey, prStats);
+            // Index to Elasticsearch (processPR would do this, but we're bypassing it)
+            if (elasticsearchService.isEnabled()) {
+              elasticsearchService.indexPRStats(prStats).catch(error => {
+                logger.warn('Failed to index PR stats to Elasticsearch', {
+                  error: error instanceof Error ? error.message : error,
+                });
+              });
+            }
 
             // Send final data
             controller.enqueue(
@@ -303,16 +124,12 @@ export async function GET(
     }
 
     // Non-streaming mode: collect data and return JSON
-
-    // Use the consolidated method that does everything
-    const prStats = await collector.buildCompletePRStats(owner, repo, prNum);
-
-    // Cache the result
-    setCachedData(cacheKey, prStats);
+    // Use shared processPR service which handles caching and ES indexing
+    const result = await processPR(owner, repo, prNum, forceRefresh);
 
     return NextResponse.json({
-      data: prStats,
-      cached: false,
+      data: result.data,
+      cached: result.cached,
       timestamp: Date.now(),
     });
   } catch (error) {
@@ -408,9 +225,10 @@ export async function OPTIONS(request: NextRequest) {
               modified: fileStats.mtime,
               expiresAt: new Date(entry.expiresAt),
               expired: Date.now() > entry.expiresAt,
-              prTitle:
-                entry.data.title?.substring(0, 50) +
-                (entry.data.title?.length > 50 ? '...' : ''),
+              prTitle: entry.data.title
+                ? entry.data.title.substring(0, 50) +
+                  (entry.data.title.length > 50 ? '...' : '')
+                : 'Unknown',
             };
           } catch {
             return {
