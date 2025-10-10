@@ -28,14 +28,40 @@ export interface JobStatus {
   error?: string;
 }
 
-const JOB_DIR = process.env.NETLIFY
+// Detect if we're running on a serverless platform (Netlify, Vercel, AWS Lambda, etc.)
+// These platforms only allow writes to /tmp
+const isServerless =
+  process.env.NETLIFY === 'true' ||
+  process.env.VERCEL === '1' ||
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  process.env.CONTEXT || // Netlify sets this
+  process.env.LAMBDA_TASK_ROOT; // AWS Lambda
+
+const JOB_DIR = isServerless
   ? '/tmp/pr-jobs'
   : path.join(process.cwd(), 'data', 'jobs');
 
 function ensureJobDir() {
+  logger.info(`Using job directory: ${JOB_DIR}`, {
+    isServerless,
+    cwd: process.cwd(),
+    env: {
+      NETLIFY: process.env.NETLIFY,
+      CONTEXT: process.env.CONTEXT,
+      VERCEL: process.env.VERCEL,
+    },
+  });
+
   if (!fs.existsSync(JOB_DIR)) {
-    fs.mkdirSync(JOB_DIR, { recursive: true });
-    logger.debug(`Created job directory: ${JOB_DIR}`);
+    try {
+      fs.mkdirSync(JOB_DIR, { recursive: true });
+      logger.info(`Created job directory: ${JOB_DIR}`);
+    } catch (error) {
+      logger.error(`Failed to create job directory: ${JOB_DIR}`, {
+        error: error instanceof Error ? error.message : error,
+      });
+      throw error;
+    }
   }
 }
 

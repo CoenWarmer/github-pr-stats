@@ -13,7 +13,17 @@ export interface CacheEntry {
 }
 
 export const CACHE_TTL = 60 * 60 * 1000; // 60 minutes in milliseconds
-export const CACHE_DIR = process.env.NETLIFY
+
+// Detect if we're running on a serverless platform (Netlify, Vercel, AWS Lambda, etc.)
+// These platforms only allow writes to /tmp
+const isServerless =
+  process.env.NETLIFY === 'true' ||
+  process.env.VERCEL === '1' ||
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  process.env.CONTEXT || // Netlify sets this
+  process.env.LAMBDA_TASK_ROOT; // AWS Lambda
+
+export const CACHE_DIR = isServerless
   ? path.join('/tmp', 'cache')
   : path.join(process.cwd(), 'data', 'cache');
 
