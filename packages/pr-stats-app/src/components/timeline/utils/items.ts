@@ -334,7 +334,6 @@ export function addEventHandlers(
         } else {
           clickTimer = setTimeout(() => {
             clickTimer = null;
-            console.log('clicked', d);
             if (d.url) {
               window.open(d.url, '_blank');
             }
@@ -342,7 +341,6 @@ export function addEventHandlers(
         }
       } else {
         // For non-CI builds, open URL immediately
-        console.log('clicked', d);
         if (d.url) {
           window.open(d.url, '_blank');
         }

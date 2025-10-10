@@ -14,6 +14,8 @@ export interface PRMetrics {
     successful_builds: number;
     cancelled_builds: number;
     total_build_time_ms: number;
+    wall_to_wall_build_time_ms: number;
+    cumulative_build_time_ms: number;
   };
   runStartTime: string;
   runEndTime: string;
@@ -93,25 +95,54 @@ export function calculateMetricsFromTimeline(
   }
 
   // Calculate build statistics
-  const allCiBuilds = timeline.filter(event => event.type === 'ci_run');
-  const totalBuilds = allCiBuilds.length;
-  const completedBuilds = allCiBuilds.filter(
+  // Include both ci_run and ci_started events
+  const allCiBuilds = timeline.filter(
+    event => event.type === 'ci_run' || event.type === 'ci_started'
+  );
+
+  // Separate main builds from job-level events
+  // Main builds don't have " - " in workflow_name or don't have workflow_name with job suffix
+  const mainBuilds = allCiBuilds.filter(
+    event => !event.workflow_name || !event.workflow_name.includes(' - ')
+  );
+  const jobBuilds = allCiBuilds.filter(
+    event => event.workflow_name && event.workflow_name.includes(' - ')
+  );
+
+  // For counting, only use completed main builds (ci_run with completed status)
+  const completedMainBuilds = mainBuilds.filter(
+    event => event.type === 'ci_run'
+  );
+
+  const totalBuilds = completedMainBuilds.length;
+  const completedBuilds = completedMainBuilds.filter(
     event => event.ci_status === 'completed'
   ).length;
-  const failedBuilds = allCiBuilds.filter(
+  const failedBuilds = completedMainBuilds.filter(
     event =>
       event.ci_conclusion === 'failure' || event.ci_conclusion === 'error'
   ).length;
-  const successfulBuilds = allCiBuilds.filter(
+  const successfulBuilds = completedMainBuilds.filter(
     event => event.ci_conclusion === 'success'
   ).length;
-  const cancelledBuilds = allCiBuilds.filter(
+  const cancelledBuilds = completedMainBuilds.filter(
     event => event.ci_conclusion === 'cancelled'
   ).length;
-  const totalBuildTimeMs = allCiBuilds.reduce(
+
+  // Wall-to-wall time: sum of main build durations (actual time elapsed)
+  // Only count completed main builds
+  const wallToWallBuildTimeMs = completedMainBuilds.reduce(
     (sum, event) => sum + (event.duration_ms || 0),
     0
   );
+
+  // Cumulative time: sum of all job durations (compute/cost time)
+  // Only count completed jobs (ci_run, not ci_started)
+  const completedJobs = jobBuilds.filter(event => event.type === 'ci_run');
+  const cumulativeBuildTimeMs =
+    completedJobs.length > 0
+      ? completedJobs.reduce((sum, event) => sum + (event.duration_ms || 0), 0)
+      : wallToWallBuildTimeMs;
 
   const buildStats = {
     total_builds: totalBuilds,
@@ -119,7 +150,9 @@ export function calculateMetricsFromTimeline(
     failed_builds: failedBuilds,
     successful_builds: successfulBuilds,
     cancelled_builds: cancelledBuilds,
-    total_build_time_ms: totalBuildTimeMs,
+    total_build_time_ms: wallToWallBuildTimeMs, // Keep as wall-to-wall for backwards compatibility
+    wall_to_wall_build_time_ms: wallToWallBuildTimeMs,
+    cumulative_build_time_ms: cumulativeBuildTimeMs,
   };
 
   // Calculate run time

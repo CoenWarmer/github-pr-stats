@@ -137,7 +137,6 @@ function getEventGroupForCodeOwners(
 ): string {
   // Handle review events
   if (eventType === 'review' && event.reviewer) {
-    console.log('event', event);
     // If reviewer is part of code owner teams, route to specific team row
     if (event.reviewer_teams && event.reviewer_teams.length > 0) {
       // Use the first team (or we could implement more sophisticated logic)

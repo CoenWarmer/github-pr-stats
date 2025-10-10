@@ -94,6 +94,20 @@ export default function PRStats({
       ? (pr.build_stats.total_build_time_ms ?? 0)
       : ciBuilds.reduce((acc, event) => acc + (event.duration_ms || 0), 0);
 
+  // Get wall-to-wall and cumulative build times (only for "all" workflow)
+  const wallToWallBuildTime =
+    selectedWorkflow === 'all'
+      ? (pr.build_stats.wall_to_wall_build_time_ms ?? totalBuildMinutes)
+      : totalBuildMinutes;
+  const cumulativeBuildTime =
+    pr.build_stats.cumulative_build_time_ms ?? totalBuildMinutes;
+
+  // Calculate parallelization factor
+  const parallelizationFactor =
+    wallToWallBuildTime > 0
+      ? Math.round((cumulativeBuildTime / wallToWallBuildTime) * 10) / 10
+      : 1;
+
   // Calculate build time per conclusion type
   const successfulBuildTime = ciBuilds
     .filter(
@@ -138,6 +152,11 @@ export default function PRStats({
   const authorCodeownerRelationships = pr.reviews.review_timings.map(
     timing => timing.author_reviewer_relationship
   );
+
+  const releaseEvent = pr.timeline.find(
+    event => event.type === 'time_to_release'
+  );
+  const hasRelease = releaseEvent && releaseEvent.release_tag;
 
   return (
     <EuiPanel hasBorder hasShadow={false} style={{ width: '100%' }}>
@@ -400,60 +419,94 @@ export default function PRStats({
             }
           >
             <EuiStat
-              title={formatDuration(totalBuildMinutes, 'ms')}
-              description="Total build time"
+              title={formatDuration(wallToWallBuildTime, 'ms')}
+              description="Build time (wall-to-wall)"
               titleSize="s"
               reverse
             />
           </EuiToolTip>
         </EuiFlexItem>
         <EuiFlexItem>
-          {(() => {
-            const releaseEvent = pr.timeline.find(
-              event => event.type === 'time_to_release'
-            );
-            const hasRelease = releaseEvent && releaseEvent.release_tag;
-
-            return hasRelease ? (
-              <EuiToolTip
-                position="bottom"
-                content={
-                  <div
-                    style={{
-                      padding: '8px 0',
-                      fontSize: '12px',
-                      lineHeight: '1.5',
-                    }}
-                  >
-                    <strong>First Release:</strong>
-                    <br />
-                    {releaseEvent.release_tag}
-                    <br />
-                    <br />
-                    <strong>Released on:</strong>
-                    <br />
-                    {releaseEvent.end_date
-                      ? new Date(releaseEvent.end_date).toLocaleString()
-                      : 'Unknown'}
-                  </div>
-                }
-              >
-                <EuiStat
-                  title={formatDuration(releaseEvent.duration_ms ?? 0, 'ms')}
-                  description="Time to first release"
-                  titleSize="s"
-                  reverse
-                />
-              </EuiToolTip>
-            ) : (
+          <EuiToolTip
+            position="bottom"
+            content={
+              <EuiFlexGroup direction="column">
+                <EuiFlexItem>
+                  <EuiStat
+                    title={formatDuration(wallToWallBuildTime, 'ms')}
+                    description="Wall-to-wall time"
+                    titleSize="s"
+                    reverse
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={formatDuration(cumulativeBuildTime, 'ms')}
+                    description="Cumulative time"
+                    titleSize="s"
+                    reverse
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={`${parallelizationFactor}x`}
+                    description="Parallelization"
+                    titleSize="s"
+                    reverse
+                    titleColor="warning"
+                  />
+                </EuiFlexItem>
+              </EuiFlexGroup>
+            }
+          >
+            <EuiStat
+              title={formatDuration(cumulativeBuildTime, 'ms')}
+              description="Build time (cumulative)"
+              titleSize="s"
+              reverse
+            />
+          </EuiToolTip>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          {hasRelease ? (
+            <EuiToolTip
+              position="bottom"
+              content={
+                <div
+                  style={{
+                    padding: '8px 0',
+                    fontSize: '12px',
+                    lineHeight: '1.5',
+                  }}
+                >
+                  <strong>First Release:</strong>
+                  <br />
+                  {releaseEvent.release_tag}
+                  <br />
+                  <br />
+                  <strong>Released on:</strong>
+                  <br />
+                  {releaseEvent.end_date
+                    ? new Date(releaseEvent.end_date).toLocaleString()
+                    : 'Unknown'}
+                </div>
+              }
+            >
               <EuiStat
-                title={formatDuration(0, 'ms')}
+                title={formatDuration(releaseEvent.duration_ms ?? 0, 'ms')}
                 description="Time to first release"
                 titleSize="s"
                 reverse
               />
-            );
-          })()}
+            </EuiToolTip>
+          ) : (
+            <EuiStat
+              title={formatDuration(0, 'ms')}
+              description="Time to first release"
+              titleSize="s"
+              reverse
+            />
+          )}
         </EuiFlexItem>
       </EuiFlexGroup>
     </EuiPanel>

@@ -33,12 +33,7 @@ export function ApprovalDirectionStat({
     {} as Record<string, number>
   );
 
-  // Get unique relationships to display
-  const uniqueRelationships = Array.from(new Set(authorCodeownerRelationships));
-
   const palette = euiPaletteColorBlindBehindText({ sortBy: 'natural' });
-
-  console.log(relationshipCounts);
 
   const totalCount = Object.values(relationshipCounts).reduce(
     (acc, count) => acc + count,
@@ -124,10 +119,10 @@ export function ApprovalDirectionStat({
           </EuiFlexGroup>
         }
       >
-        <>
+        <div>
           <EuiSpacer size="s" />
           <EuiText size="s">Author Codeowner Relationship</EuiText>
-        </>
+        </div>
       </EuiToolTip>
     </>
   );

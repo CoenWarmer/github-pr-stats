@@ -217,12 +217,38 @@ export class BuildkiteService {
       }
     }
 
+    // Calculate cumulative time of all jobs
+    let cumulativeJobTimeMs = 0;
+    let completedJobsCount = 0;
+    if (build.jobs && build.jobs.length > 0) {
+      for (const job of build.jobs) {
+        if (job.type === 'script' && job.name) {
+          const jobStartTime = job.started_at || job.created_at;
+          const jobEndTime = job.finished_at;
+          if (jobStartTime && jobEndTime) {
+            const jobDurationMs =
+              new Date(jobEndTime).getTime() - new Date(jobStartTime).getTime();
+            cumulativeJobTimeMs += jobDurationMs;
+            completedJobsCount++;
+          }
+        }
+      }
+    }
+
+    // Calculate parallelization factor
+    const parallelizationFactor =
+      durationMs > 0 && cumulativeJobTimeMs > 0
+        ? Math.round((cumulativeJobTimeMs / durationMs) * 10) / 10
+        : 1;
+
     // Build popover content
     let popoverContent = `
       <strong>${build.pipeline.name}</strong><br/>
       ${new Date(startTime).toLocaleString()}<br/>
       ${endTime ? `<strong>End:</strong> ${new Date(endTime).toLocaleString()}<br/>` : ''}
-      ${durationMs > 0 ? `<strong>Duration:</strong> ${this.formatDuration(durationMs)}<br/>` : ''}
+      ${durationMs > 0 ? `<strong>Wall-to-wall time:</strong> ${this.formatDuration(durationMs)}<br/>` : ''}
+      ${cumulativeJobTimeMs > 0 ? `<strong>Cumulative time:</strong> ${this.formatDuration(cumulativeJobTimeMs)} (${completedJobsCount} jobs)<br/>` : ''}
+      ${cumulativeJobTimeMs > 0 && durationMs > 0 ? `<strong>Parallelization:</strong> ${parallelizationFactor}x<br/>` : ''}
     `;
 
     if (build.number) {

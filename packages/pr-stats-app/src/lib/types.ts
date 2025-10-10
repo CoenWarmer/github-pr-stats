@@ -461,6 +461,8 @@ export interface PullRequestStats {
     successful_builds?: number;
     cancelled_builds?: number;
     total_build_time_ms?: number;
+    wall_to_wall_build_time_ms?: number;
+    cumulative_build_time_ms?: number;
   };
 
   // Calculated metrics
