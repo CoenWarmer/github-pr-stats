@@ -266,7 +266,34 @@ export async function GET(request: NextRequest) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        // Keep-alive helper to prevent Netlify timeout
+        let keepAliveInterval: NodeJS.Timeout | null = null;
+
+        const startKeepAlive = () => {
+          // Send keep-alive comment every 5 seconds
+          keepAliveInterval = setInterval(() => {
+            try {
+              controller.enqueue(encoder.encode(': keep-alive\n\n'));
+            } catch {
+              // Connection might be closed
+              if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+              }
+            }
+          }, 5000);
+        };
+
+        const stopKeepAlive = () => {
+          if (keepAliveInterval) {
+            clearInterval(keepAliveInterval);
+            keepAliveInterval = null;
+          }
+        };
+
         try {
+          // Start keep-alive
+          startKeepAlive();
+
           // Send initial list of PRs
           controller.enqueue(
             encoder.encode(
@@ -378,6 +405,8 @@ export async function GET(request: NextRequest) {
             )
           );
 
+          // Stop keep-alive and close
+          stopKeepAlive();
           controller.close();
         } catch (error) {
           logger.error('Error in SSE stream', {
@@ -393,6 +422,8 @@ export async function GET(request: NextRequest) {
             )
           );
 
+          // Stop keep-alive and close
+          stopKeepAlive();
           controller.close();
         }
       },
