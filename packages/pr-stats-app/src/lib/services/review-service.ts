@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { ReviewTiming } from '../types';
+import { AuthorReviewerRelationship, ReviewTiming } from '../types';
 import { logger } from '../logger';
 
 /**
@@ -81,10 +81,10 @@ export class ReviewService {
             reviewer: review.user.login,
             submitted_at: review.submitted_at,
             time_to_review_hours: Math.round(timeToReviewHours * 100) / 100,
-            reviewer_teams: ['additional-reviewers'],
+            reviewer_teams: ['additional_reviewers'],
             author_reviewer_relationship: this.getAuthorReviewerRelationship(
               authorTeams,
-              'additional-reviewers'
+              'additional_reviewers'
             ),
             url: reviewUrl,
             review_id: review.id,
@@ -105,18 +105,13 @@ export class ReviewService {
   getAuthorReviewerRelationship(
     authorTeams: string[],
     reviewerTeam: string
-  ):
-    | 'same-team'
-    | 'intra-team'
-    | 'intra-department'
-    | 'cross-department'
-    | 'additional-reviewer' {
+  ): AuthorReviewerRelationship {
     if (authorTeams.includes(reviewerTeam)) {
-      return 'same-team';
+      return 'same_team';
     }
 
-    if (reviewerTeam === 'additional-reviewers') {
-      return 'additional-reviewer';
+    if (reviewerTeam === 'additional_reviewers') {
+      return 'additional_reviewer';
     }
 
     // Check for intra-department: teams share a common prefix (e.g., "obs-", "security-")
@@ -136,11 +131,11 @@ export class ReviewService {
       });
 
       if (hasCommonDepartment) {
-        return 'intra-department';
+        return 'intra_department';
       }
     }
 
-    return 'cross-department';
+    return 'cross_department';
   }
 
   /**

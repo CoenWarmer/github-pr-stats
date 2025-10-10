@@ -12,17 +12,12 @@ import {
   ApprovalDirectionBadge,
   approvalDirectionLabelMap,
 } from './ApprovalDirectionBadge';
+import { AuthorReviewerRelationship } from '@/lib/types';
 
 export function ApprovalDirectionStat({
   authorCodeownerRelationships,
 }: {
-  authorCodeownerRelationships: (
-    | 'same-team'
-    | 'intra-team'
-    | 'intra-department'
-    | 'cross-department'
-    | 'additional-reviewer'
-  )[];
+  authorCodeownerRelationships: AuthorReviewerRelationship[];
 }) {
   // Count occurrences of each relationship type
   const relationshipCounts = authorCodeownerRelationships.reduce(

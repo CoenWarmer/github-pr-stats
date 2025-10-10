@@ -402,6 +402,8 @@ export interface IssueLifecycleEvent {
   end_date?: string;
   actor?: string;
   assignee?: string;
+  title?: string;
+  popoverContent?: string;
 }
 
 export interface LinkedIssue {
@@ -481,18 +483,20 @@ export interface PullRequestStats {
   };
 }
 
+export type AuthorReviewerRelationship =
+  | 'same_team'
+  | 'intra_team'
+  | 'intra_department'
+  | 'cross_department'
+  | 'additional_reviewer';
+
 export interface ReviewTiming {
   reviewer: string;
   submitted_at: string;
   time_to_review_hours: number;
   state: string;
   reviewer_teams: string[];
-  author_reviewer_relationship:
-    | 'same-team'
-    | 'intra-team'
-    | 'intra-department'
-    | 'cross-department'
-    | 'additional-reviewer';
+  author_reviewer_relationship: AuthorReviewerRelationship;
   time_to_new_commits_pushed?: number;
   time_to_author_response?: number;
   url?: string;

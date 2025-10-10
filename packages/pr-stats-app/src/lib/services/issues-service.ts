@@ -157,9 +157,12 @@ export class IssuesService {
       });
 
       const lifecycleEvents: IssueLifecycleEvent[] = [];
+
       lifecycleEvents.push({
         event_type: 'created',
         date: issueCreatedAt,
+        title: 'Issue Created',
+        popoverContent: `<strong>Issue #${issueNumber} Created</strong><br/>${issueCreatedAt}`,
       });
 
       let hasClosedEvent = false;
@@ -174,11 +177,29 @@ export class IssuesService {
             event_type: 'assigned',
             date: event.created_at,
             assignee: event.assignee.login,
+            title: 'Issue Assigned',
+            popoverContent: `<strong>Issue #${issueNumber} Assigned to ${event.assignee.login}</strong><br/>${event.created_at}`,
           });
         } else if (event.event === 'closed' && event.created_at) {
           lifecycleEvents.push({
             event_type: 'closed',
             date: event.created_at,
+            title: 'Issue Closed',
+            popoverContent: `<strong>Issue #${issueNumber} Closed</strong><br/>${event.created_at}`,
+          });
+
+          const durationDays = Math.round(
+            (new Date(event.created_at).getTime() -
+              new Date(issueCreatedAt).getTime()) /
+              (1000 * 60 * 60 * 24)
+          );
+
+          lifecycleEvents.push({
+            event_type: 'closed',
+            date: issueCreatedAt,
+            end_date: event.created_at,
+            title: `${durationDays.toString()} days`,
+            popoverContent: `<strong>Issue #${issueNumber} Closed</strong><br/>${event.created_at}<br /><strong>Duration:</strong> ${durationDays} days`,
           });
           hasClosedEvent = true;
         }
@@ -190,6 +211,8 @@ export class IssuesService {
           event_type: 'in_progress',
           date: issueCreatedAt,
           end_date: new Date().toISOString(),
+          title: 'Issue In Progress',
+          popoverContent: `<strong>Issue #${issueNumber} In Progress</strong><br/>${issueCreatedAt}`,
         });
       }
 

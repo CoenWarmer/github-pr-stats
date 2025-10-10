@@ -119,12 +119,13 @@ function createEventColor(event: AnyTimelineEvent): string {
  * Checks if there are any additional reviewers (not part of code owner teams)
  */
 function hasAdditionalReviewers(pr: PullRequestStats): boolean {
-  // Check if there are any reviewers who are not part of code owner teams
+  // Check if there are any reviewers with the 'additional_reviewers' team
   return pr.timeline.some(
     event =>
       event.type === 'review' &&
       event.reviewer &&
-      (!event.reviewer_teams || event.reviewer_teams.length === 0)
+      event.reviewer_teams &&
+      event.reviewer_teams.includes('additional_reviewers')
   );
 }
 
@@ -139,8 +140,13 @@ function getEventGroupForCodeOwners(
   if (eventType === 'review' && event.reviewer) {
     // If reviewer is part of code owner teams, route to specific team row
     if (event.reviewer_teams && event.reviewer_teams.length > 0) {
+      const team = event.reviewer_teams[0];
+      // Special case: 'additional_reviewers' doesn't get the 'reviewer_' prefix
+      if (team === 'additional_reviewers') {
+        return 'additional_reviewers';
+      }
       // Use the first team (or we could implement more sophisticated logic)
-      return `reviewer_${event.reviewer_teams[0]}`;
+      return `reviewer_${team}`;
     }
     // If reviewer is not part of any code owner teams, route to additional reviewers
     else {
@@ -151,8 +157,13 @@ function getEventGroupForCodeOwners(
   // Handle awaiting review events - assign to the team that needs to review
   if (eventType === 'awaiting_review') {
     if (event.reviewer_teams && event.reviewer_teams.length > 0) {
+      const team = event.reviewer_teams[0];
+      // Special case: 'additional_reviewers' doesn't get the 'reviewer_' prefix
+      if (team === 'additional_reviewers') {
+        return 'additional_reviewers';
+      }
       // Use the first team that needs to review
-      return `reviewer_${event.reviewer_teams[0]}`;
+      return `reviewer_${team}`;
     }
     // If no specific team, route to additional reviewers
     else {
@@ -201,7 +212,7 @@ export function transformToTimelineData(pr: PullRequestStats): TimelineData {
       order: 3 + index,
     })),
     // Add additional reviewers row if there are any
-    ...(hasAdditionalReviewersFlag
+    ...(hasAdditionalReviewersFlag || codeOwners.length === 0
       ? [
           {
             id: 'additional_reviewers',

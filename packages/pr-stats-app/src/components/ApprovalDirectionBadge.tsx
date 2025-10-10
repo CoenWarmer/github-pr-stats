@@ -1,12 +1,12 @@
 import { EuiBadge } from '@elastic/eui';
 
 export const approvalDirectionLabelMap = {
-  'same-team': 'Within Team',
-  'cross-team': 'Cross Team',
-  'cross-department': 'Cross Department',
-  'intra-team': 'Intra Team',
-  'intra-department': 'Intra Department',
-  'additional-reviewer': 'Additional Reviewer',
+  same_team: 'Within Team',
+  cross_team: 'Cross Team',
+  cross_department: 'Cross Department',
+  intra_team: 'Intra Team',
+  intra_department: 'Intra Department',
+  additional_reviewer: 'Additional Reviewer',
 };
 
 export function ApprovalDirectionBadge({

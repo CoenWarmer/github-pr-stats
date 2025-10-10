@@ -261,7 +261,7 @@ export function formatDurationMs(
   precision: number = 0
 ): string {
   if (durationMs === 0) {
-    return 'Point in time (no duration)';
+    return '';
   }
 
   const seconds = durationMs / 1000;

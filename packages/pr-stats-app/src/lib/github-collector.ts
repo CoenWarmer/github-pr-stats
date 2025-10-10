@@ -295,6 +295,10 @@ export class GitHubCollector {
         type: prData.draft ? 'opened_draft' : 'opened',
         date: prData.created_at,
         title: 'PR opened',
+        popoverContent: `
+          <strong>PR opened</strong><br/>
+          ${new Date(prData.created_at).toLocaleString()}
+        `,
       });
 
       reportProgress('Processing timeline events', 2, 10);
@@ -526,12 +530,13 @@ export class GitHubCollector {
           for (const event of issue.lifecycle_events) {
             timeline.push({
               type: `issue_${event.event_type}`,
-              title: 'Issue lifecycle',
+              title: event.title || '',
               date: event.date,
               end_date: event.end_date,
               issue_number: issue.number,
               issue_title: issue.title,
               assignee: event.assignee,
+              popoverContent: event.popoverContent,
             });
           }
 
@@ -619,7 +624,7 @@ export class GitHubCollector {
 
         timeline.push({
           type: 'time_to_release',
-          title: 'Time to Release',
+          title: `${durationDays.toString()} days`,
           date: prData.merged_at,
           end_date: firstRelease.published_at,
           duration_ms: durationMs,

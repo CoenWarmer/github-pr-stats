@@ -410,7 +410,7 @@ export default function PRStats({
                 </EuiFlexItem>
                 <EuiFlexItem>
                   <EuiStat
-                    title={`${successfulBuilds.toString()} (${formatDuration(successfulBuildTime, 'ms')})`}
+                    title={`${successfulBuilds.toString()} ${successfulBuildTime ? `(${formatDuration(successfulBuildTime, 'ms')})` : ''}`}
                     description="Builds Successful"
                     titleSize="s"
                     reverse
@@ -419,7 +419,7 @@ export default function PRStats({
                 </EuiFlexItem>
                 <EuiFlexItem>
                   <EuiStat
-                    title={`${failedBuilds.toString()} (${formatDuration(failedBuildTime, 'ms')})`}
+                    title={`${failedBuilds.toString()} ${failedBuildTime ? `(${formatDuration(failedBuildTime, 'ms')})` : ''}`}
                     description="Builds Failed"
                     titleSize="s"
                     reverse
@@ -428,7 +428,7 @@ export default function PRStats({
                 </EuiFlexItem>
                 <EuiFlexItem>
                   <EuiStat
-                    title={`${cancelledBuilds.toString()} (${formatDuration(cancelledBuildTime, 'ms')})`}
+                    title={`${cancelledBuilds.toString()} ${cancelledBuildTime ? `(${formatDuration(cancelledBuildTime, 'ms')})` : ''}`}
                     description="Builds Cancelled"
                     titleSize="s"
                     reverse
