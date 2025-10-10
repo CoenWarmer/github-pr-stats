@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   EuiPageTemplate,
@@ -33,7 +33,7 @@ interface PR {
   error?: string;
 }
 
-export default function IngestPage() {
+function IngestPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -485,5 +485,28 @@ export default function IngestPage() {
         </EuiPanel>
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
+  );
+}
+
+export default function IngestPage() {
+  return (
+    <Suspense
+      fallback={
+        <EuiPageTemplate>
+          <NavBar />
+          <EuiPageTemplate.Section>
+            <EuiPanel paddingSize="l">
+              <EuiTitle size="l">
+                <h1>Loading...</h1>
+              </EuiTitle>
+              <EuiSpacer size="m" />
+              <EuiProgress size="m" color="primary" />
+            </EuiPanel>
+          </EuiPageTemplate.Section>
+        </EuiPageTemplate>
+      }
+    >
+      <IngestPageContent />
+    </Suspense>
   );
 }
