@@ -4,7 +4,22 @@ This document describes the Elasticsearch integration that automatically indexes
 
 ## Overview
 
-The Elasticsearch integration automatically indexes Pull Request statistics to an Elasticsearch cluster whenever PR data is collected. This enables:
+The Elasticsearch integration serves two primary purposes:
+
+### 1. **Primary Cache** (NEW! 🎯)
+
+Elasticsearch is used as the primary persistent cache for PR data, with filesystem as a secondary cache for debugging. This provides:
+
+- **Persistent cache**: Survives deployments and serverless cold starts
+- **Shared cache**: All instances share the same cache
+- **Faster responses**: Cached PRs load instantly
+- **Cost savings**: Fewer GitHub API calls
+
+See [DUAL-CACHE.md](./DUAL-CACHE.md) for complete details on the caching system.
+
+### 2. **Analytics & Search**
+
+The integration also indexes PR statistics for analysis:
 
 - **Historical tracking**: Store PR metrics over time
 - **Search & analytics**: Query PR data across repositories and teams

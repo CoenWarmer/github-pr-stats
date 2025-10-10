@@ -209,6 +209,10 @@ export function getCacheStats(): {
 /**
  * Process a single PR and return its stats
  * Returns both the data and whether it was from cache
+ *
+ * Cache hierarchy:
+ * 1. Elasticsearch (primary cache - persistent across deployments)
+ * 2. Filesystem (secondary cache - for debugging and local dev)
  */
 export async function processPR(
   owner: string,
@@ -220,14 +224,63 @@ export async function processPR(
 
   // Try to get cached data if not forcing refresh
   if (!forceRefresh) {
+    // 1. Try Elasticsearch first (primary cache)
+    if (elasticsearchService.isEnabled()) {
+      try {
+        const esCachedData = await elasticsearchService.getCachedPRStats(
+          owner,
+          repo,
+          prNumber
+        );
+        if (esCachedData) {
+          logger.info(
+            `Returning cached data from Elasticsearch for PR #${prNumber}`
+          );
+
+          // Also write to filesystem for debugging (async, don't wait)
+          setCachedData(cacheKey, esCachedData);
+
+          return { data: esCachedData, cached: true };
+        }
+      } catch (error) {
+        logger.warn(
+          'Failed to get cached data from Elasticsearch, falling back to filesystem',
+          {
+            error: error instanceof Error ? error.message : error,
+          }
+        );
+      }
+    }
+
+    // 2. Fall back to filesystem cache
     const cachedData = getCachedData(cacheKey);
     if (cachedData) {
-      logger.info(`Returning cached data for PR #${prNumber}`);
+      logger.info(`Returning cached data from filesystem for PR #${prNumber}`);
+
+      // If ES is enabled, backfill to ES (async, don't wait)
+      if (elasticsearchService.isEnabled()) {
+        elasticsearchService.indexPRStats(cachedData).catch(error => {
+          logger.warn('Failed to backfill cache to Elasticsearch', {
+            error: error instanceof Error ? error.message : error,
+          });
+        });
+      }
+
       return { data: cachedData, cached: true };
     }
   } else {
     logger.info(`Force refresh requested for PR #${prNumber}, bypassing cache`);
+
+    // Clear both caches
     clearCacheEntry(cacheKey);
+
+    if (elasticsearchService.isEnabled()) {
+      elasticsearchService.deletePRStats(owner, repo, prNumber).catch(error => {
+        logger.warn('Failed to clear ES cache', {
+          error: error instanceof Error ? error.message : error,
+        });
+      });
+    }
   }
 
   logger.info(`🚀 Fetching fresh data for PR #${prNumber}`);
@@ -241,16 +294,19 @@ export async function processPR(
   // Build complete PR stats
   const prStats = await collector.buildCompletePRStats(owner, repo, prNumber);
 
-  // Cache the result
+  // Cache to filesystem for debugging (always, regardless of ES)
   setCachedData(cacheKey, prStats);
 
-  // Index to Elasticsearch (async, don't wait for it)
+  // Cache to Elasticsearch (primary cache)
   if (elasticsearchService.isEnabled()) {
-    elasticsearchService.indexPRStats(prStats).catch(error => {
-      logger.warn('Failed to index PR stats to Elasticsearch', {
+    try {
+      await elasticsearchService.indexPRStats(prStats);
+      logger.info(`Cached PR stats to Elasticsearch for PR #${prNumber}`);
+    } catch (error) {
+      logger.warn('Failed to cache to Elasticsearch', {
         error: error instanceof Error ? error.message : error,
       });
-    });
+    }
   }
 
   return { data: prStats, cached: false };

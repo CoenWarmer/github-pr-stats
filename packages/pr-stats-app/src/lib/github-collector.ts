@@ -657,7 +657,9 @@ export class GitHubCollector {
 
       reportProgress('Timeline complete', 10, 10);
 
-      return timeline;
+      return timeline.sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
     } catch (error) {
       logger.error('Error building timeline for PR', {
         prNumber,

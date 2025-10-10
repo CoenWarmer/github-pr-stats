@@ -215,6 +215,108 @@ export class ElasticsearchService {
   }
 
   /**
+   * Get cached PR stats from Elasticsearch
+   * Returns null if not found or if document is expired
+   */
+  async getCachedPRStats(
+    owner: string,
+    repo: string,
+    prNumber: number
+  ): Promise<PullRequestStats | null> {
+    if (!this.isEnabled() || !this.client) {
+      return null;
+    }
+
+    try {
+      const docId = `${owner}-${repo}-${prNumber}`;
+
+      const response = await this.client.get({
+        index: this.indexName,
+        id: docId,
+      });
+
+      if (!response.found) {
+        return null;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = response._source as any;
+
+      // Check if cache is expired (1 hour TTL, same as filesystem)
+      if (doc.indexed_at) {
+        const indexedTime = new Date(doc.indexed_at).getTime();
+        const now = Date.now();
+        const ttl = 60 * 60 * 1000; // 1 hour
+
+        if (now - indexedTime > ttl) {
+          logger.debug(`ES cache expired for PR #${prNumber}`);
+          return null;
+        }
+      }
+
+      // Remove ES-specific metadata fields
+      const { indexed_at, repo_owner, repo_name, ...prStats } = doc;
+
+      return prStats as PullRequestStats;
+    } catch (error) {
+      // Document not found or other error
+      if (
+        (error as { meta?: { statusCode?: number } }).meta?.statusCode === 404
+      ) {
+        return null;
+      }
+
+      logger.warn('Error getting cached PR stats from Elasticsearch', {
+        owner,
+        repo,
+        prNumber,
+        error: error instanceof Error ? error.message : error,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Delete PR stats from Elasticsearch (for cache invalidation)
+   */
+  async deletePRStats(
+    owner: string,
+    repo: string,
+    prNumber: number
+  ): Promise<void> {
+    if (!this.isEnabled() || !this.client) {
+      return;
+    }
+
+    try {
+      const docId = `${owner}-${repo}-${prNumber}`;
+
+      await this.client.delete({
+        index: this.indexName,
+        id: docId,
+        refresh: false,
+      });
+
+      logger.info(`Deleted PR stats from Elasticsearch: ${docId}`);
+    } catch (error) {
+      // Ignore 404 errors (document doesn't exist)
+      if (
+        (error as { meta?: { statusCode?: number } }).meta?.statusCode === 404
+      ) {
+        return;
+      }
+
+      logger.warn('Error deleting PR stats from Elasticsearch', {
+        owner,
+        repo,
+        prNumber,
+        error: error instanceof Error ? error.message : error,
+      });
+      // Don't throw - we don't want to fail the request if ES deletion fails
+    }
+  }
+
+  /**
    * Bulk index multiple PR stats documents
    */
   async bulkIndexPRStats(prStatsList: PullRequestStats[]): Promise<void> {
