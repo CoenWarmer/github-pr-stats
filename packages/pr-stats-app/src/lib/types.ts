@@ -445,6 +445,9 @@ export interface PullRequestStats {
 
   timeline: TimelineEvent[];
 
+  // OpenTelemetry-compliant timeline (optional)
+  otel_timeline?: any; // Import from types-otel.ts to avoid circular dependency
+
   // Review fields
   reviews: {
     comments: number;

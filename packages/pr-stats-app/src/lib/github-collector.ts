@@ -15,6 +15,7 @@ import {
   ReleaseService,
   IssuesService,
 } from './services';
+import { transformToOTel } from './otel-transformer';
 
 export type ProgressCallback = (
   step: string,
@@ -255,6 +256,18 @@ export class GitHubCollector {
       timeline,
       title: pr.title,
     };
+
+    // Generate OpenTelemetry-compliant timeline
+    try {
+      logger.info('Generating OpenTelemetry timeline...');
+      prStats.otel_timeline = transformToOTel(prStats);
+      logger.info('OpenTelemetry timeline generated successfully');
+    } catch (error) {
+      logger.warn('Failed to generate OpenTelemetry timeline', {
+        error: error instanceof Error ? error.message : error,
+      });
+      // Don't fail the entire request if OTel conversion fails
+    }
 
     sendProgress('Complete', 100, 100);
 
