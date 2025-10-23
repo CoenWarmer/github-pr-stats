@@ -2,6 +2,9 @@ import { GitHubCollector } from '../github-collector';
 import { PullRequestStats } from '../types';
 import { elasticsearchService } from './elasticsearch-service';
 import { logger } from '../logger';
+import { type ReleaseCommitCache } from './release-service';
+import { type UserTeamCache } from './review-service';
+import { type CodeOwnersCache } from './codeowners-service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -213,12 +216,19 @@ export function getCacheStats(): {
  * Cache hierarchy:
  * 1. Elasticsearch (primary cache - persistent across deployments)
  * 2. Filesystem (secondary cache - for debugging and local dev)
+ *
+ * @param releaseCache Optional pre-built release cache for batch processing
+ * @param userTeamCache Optional pre-built user team cache for batch processing
+ * @param codeOwnersCache Optional pre-built CODEOWNERS cache for batch processing
  */
 export async function processPR(
   owner: string,
   repo: string,
   prNumber: number,
-  forceRefresh = false
+  forceRefresh = false,
+  releaseCache?: ReleaseCommitCache,
+  userTeamCache?: UserTeamCache,
+  codeOwnersCache?: CodeOwnersCache
 ): Promise<{ data: PullRequestStats; cached: boolean }> {
   const cacheKey = getCacheKey(owner, repo, prNumber);
 
@@ -291,8 +301,16 @@ export async function processPR(
     process.env.BUILDKITE_ORG_SLUG
   );
 
-  // Build complete PR stats
-  const prStats = await collector.buildCompletePRStats(owner, repo, prNumber);
+  // Build complete PR stats (pass all caches if available for batch processing)
+  const prStats = await collector.buildCompletePRStats(
+    owner,
+    repo,
+    prNumber,
+    undefined, // no progress callback
+    releaseCache,
+    userTeamCache,
+    codeOwnersCache
+  );
 
   // Cache to filesystem for debugging (always, regardless of ES)
   setCachedData(cacheKey, prStats);

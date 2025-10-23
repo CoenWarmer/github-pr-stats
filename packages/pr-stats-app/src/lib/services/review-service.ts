@@ -3,6 +3,15 @@ import { AuthorReviewerRelationship, ReviewTiming } from '../types';
 import { logger } from '../logger';
 
 /**
+ * Cache structure for user team memberships
+ */
+export interface UserTeamCache {
+  userTeams: Map<string, string[]>; // username -> teams
+  org: string;
+  lastFetchTime: number;
+}
+
+/**
  * Service for handling PR review timings and team memberships
  */
 export class ReviewService {
@@ -13,7 +22,76 @@ export class ReviewService {
   }
 
   /**
+   * Build a cache of user team memberships for efficient lookup
+   * This should be called once at the start of a batch job
+   */
+  async buildUserTeamCache(
+    usernames: string[],
+    org: string
+  ): Promise<UserTeamCache> {
+    try {
+      logger.info(
+        `Building user team cache for ${usernames.length} users in ${org}`
+      );
+
+      const cache = new Map<string, string[]>();
+
+      // Fetch teams for all users
+      for (const username of usernames) {
+        try {
+          const teams = await this.getUserTeams(username, org);
+          cache.set(username, teams);
+          logger.debug(`Cached teams for ${username}: ${teams.join(', ')}`);
+        } catch (error) {
+          logger.warn(`Failed to get teams for ${username}`, {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          cache.set(username, []); // Cache empty array on error
+        }
+      }
+
+      logger.info(
+        `User team cache built successfully with ${cache.size} users`
+      );
+
+      return {
+        userTeams: cache,
+        org,
+        lastFetchTime: Date.now(),
+      };
+    } catch (error) {
+      logger.error('Error building user team cache', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        userTeams: new Map(),
+        org,
+        lastFetchTime: Date.now(),
+      };
+    }
+  }
+
+  /**
+   * Get user teams from cache if available, otherwise fetch from API
+   */
+  async getUserTeamsWithCache(
+    username: string,
+    org: string,
+    cache?: UserTeamCache
+  ): Promise<string[]> {
+    if (cache && cache.org === org && cache.userTeams.has(username)) {
+      logger.debug(`User teams cache hit for ${username}`);
+      return cache.userTeams.get(username)!;
+    }
+
+    // Cache miss - fetch from API
+    logger.debug(`User teams cache miss for ${username}, fetching from API`);
+    return this.getUserTeams(username, org);
+  }
+
+  /**
    * Get review timings for a PR
+   * @param userTeamCache Optional pre-built cache for batch processing
    */
   async getReviewTimings(
     owner: string,
@@ -21,7 +99,8 @@ export class ReviewService {
     prNumber: number,
     prCreatedAt: string,
     authorTeams: string[],
-    codeOwnerTeams: string[] = []
+    codeOwnerTeams: string[] = [],
+    userTeamCache?: UserTeamCache
   ): Promise<ReviewTiming[]> {
     try {
       const { data: reviews } = await this.octokit.rest.pulls.listReviews({
@@ -44,9 +123,10 @@ export class ReviewService {
           (submittedDate.getTime() - prCreatedDate.getTime()) /
           (1000 * 60 * 60);
 
-        const allReviewerTeams = await this.getUserTeams(
+        const allReviewerTeams = await this.getUserTeamsWithCache(
           review.user.login,
-          owner
+          owner,
+          userTeamCache
         );
 
         // Filter to only include teams that are code owners for this PR

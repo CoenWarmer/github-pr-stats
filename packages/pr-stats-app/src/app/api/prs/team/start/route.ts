@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
 import { graphql } from '@octokit/graphql';
 import { logger } from '@/lib/logger';
-import { processPR, hasCachedData } from '@/lib/services';
+import {
+  processPR,
+  hasCachedData,
+  ReleaseService,
+  ReviewService,
+  CodeOwnersService,
+  type ReleaseCommitCache,
+  type UserTeamCache,
+  type CodeOwnersCache,
+} from '@/lib/services';
 import {
   createJob,
   updateJobStatus,
@@ -208,7 +217,13 @@ export async function POST(request: NextRequest) {
     createJob(jobId, jobStatus);
 
     // Start processing in background (don't await)
-    processJobInBackground(jobId, allPRs);
+    processJobInBackground(
+      jobId,
+      allPRs,
+      startDate || '',
+      authors,
+      githubOwner
+    );
 
     // Return immediately
     return NextResponse.json({
@@ -238,10 +253,71 @@ async function processJobInBackground(
     title: string;
     author: string;
     url: string;
-  }>
+  }>,
+  startDate: string,
+  teamMembers: string[],
+  githubOwner: string
 ) {
   try {
     const { getJobStatus } = await import('@/lib/services/job-manager');
+
+    // Build all caches once at the start for all PRs
+    let releaseCache: ReleaseCommitCache | undefined;
+    let userTeamCache: UserTeamCache | undefined;
+    let codeOwnersCache: CodeOwnersCache | undefined;
+
+    if (prs.length > 0) {
+      const firstPR = prs[0];
+      const githubToken = process.env.GITHUB_TOKEN;
+
+      if (githubToken) {
+        const octokit = new Octokit({ auth: githubToken });
+
+        // Build all caches in parallel for maximum speed
+        logger.info(`🔄 Building caches for batch job (${prs.length} PRs)...`);
+        const startTime = Date.now();
+
+        const [relCache, userCache, codeCache] = await Promise.all([
+          // 1. Release cache
+          (async () => {
+            const releaseService = new ReleaseService(octokit);
+            return releaseService.buildReleaseCommitCache(
+              firstPR.owner,
+              firstPR.repo,
+              startDate
+            );
+          })(),
+
+          // 2. User team cache
+          (async () => {
+            const reviewService = new ReviewService(octokit);
+            return reviewService.buildUserTeamCache(teamMembers, githubOwner);
+          })(),
+
+          // 3. CODEOWNERS cache
+          (async () => {
+            const codeOwnersService = new CodeOwnersService(octokit);
+            return codeOwnersService.buildCodeOwnersCache(
+              firstPR.owner,
+              firstPR.repo,
+              'main'
+            );
+          })(),
+        ]);
+
+        releaseCache = relCache;
+        userTeamCache = userCache;
+        codeOwnersCache = codeCache;
+
+        const buildTime = ((Date.now() - startTime) / 1000).toFixed(2);
+        logger.info(
+          `✅ All caches built in ${buildTime}s:` +
+            `\n  - Releases: ${releaseCache.releases.length}` +
+            `\n  - Users: ${userTeamCache.userTeams.size}` +
+            `\n  - CODEOWNERS rules: ${codeOwnersCache.rules.length}`
+        );
+      }
+    }
 
     for (let i = 0; i < prs.length; i++) {
       const pr = prs[i];
@@ -276,8 +352,16 @@ async function processJobInBackground(
             prs: processingPRs,
           });
 
-          // Process PR
-          await processPR(pr.owner, pr.repo, pr.number, false);
+          // Process PR with all caches
+          await processPR(
+            pr.owner,
+            pr.repo,
+            pr.number,
+            false,
+            releaseCache,
+            userTeamCache,
+            codeOwnersCache
+          );
 
           // Update PR status to completed
           const completedPRs = [

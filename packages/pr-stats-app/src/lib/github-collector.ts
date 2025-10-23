@@ -14,6 +14,9 @@ import {
   ReviewService,
   ReleaseService,
   IssuesService,
+  type ReleaseCommitCache,
+  type UserTeamCache,
+  type CodeOwnersCache,
 } from './services';
 import { transformToOTel } from './otel-transformer';
 
@@ -80,12 +83,18 @@ export class GitHubCollector {
 
   /**
    * Builds complete PR statistics including timeline and all calculated metrics
+   * @param releaseCache Optional pre-built release cache for batch processing
+   * @param userTeamCache Optional pre-built user team cache for batch processing
+   * @param codeOwnersCache Optional pre-built CODEOWNERS cache for batch processing
    */
   async buildCompletePRStats(
     owner: string,
     repo: string,
     prNumber: number,
-    onProgress?: (step: string, current: number, total: number) => void
+    onProgress?: (step: string, current: number, total: number) => void,
+    releaseCache?: ReleaseCommitCache,
+    userTeamCache?: UserTeamCache,
+    codeOwnersCache?: CodeOwnersCache
   ): Promise<PullRequestStats> {
     const sendProgress = onProgress || (() => {});
 
@@ -115,8 +124,17 @@ export class GitHubCollector {
           issue_number: prNumber,
           per_page: 100,
         }),
-        this.reviewService.getUserTeams(pr.user?.login || '', owner),
-        this.codeownersService.getCodeOwnersForPR(owner, repo, prNumber),
+        this.reviewService.getUserTeamsWithCache(
+          pr.user?.login || '',
+          owner,
+          userTeamCache
+        ),
+        this.codeownersService.getCodeOwnersForPR(
+          owner,
+          repo,
+          prNumber,
+          codeOwnersCache
+        ),
       ]);
 
     // Get linked issues (depends on prTimelineEvents, so must be after)
@@ -175,12 +193,15 @@ export class GitHubCollector {
       prNumber,
       pr.created_at,
       userTeams,
-      codeowners.teams.map(team => team)
+      codeowners.teams.map(team => team),
+      userTeamCache
     );
 
     sendProgress('Building timeline', 70, 100);
 
-    // Build timeline (pass through progress callback for internal progress)
+    // Build timeline (pass through progress callback and release cache)
+    // Note: userTeamCache and codeOwnersCache are already used above for fetching
+    // user teams and codeowners, so we only need releaseCache here
     const timeline = await this.buildPRTimeline(
       owner,
       repo,
@@ -193,7 +214,8 @@ export class GitHubCollector {
         // Map internal progress (0-10) to our range (70-85)
         const percentage = 70 + Math.floor((current / total) * 15);
         sendProgress(step, percentage, 100);
-      }
+      },
+      releaseCache
     );
 
     sendProgress('Calculating metrics', 85, 100);
@@ -282,7 +304,8 @@ export class GitHubCollector {
     reviewTimings: ReviewTiming[],
     linkedIssues?: LinkedIssue[],
     prTimelineEvents?: any[],
-    onProgress?: (step: string, current: number, total: number) => void
+    onProgress?: (step: string, current: number, total: number) => void,
+    releaseCache?: ReleaseCommitCache
   ): Promise<TimelineEvent[]> {
     const timeline: TimelineEvent[] = [];
     const reportProgress = onProgress || (() => {});
@@ -322,39 +345,48 @@ export class GitHubCollector {
 
       reportProgress('Fetching data in parallel', 3, 10);
 
-      // Fetch commits, comments, review comments, and releases in parallel (they're independent)
-      const [
-        { data: commits },
-        { data: comments },
-        { data: reviewComments },
-        releases,
-      ] = await Promise.all([
-        this.octokit.rest.pulls.listCommits({
-          owner,
-          repo,
-          pull_number: prNumber,
-          per_page: 100,
-        }),
-        this.octokit.rest.issues.listComments({
-          owner,
-          repo,
-          issue_number: prNumber,
-          per_page: 100,
-        }),
-        this.octokit.rest.pulls.listReviewComments({
-          owner,
-          repo,
-          pull_number: prNumber,
-          per_page: 100,
-        }),
-        // Fetch releases with timeout (handled by ReleaseService)
-        this.releaseService.getReleasesForPR(
+      // Fetch commits, comments, review comments in parallel
+      const [{ data: commits }, { data: comments }, { data: reviewComments }] =
+        await Promise.all([
+          this.octokit.rest.pulls.listCommits({
+            owner,
+            repo,
+            pull_number: prNumber,
+            per_page: 100,
+          }),
+          this.octokit.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+            per_page: 100,
+          }),
+          this.octokit.rest.pulls.listReviewComments({
+            owner,
+            repo,
+            pull_number: prNumber,
+            per_page: 100,
+          }),
+        ]);
+
+      // Fetch or lookup releases
+      let releases: Array<any>;
+      if (releaseCache && prData.merged_at) {
+        // Use cached release data (much faster for batch processing)
+        const commitSha = prData.mergeCommitSha || prData.headSha;
+        releases = this.releaseService.findReleasesForCommitInCache(
+          commitSha,
+          prData.merged_at,
+          releaseCache
+        );
+      } else {
+        // Fetch releases normally (for single PR requests)
+        releases = await this.releaseService.getReleasesForPR(
           owner,
           repo,
           prData.mergeCommitSha || prData.headSha,
           prData.merged_at
-        ),
-      ]);
+        );
+      }
 
       reportProgress('Processing commits', 4, 10);
 
