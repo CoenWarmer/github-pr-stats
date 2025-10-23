@@ -1,0 +1,73 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  # Batch logs before sending
+  batch:
+    timeout: 10s
+    send_batch_size: 100
+    send_batch_max_size: 500
+
+  # Add resource attributes
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: ${env:ENVIRONMENT}
+        action: upsert
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+
+exporters:
+  # Elasticsearch exporter
+  elasticsearch:
+    endpoints:
+      - ${env:ES_NODE}
+    auth:
+      authenticator: bearertokenauth
+    logs_index: cicd-events
+
+  # Debug exporter (replaces deprecated logging exporter)
+  debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+extensions:
+  # Bearer token auth for Elasticsearch (API key)
+  bearertokenauth:
+    token: ${env:ES_API_KEY}
+
+  # Health check extension
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  # pprof extension for performance profiling
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  # zpages for local diagnostics
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [bearertokenauth, health_check, pprof, zpages]
+
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [elasticsearch, debug]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: detailed

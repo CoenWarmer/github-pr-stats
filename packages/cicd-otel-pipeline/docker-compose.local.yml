@@ -1,0 +1,101 @@
+# Optional: Local development with bundled Elasticsearch + Kibana
+# Use this if you want to test locally without an external ES instance
+#
+# Usage: docker-compose -f docker-compose.local.yml up -d
+
+services:
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command: ['--config=/etc/otel-collector-config.yaml']
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - '4317:4317' # OTLP gRPC receiver
+      - '4318:4318' # OTLP HTTP receiver
+      - '13133:13133' # Health check
+      - '55679:55679' # zpages
+      - '8888:8888' # Prometheus metrics
+    env_file:
+      - ../../.env # Load from monorepo root (optional)
+    environment:
+      # Override with local Elasticsearch for testing
+      - ES_NODE=http://elasticsearch:9200
+      - ES_API_KEY=changeme
+      - ENVIRONMENT=development
+    depends_on:
+      - elasticsearch
+    networks:
+      - otel-network
+    restart: unless-stopped
+
+  # Local Elasticsearch instance
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
+    ports:
+      - '9200:9200'
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - otel-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Local Kibana instance
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    ports:
+      - '5601:5601'
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - otel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:5601/api/status || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Your CI/CD pipeline service
+  cicd-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cicd-pipeline
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - OTLP_ENDPOINT=http://otel-collector:4318/v1/logs
+      - SERVICE_NAME=cicd-otel-pipeline
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - BUILDKITE_WEBHOOK_TOKEN=${BUILDKITE_WEBHOOK_TOKEN}
+    depends_on:
+      - otel-collector
+    networks:
+      - otel-network
+    restart: unless-stopped
+
+volumes:
+  es-data:
+    driver: local
+
+networks:
+  otel-network:
+    driver: bridge

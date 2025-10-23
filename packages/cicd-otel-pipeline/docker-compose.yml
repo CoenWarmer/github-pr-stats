@@ -1,0 +1,43 @@
+services:
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command: ['--config=/etc/otel-collector-config.yaml']
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - '4317:4317' # OTLP gRPC receiver
+      - '4318:4318' # OTLP HTTP receiver
+      - '13133:13133' # Health check
+      - '55679:55679' # zpages
+      - '8888:8888' # Prometheus metrics
+    env_file:
+      - ../../.env # Load from monorepo root (includes ES_NODE, ES_API_KEY, etc.)
+    environment:
+      - ENVIRONMENT=development # Override or set specific variables here
+    networks:
+      - otel-network
+    restart: unless-stopped
+
+  # Your CI/CD pipeline service
+  cicd-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cicd-pipeline
+    ports:
+      - '3000:3000'
+    env_file:
+      - ../../.env # Load from monorepo root (includes GITHUB_TOKEN, ES_NODE, etc.)
+    environment:
+      - PORT=3000
+      - SERVICE_NAME=cicd-otel-pipeline
+
+    networks:
+      - otel-network
+    restart: unless-stopped
+
+networks:
+  otel-network:
+    driver: bridge
